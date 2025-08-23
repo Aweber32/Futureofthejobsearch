@@ -1,0 +1,28 @@
+body {
+  padding-top: 0;
+  padding-bottom: 3rem;
+}
+
+a { text-decoration: none; }
+
+/* simple utility for the large chooser boxes */
+.card-chooser {
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+}
+
+.logo-placeholder {
+  width: 96px;
+  height: 96px;
+  background: #e9ecef;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #6c757d;
+}
