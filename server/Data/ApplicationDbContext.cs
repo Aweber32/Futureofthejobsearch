@@ -9,6 +9,7 @@ namespace FutureOfTheJobSearch.Server.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         public DbSet<Employer> Employers { get; set; }
+    public DbSet<Seeker> Seekers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -20,6 +21,10 @@ namespace FutureOfTheJobSearch.Server.Data
             // Ensure one employer record per company name
             builder.Entity<Employer>()
                 .HasIndex(e => e.CompanyName)
+                .IsUnique();
+
+            builder.Entity<Seeker>()
+                .HasIndex(s => s.UserId)
                 .IsUnique();
         }
     }

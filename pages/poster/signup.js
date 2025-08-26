@@ -131,9 +131,10 @@ export default function Signup(){
   },[form.state]);
 
   return (
-    <Layout title="Sign up — Employer">
+    <Layout title="Sign up — Job Poster">
       <div className="row justify-content-center">
             <div className="row">
+              <h2>Sign up as a Job Poster</h2>
               <form className="mt-3" onSubmit={submit}>
                 <div className="row">
                   <div className="col-md-6 mb-3">

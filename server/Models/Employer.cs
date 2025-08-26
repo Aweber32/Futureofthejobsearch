@@ -54,3 +54,4 @@ namespace FutureOfTheJobSearch.Server.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }
+

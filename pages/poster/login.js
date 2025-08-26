@@ -41,10 +41,10 @@ export default function Login(){
   }
 
   return (
-    <Layout title="Job Poster — Login">
+  <Layout title="Job Poster — Login">
       <div className="row justify-content-center">
         <div className="col-md-6">
-          <h2>Employer login</h2>
+      <h2>Job Poster Login</h2>
           <form className="mt-3" onSubmit={submit}>
             <div className="mb-3">
               <label className="form-label">Email</label>
@@ -58,6 +58,7 @@ export default function Login(){
             <div className="d-flex gap-2">
               <button className="btn btn-primary" disabled={loading}>{loading? 'Signing in…' : 'Login'}</button>
               <Link href="/poster/signup" className="btn btn-outline-secondary">Sign up</Link>
+              <Link href="/" className="btn btn-secondary">Back to welcome</Link>
             </div>
           </form>
         </div>

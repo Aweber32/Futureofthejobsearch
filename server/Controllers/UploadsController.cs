@@ -94,5 +94,60 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
             return Ok(new { url = resultUrl });
         }
+
+        [HttpPost("resume")]
+        public async Task<IActionResult> UploadResume([FromForm] IFormFile file)
+        {
+            return await UploadToContainer(file, _config["ResumeContainer"] ?? Environment.GetEnvironmentVariable("RESUME_CONTAINER") ?? (_config["BlobContainer"] ?? "qaresumes"));
+        }
+
+        [HttpPost("seeker-video")]
+        public async Task<IActionResult> UploadSeekerVideo([FromForm] IFormFile file)
+        {
+            return await UploadToContainer(file, _config["SeekerVideoContainer"] ?? Environment.GetEnvironmentVariable("SEEKER_VIDEO_CONTAINER") ?? (_config["BlobContainer"] ?? "qaseekervideo"));
+        }
+
+        private async Task<IActionResult> UploadToContainer(IFormFile file, string containerName)
+        {
+            if (file == null || file.Length == 0) return BadRequest(new { error = "No file provided" });
+
+            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
+            if (string.IsNullOrEmpty(conn)) return StatusCode(500, new { error = "Blob storage not configured" });
+
+            BlobServiceClient blobService;
+            try { blobService = new BlobServiceClient(conn); }
+            catch (Exception ex) { return StatusCode(500, new { error = "Failed to initialize blob client", detail = ex.Message }); }
+
+            var container = blobService.GetBlobContainerClient(containerName);
+            await container.CreateIfNotExistsAsync();
+
+            var blobName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+            var blob = container.GetBlobClient(blobName);
+            using (var stream = file.OpenReadStream()) { await blob.UploadAsync(stream, overwrite: true); }
+
+            string resultUrl = blob.Uri.ToString();
+            try
+            {
+                var acctName = string.Empty; var acctKey = string.Empty;
+                var parts = conn.Split(';', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var p in parts)
+                {
+                    var kv = p.Split('=', 2); if (kv.Length != 2) continue; var k = kv[0].Trim(); var v = kv[1].Trim();
+                    if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
+                    if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
+                }
+                if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
+                {
+                    var credential = new StorageSharedKeyCredential(acctName, acctKey);
+                    var sasBuilder = new BlobSasBuilder { BlobContainerName = containerName, BlobName = blobName, Resource = "b", ExpiresOn = DateTimeOffset.UtcNow.AddDays(7) };
+                    sasBuilder.SetPermissions(BlobSasPermissions.Read);
+                    var sasToken = sasBuilder.ToSasQueryParameters(credential).ToString();
+                    resultUrl = blob.Uri + "?" + sasToken;
+                }
+            }
+            catch (Exception) { /* fallback to direct URI */ }
+
+            return Ok(new { url = resultUrl });
+        }
     }
 }
