@@ -107,6 +107,12 @@ namespace FutureOfTheJobSearch.Server.Controllers
             return await UploadToContainer(file, _config["SeekerVideoContainer"] ?? Environment.GetEnvironmentVariable("SEEKER_VIDEO_CONTAINER") ?? (_config["BlobContainer"] ?? "qaseekervideo"));
         }
 
+        [HttpPost("poster-video")]
+        public async Task<IActionResult> UploadPosterVideo([FromForm] IFormFile file)
+        {
+            return await UploadToContainer(file, _config["PosterVideoContainer"] ?? Environment.GetEnvironmentVariable("POSTER_VIDEO_CONTAINER") ?? (_config["BlobContainer"] ?? "qapostervideo"));
+        }
+
         private async Task<IActionResult> UploadToContainer(IFormFile file, string containerName)
         {
             if (file == null || file.Length == 0) return BadRequest(new { error = "No file provided" });

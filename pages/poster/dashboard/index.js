@@ -37,8 +37,21 @@ export default function Dashboard(){
         }
 
         setCompany({ name: emp.companyName, logo, description: emp.companyDescription });
-        // TODO: fetch positions for employer from API when available
-        setPositions([]);
+        // fetch positions for this employer and set into state
+        try {
+          const posRes = await fetch(`${API}/api/positions`, { headers: { Authorization: `Bearer ${token}` } });
+          if (posRes.ok){
+            const all = await posRes.json();
+            // filter positions that belong to this employer
+            const myPositions = all.filter(p => p.employerId === emp.id || (p.employer && p.employer.id === emp.id));
+            setPositions(myPositions);
+          } else {
+            setPositions([]);
+          }
+        } catch (e) {
+          console.warn('Failed to fetch positions', e);
+          setPositions([]);
+        }
       })
       .catch(()=>router.push('/poster/login'));
   },[]);

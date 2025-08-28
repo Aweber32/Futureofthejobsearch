@@ -4,6 +4,7 @@ using FutureOfTheJobSearch.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FutureOfTheJobSearch.Server.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250828015748_AddPosition")]
+    partial class AddPosition
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -174,6 +177,10 @@ namespace FutureOfTheJobSearch.Server.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("EducationLevels")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("EmployerId")
                         .HasColumnType("int");
 
@@ -181,24 +188,32 @@ namespace FutureOfTheJobSearch.Server.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PosterVideoUrl")
+                    b.Property<string>("Experiences")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal?>("SalaryMax")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("PosterVideoUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal?>("SalaryMin")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("SalaryMax")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SalaryMin")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SalaryType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal?>("SalaryValue")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Skills")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -217,72 +232,6 @@ namespace FutureOfTheJobSearch.Server.Migrations
                     b.HasIndex("EmployerId");
 
                     b.ToTable("Positions");
-                });
-
-            modelBuilder.Entity("FutureOfTheJobSearch.Server.Models.PositionEducation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Education")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("PositionId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PositionId");
-
-                    b.ToTable("PositionEducations");
-                });
-
-            modelBuilder.Entity("FutureOfTheJobSearch.Server.Models.PositionExperience", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Experience")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("PositionId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PositionId");
-
-                    b.ToTable("PositionExperiences");
-                });
-
-            modelBuilder.Entity("FutureOfTheJobSearch.Server.Models.PositionSkill", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("PositionId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Skill")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PositionId");
-
-                    b.ToTable("PositionSkills");
                 });
 
             modelBuilder.Entity("FutureOfTheJobSearch.Server.Models.Seeker", b =>
@@ -489,39 +438,6 @@ namespace FutureOfTheJobSearch.Server.Migrations
                     b.Navigation("Employer");
                 });
 
-            modelBuilder.Entity("FutureOfTheJobSearch.Server.Models.PositionEducation", b =>
-                {
-                    b.HasOne("FutureOfTheJobSearch.Server.Models.Position", "Position")
-                        .WithMany("Educations")
-                        .HasForeignKey("PositionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Position");
-                });
-
-            modelBuilder.Entity("FutureOfTheJobSearch.Server.Models.PositionExperience", b =>
-                {
-                    b.HasOne("FutureOfTheJobSearch.Server.Models.Position", "Position")
-                        .WithMany("Experiences")
-                        .HasForeignKey("PositionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Position");
-                });
-
-            modelBuilder.Entity("FutureOfTheJobSearch.Server.Models.PositionSkill", b =>
-                {
-                    b.HasOne("FutureOfTheJobSearch.Server.Models.Position", "Position")
-                        .WithMany("SkillsList")
-                        .HasForeignKey("PositionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Position");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -571,15 +487,6 @@ namespace FutureOfTheJobSearch.Server.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("FutureOfTheJobSearch.Server.Models.Position", b =>
-                {
-                    b.Navigation("Educations");
-
-                    b.Navigation("Experiences");
-
-                    b.Navigation("SkillsList");
                 });
 #pragma warning restore 612, 618
         }
