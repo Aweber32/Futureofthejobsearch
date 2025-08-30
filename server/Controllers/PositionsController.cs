@@ -48,7 +48,8 @@ namespace FutureOfTheJobSearch.Server.Controllers
                     SalaryValue = req.SalaryValue,
                     SalaryMin = req.SalaryMin,
                     SalaryMax = req.SalaryMax,
-                    PosterVideoUrl = req.PosterVideoUrl
+                    PosterVideoUrl = req.PosterVideoUrl,
+                    IsOpen = req.IsOpen ?? true
                 };
 
                 // map nested lists to normalized child entities
@@ -100,6 +101,90 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 .ToListAsync();
 
             return Ok(positions);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById([FromRoute] int id)
+        {
+            var pos = await _db.Positions
+                .Include(p => p.Employer)
+                .Include(p => p.Educations)
+                .Include(p => p.Experiences)
+                .Include(p => p.SkillsList)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            if (pos == null) return NotFound(new { error = "Position not found" });
+            return Ok(pos);
+        }
+
+        [HttpPatch("{id}")]
+        [Authorize]
+        public async Task<IActionResult> Update([FromRoute] int id, [FromBody] CreatePositionRequest req)
+        {
+            try
+            {
+                var pos = await _db.Positions
+                    .Include(p => p.Educations)
+                    .Include(p => p.Experiences)
+                    .Include(p => p.SkillsList)
+                    .FirstOrDefaultAsync(p => p.Id == id);
+                if (pos == null) return NotFound(new { error = "Position not found" });
+
+                // get employerId from claims
+                var employerClaim = User.Claims.FirstOrDefault(c => c.Type == "employerId");
+                if (employerClaim == null || string.IsNullOrEmpty(employerClaim.Value)) return Unauthorized(new { error = "No employer associated with this account" });
+                if (!int.TryParse(employerClaim.Value, out var employerId)) return Unauthorized(new { error = "Invalid employer id" });
+                if (pos.EmployerId != employerId) return Forbid();
+
+                // update scalar fields
+                pos.Title = req.Title ?? pos.Title;
+                pos.Category = req.Category ?? pos.Category;
+                pos.Description = req.Description ?? pos.Description;
+                pos.EmploymentType = req.EmploymentType ?? pos.EmploymentType;
+                pos.WorkSetting = req.WorkSetting ?? pos.WorkSetting;
+                pos.TravelRequirements = req.TravelRequirements ?? pos.TravelRequirements;
+                if (req.IsOpen.HasValue) pos.IsOpen = req.IsOpen.Value;
+                pos.SalaryType = req.SalaryType ?? pos.SalaryType;
+                pos.SalaryValue = req.SalaryValue ?? pos.SalaryValue;
+                pos.SalaryMin = req.SalaryMin ?? pos.SalaryMin;
+                pos.SalaryMax = req.SalaryMax ?? pos.SalaryMax;
+                pos.PosterVideoUrl = req.PosterVideoUrl ?? pos.PosterVideoUrl;
+
+                // replace collections: remove existing and add new ones
+                if (pos.Educations != null) _db.PositionEducations.RemoveRange(pos.Educations);
+                if (req.EducationLevels != null && req.EducationLevels.Any())
+                {
+                    pos.Educations = req.EducationLevels
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => new PositionEducation { Education = x.Trim() })
+                        .ToList();
+                }
+
+                if (pos.Experiences != null) _db.PositionExperiences.RemoveRange(pos.Experiences);
+                if (req.Experiences != null && req.Experiences.Any())
+                {
+                    pos.Experiences = req.Experiences
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => new PositionExperience { Experience = x.Trim() })
+                        .ToList();
+                }
+
+                if (pos.SkillsList != null) _db.PositionSkills.RemoveRange(pos.SkillsList);
+                if (req.Skills != null && req.Skills.Any())
+                {
+                    pos.SkillsList = req.Skills
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => new PositionSkill { Skill = x.Trim() })
+                        .ToList();
+                }
+
+                await _db.SaveChangesAsync();
+                return Ok(new { message = "Position updated" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Update position failed");
+                return StatusCode(500, new { error = "Server error" });
+            }
         }
     }
 }

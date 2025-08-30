@@ -41,7 +41,16 @@ namespace FutureOfTheJobSearch.Server.Controllers
             var result = await _userManager.CreateAsync(user, req.Password);
             if (!result.Succeeded) return BadRequest(result.Errors);
 
-            var seeker = new Seeker { UserId = user.Id, FirstName = req.FirstName, LastName = req.LastName, PhoneNumber = req.PhoneNumber, ProfessionalSummary = req.ProfessionalSummary };
+            var seeker = new Seeker
+            {
+                UserId = user.Id,
+                FirstName = req.FirstName,
+                LastName = req.LastName,
+                PhoneNumber = req.PhoneNumber,
+                ProfessionalSummary = req.ProfessionalSummary,
+                ResumeUrl = req.ResumeUrl,
+                VideoUrl = req.VideoUrl
+            };
             if (req.Skills != null && req.Skills.Length > 0) seeker.Skills = string.Join(',', req.Skills);
             _db.Seekers.Add(seeker);
             await _db.SaveChangesAsync();
@@ -124,6 +133,14 @@ namespace FutureOfTheJobSearch.Server.Controllers
             return Ok(new { user = new { id = user.Id, email = user.Email, displayName = user.DisplayName }, seeker });
         }
 
+        // Public endpoint to list seekers for posters to review
+        [HttpGet]
+        public async Task<IActionResult> GetAllSeekers()
+        {
+            var seekers = await _db.Seekers.ToListAsync();
+            return Ok(seekers);
+        }
+
         [HttpPatch("{id}")]
         [Authorize]
         public async Task<IActionResult> UpdateSeeker([FromRoute] int id, [FromBody] UpdateSeekerRequest req)
@@ -138,6 +155,8 @@ namespace FutureOfTheJobSearch.Server.Controllers
             seeker.PhoneNumber = req.PhoneNumber ?? seeker.PhoneNumber;
             seeker.ProfessionalSummary = req.ProfessionalSummary ?? seeker.ProfessionalSummary;
             if (req.Skills != null && req.Skills.Length > 0) seeker.Skills = string.Join(',', req.Skills);
+            seeker.ResumeUrl = req.ResumeUrl ?? seeker.ResumeUrl;
+            seeker.VideoUrl = req.VideoUrl ?? seeker.VideoUrl;
 
             await _db.SaveChangesAsync();
             return Ok(new { message = "Seeker updated", seeker });
@@ -180,11 +199,14 @@ namespace FutureOfTheJobSearch.Server.Controllers
     public class SeekerRegisterRequest{
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
-        public string Email { get; set; }
+    public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
         public string? ProfessionalSummary { get; set; }
-        public string[]? Skills { get; set; }
-        public string Password { get; set; }
+    public string[]? Skills { get; set; }
+    // Optional URLs returned from uploads (resume, video)
+    public string? ResumeUrl { get; set; }
+    public string? VideoUrl { get; set; }
+    public string? Password { get; set; }
     }
 
     public class UpdateSeekerRequest{

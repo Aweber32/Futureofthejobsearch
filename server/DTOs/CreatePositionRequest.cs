@@ -18,5 +18,6 @@ namespace FutureOfTheJobSearch.Server.DTOs
     public decimal? SalaryMin { get; set; }
     public decimal? SalaryMax { get; set; }
     public string? PosterVideoUrl { get; set; }
+    public bool? IsOpen { get; set; }
     }
 }

@@ -29,6 +29,9 @@ namespace FutureOfTheJobSearch.Server.Models
 
     public string? PosterVideoUrl { get; set; }
 
+    // whether the position is open for applications
+    public bool IsOpen { get; set; } = true;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

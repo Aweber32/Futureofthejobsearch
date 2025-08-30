@@ -28,12 +28,11 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// DbContext - connection string from environment or appsettings
+// DbContext - connection string must come from appsettings or environment (use Azure DefaultConnection)
 var conn = configuration.GetConnectionString("DefaultConnection") ?? Environment.GetEnvironmentVariable("DEFAULT_CONNECTION");
 if (string.IsNullOrEmpty(conn))
 {
-    // fallback: local DB
-    conn = "Server=(localdb)\\mssqllocaldb;Database=FJS_dev;Trusted_Connection=True;MultipleActiveResultSets=true";
+    throw new InvalidOperationException("No DefaultConnection configured. Set 'ConnectionStrings:DefaultConnection' in appsettings.json or the 'DEFAULT_CONNECTION' environment variable to your Azure SQL connection string.");
 }
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

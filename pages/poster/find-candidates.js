@@ -1,35 +1,32 @@
-import Link from 'next/link';
 import Layout from '../../components/Layout';
-
-const MOCK = [
-  { id: 'c1', name: 'Alex Smith', headline: 'Frontend engineer — React' },
-  { id: 'c2', name: 'Sam Jones', headline: 'Full-stack developer' }
-]
+import CandidateSwiper from '../../components/CandidateSwiper';
+import { useEffect, useState } from 'react';
 
 export default function FindCandidates(){
+  const [candidates, setCandidates] = useState(null);
+
+  useEffect(()=>{
+    let cancelled = false;
+    async function load(){
+      try{
+        const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+        const res = await fetch(`${base}/api/seekers`);
+        if (!res.ok) throw new Error('no seekers');
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.seekers || data);
+        if (!cancelled) setCandidates(list);
+      }catch(e){ /* ignore - CandidateSwiper will show empty */ }
+    }
+    load();
+    return ()=>{ cancelled = true }
+  },[]);
+
   return (
     <Layout title="Find candidates">
       <h2>Candidate review</h2>
-      <p className="text-muted">Review profiles and mark interest</p>
+      <p className="text-muted">Review profiles in a swipe-style flow and mark interest.</p>
 
-      <div className="row">
-        {MOCK.map(c => (
-          <div className="col-md-6" key={c.id}>
-            <div className="card mb-3">
-              <div className="card-body d-flex justify-content-between align-items-start">
-                <div>
-                  <div className="fw-semibold">{c.name}</div>
-                  <div className="text-muted">{c.headline}</div>
-                </div>
-                <div className="d-flex gap-2">
-                  <Link href="#" className="btn btn-outline-primary">View Profile</Link>
-                  <button className="btn btn-success">Mark Interested</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <CandidateSwiper initialCandidates={candidates} />
     </Layout>
   )
 }
