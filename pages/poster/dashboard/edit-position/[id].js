@@ -17,6 +17,7 @@ export default function EditPosition(){
   const [error, setError] = useState('');
 
   const [title, setTitle] = useState('');
+  const [isOpen, setIsOpen] = useState(true);
   const [category, setCategory] = useState(JOB_CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [posterVideoFile, setPosterVideoFile] = useState(null);
@@ -59,6 +60,7 @@ export default function EditPosition(){
         setSalaryType(pos.salaryType || pos.SalaryType || 'None');
         setSalaryMin(pos.salaryMin ?? pos.SalaryMin ?? '');
         setSalaryMax(pos.salaryMax ?? pos.SalaryMax ?? '');
+  setIsOpen(pos.isOpen ?? pos.IsOpen ?? true);
       }catch(err){ console.error(err); setError('Failed to load position'); }
       finally{ if (!cancelled) setLoading(false); }
     }
@@ -232,7 +234,8 @@ export default function EditPosition(){
         {error && <div className="alert alert-danger">{error}</div>}
         <div className="d-flex gap-2">
           <button className="btn btn-primary" type="submit" disabled={loading}>{loading? 'Saving…' : 'Save'}</button>
-          <button type="button" className="btn btn-danger" disabled={loading} onClick={async ()=>{
+          {isOpen ? (
+            <button type="button" className="btn btn-danger" disabled={loading} onClick={async ()=>{
             if (!confirm('Close this position? It will no longer be open for applicants.')) return;
             setLoading(true); setError('');
             try{
@@ -243,6 +246,19 @@ export default function EditPosition(){
             }catch(err){ console.error(err); setError(err?.message || 'Close failed'); }
             finally{ setLoading(false); }
           }}>Close position</button>
+          ) : (
+            <button type="button" className="btn btn-outline-success" disabled={loading} onClick={async ()=>{
+              if (!confirm('Re-open this position? It will be visible to applicants.')) return;
+              setLoading(true); setError('');
+              try{
+                const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+                const res = await fetch(`${API}/api/positions/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }, body: JSON.stringify({ IsOpen: true }) });
+                if (!res.ok){ const txt = await res.text(); throw new Error(txt || `Reopen failed (${res.status})`); }
+                router.push('/poster/dashboard');
+              }catch(err){ console.error(err); setError(err?.message || 'Reopen failed'); }
+              finally{ setLoading(false); }
+            }}>Reopen position</button>
+          )}
           <Link href="/poster/dashboard" className="btn btn-outline-secondary">Cancel</Link>
         </div>
       </form>
