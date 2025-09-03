@@ -14,6 +14,7 @@ namespace FutureOfTheJobSearch.Server.Data
     public DbSet<PositionSkill> PositionSkills { get; set; }
     public DbSet<PositionExperience> PositionExperiences { get; set; }
     public DbSet<PositionEducation> PositionEducations { get; set; }
+    public DbSet<SeekerInterest> SeekerInterests { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -67,6 +68,18 @@ namespace FutureOfTheJobSearch.Server.Data
                 .HasOne(x => x.Position)
                 .WithMany(p => p.Educations)
                 .HasForeignKey(x => x.PositionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<SeekerInterest>()
+                .HasOne(si => si.Position)
+                .WithMany()
+                .HasForeignKey(si => si.PositionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<SeekerInterest>()
+                .HasOne(si => si.Seeker)
+                .WithMany()
+                .HasForeignKey(si => si.SeekerId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }

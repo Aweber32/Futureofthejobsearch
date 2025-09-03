@@ -35,12 +35,64 @@ export default function CandidateSwiper({ initialCandidates }){
   }
 
   async function markInterested(candidate){
-    // attempt to notify backend if endpoint exists, ignore failures
     try{
-      const seekerId = candidate.id ?? candidate.Id ?? candidate.seekerId ?? candidate.SeekerId;
+      let seekerId = candidate.id ?? candidate.Id ?? candidate.seekerId ?? candidate.SeekerId;
+      let positionId = candidate._positionId ?? candidate.positionId ?? candidate.PositionId;
+      // fallback: try to read from URL query if not present on candidate
+      if (!positionId && typeof window !== 'undefined'){
+        const qp = new URLSearchParams(window.location.search).get('positionId');
+        if (qp) positionId = qp;
+      }
+      seekerId = parseInt(seekerId, 10);
+      positionId = parseInt(positionId, 10);
+      if (!Number.isFinite(seekerId)) throw new Error('invalid seekerId');
+      if (!Number.isFinite(positionId)){
+        // positionId missing — skip API call and advance stack
+        removeTop();
+        return;
+      }
       const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
-      await fetch(`${base}/api/seekerinterests`, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ seekerId }) });
-    }catch(e){}
+      const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+      const existingId = candidate._interest?.id ?? candidate._interest?.Id ?? null;
+      if (existingId){
+        await fetch(`${base}/api/seekerinterests/${existingId}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ interested: true }) });
+      } else {
+        await fetch(`${base}/api/seekerinterests`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ seekerId, positionId, interested: true }) });
+      }
+    }catch(e){
+      // swallow errors -- we're intentionally non-blocking in the swiper
+    }
+    removeTop();
+  }
+
+  async function markNotInterested(candidate){
+    try{
+      let seekerId = candidate.id ?? candidate.Id ?? candidate.seekerId ?? candidate.SeekerId;
+      let positionId = candidate._positionId ?? candidate.positionId ?? candidate.PositionId;
+      // fallback: try to read from URL query if not present on candidate
+      if (!positionId && typeof window !== 'undefined'){
+        const qp = new URLSearchParams(window.location.search).get('positionId');
+        if (qp) positionId = qp;
+      }
+      seekerId = parseInt(seekerId, 10);
+      positionId = parseInt(positionId, 10);
+      if (!Number.isFinite(seekerId)) throw new Error('invalid seekerId');
+      if (!Number.isFinite(positionId)){
+        // positionId missing — skip API call and advance stack
+        removeTop();
+        return;
+      }
+      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+      const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+      const existingId = candidate._interest?.id ?? candidate._interest?.Id ?? null;
+      if (existingId){
+        await fetch(`${base}/api/seekerinterests/${existingId}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ interested: false }) });
+      } else {
+        await fetch(`${base}/api/seekerinterests`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ seekerId, positionId, interested: false }) });
+      }
+    }catch(e){
+      // swallow errors -- keep swiper flow uninterrupted
+    }
     removeTop();
   }
 
@@ -90,7 +142,7 @@ export default function CandidateSwiper({ initialCandidates }){
           </div>
         </div>
         <div className="card-footer d-flex justify-content-between">
-          <button className="btn btn-danger" onClick={()=>{ /* Not Interested action: remove and continue */ removeTop(); }}>Not Interested</button>
+          <button className="btn btn-danger" onClick={()=>{ /* Not Interested action: remove and continue */ markNotInterested(top); }}>Not Interested</button>
           <div>
             <button className="btn btn-success" onClick={()=>markInterested(top)}>Interested</button>
           </div>
