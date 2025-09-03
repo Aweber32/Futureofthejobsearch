@@ -21,7 +21,7 @@ export default function PositionList({ positions = [] }){
                 </h5>
               </div>
               <div className="d-flex gap-2">
-                <Link href={`/poster/find-candidates?positionId=${p.id}`} className="btn btn-sm btn-outline-secondary">View Canadiates</Link>
+                <Link href={`/poster/position/${p.id}/candidates`} className="btn btn-sm btn-outline-secondary">View Canadiates</Link>
                 <Link href={`/poster/dashboard/edit-position/${p.id}`} className="btn btn-sm btn-outline-primary">Edit</Link>
                 {isOpen ? (
                   <Link href={`/poster/find-candidates?positionId=${p.id}`} className="btn btn-sm btn-success">Find Candidates</Link>
