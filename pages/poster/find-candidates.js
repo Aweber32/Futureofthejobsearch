@@ -47,8 +47,15 @@ export default function FindCandidates(){
 
   return (
     <Layout title="Find candidates">
-      <h2>Candidate review</h2>
-      <p className="text-muted">Review profiles in a swipe-style flow and mark interest.</p>
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h2 className="mb-0">Candidate review</h2>
+          <p className="text-muted mb-0">Review profiles in a swipe-style flow and mark interest.</p>
+        </div>
+        <div>
+          <a href="/poster/dashboard" className="btn btn-outline-secondary">Return</a>
+        </div>
+      </div>
 
       <CandidateSwiper initialCandidates={candidates} />
     </Layout>

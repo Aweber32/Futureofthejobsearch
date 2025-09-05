@@ -1,37 +1,56 @@
-import Link from 'next/link';
-import Layout from '../../components/Layout';
-
-const MOCK = [
-  { id: '1', title: 'Frontend Engineer', headline: 'React, TypeScript' },
-  { id: '2', title: 'Backend Engineer', headline: 'Node.js, APIs' },
-  { id: '3', title: 'Product Manager', headline: 'SaaS product' }
-]
+import Layout from '../../components/Layout'
+import PositionSwiper from '../../components/PositionSwiper'
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 export default function FindPositions(){
-  return (
-    <Layout title="Find positions">
-      <h2>Find positions</h2>
-      <p className="text-muted">Review positions sequentially and mark your interest.</p>
+  const [positions, setPositions] = useState(null);
 
-      <div className="row">
-        {MOCK.map(p => (
-          <div className="col-md-6" key={p.id}>
-            <div className="card mb-3">
-              <div className="card-body d-flex justify-content-between align-items-start">
-                <div>
-                  <div className="fw-semibold">{p.title}</div>
-                  <div className="text-muted">{p.headline}</div>
-                </div>
-                <div className="d-flex gap-2">
-                  <Link href={`/seeker/position/${p.id}`} className="btn btn-outline-primary">View</Link>
-                  <button className="btn btn-success">Mark Interested</button>
-                  <button className="btn btn-outline-secondary">Pass</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
+  useEffect(()=>{
+    let cancelled = false;
+    async function load(){
+      try{
+        const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+        const res = await fetch(`${base}/api/positions`);
+        if (!res.ok){ setPositions([]); return; }
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.positions || data);
+
+        // try to fetch any existing seeker-side interests so the swiper can PATCH instead of creating duplicates
+        try{
+          const q = new URLSearchParams(window.location.search).get('positionId');
+          const r2 = await fetch(`${base}/api/positioninterests?`);
+          if (r2.ok){
+            const ints = await r2.json();
+            const interests = Array.isArray(ints) ? ints : (ints.positionInterests || ints);
+            const map = new Map();
+            (interests||[]).forEach(i => map.set(i.positionId ?? i.PositionId ?? i.Position?.id ?? i.Position?.Id, i));
+            const merged = (list||[]).map(p => ({ ...p, _interest: map.get(p.id ?? p.Id) || null }));
+            if (!cancelled) setPositions(merged);
+            return;
+          }
+        }catch(e){ /* ignore */ }
+
+        if (!cancelled) setPositions(Array.isArray(list) ? list : []);
+      }catch(err){ if (!cancelled) setPositions([]); }
+    }
+    load();
+    return ()=>{ cancelled = true; }
+  },[]);
+
+  return (
+    <Layout title="Find Positions">
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h2 className="mb-0">Find Positions</h2>
+        <div>
+          <Link href="/seeker/dashboard" className="btn btn-outline-secondary">Return</Link>
+        </div>
+      </div>
+
+      <div className="mb-3">
+        {positions === null ? <div>Loading…</div> : <PositionSwiper initialPositions={positions} />}
       </div>
     </Layout>
   )
 }
+// ...existing code above retained

@@ -26,8 +26,15 @@ export default function PositionCandidates(){
 
   return (
     <Layout title="Reviewed candidates">
-      <h2>Reviewed candidates</h2>
-      <p className="text-muted">Candidates reviewed for this position.</p>
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h2 className="mb-0">Reviewed candidates</h2>
+          <p className="text-muted mb-0">Candidates reviewed for this position.</p>
+        </div>
+        <div>
+          <Link href="/poster/dashboard" className="btn btn-outline-secondary">Return</Link>
+        </div>
+      </div>
 
       {!list ? (
         <div className="text-center">Loading…</div>
