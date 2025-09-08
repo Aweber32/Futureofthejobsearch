@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../../components/Layout';
 import SeekerCard from '../../../components/SeekerCard';
+import InterestedPositionsList from '../../../components/InterestedPositionsList';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -73,18 +74,11 @@ export default function SeekerDashboard(){
         <h4>Interested positions</h4>
         <Link href="/seeker/find-positions" className="btn btn-primary">Find Positions</Link>
       </div>
-
       <div>
-        <div className="card mb-3">
+        {/* Interested positions list */}
+        <div className="card">
           <div className="card-body">
-            {seeker.professionalSummary && <p>{seeker.professionalSummary}</p>}
-            <h5>Skills</h5>
-            {skills.length ? <ul>{skills.map(s=> <li key={s}>{s}</li>)}</ul> : <p>No skills listed.</p>}
-            <h5>Resume & Video</h5>
-            <ul>
-              {seeker.resumeUrl && <li><a href={seeker.resumeUrl} target="_blank" rel="noreferrer">View resume</a></li>}
-              {seeker.videoUrl && <li><a href={seeker.videoUrl} target="_blank" rel="noreferrer">View video</a></li>}
-            </ul>
+            <InterestedPositionsList seeker={seeker} />
           </div>
         </div>
       </div>
