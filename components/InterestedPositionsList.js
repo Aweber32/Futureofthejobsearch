@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import PositionReviewModal from './PositionReviewModal';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -7,6 +8,7 @@ export default function InterestedPositionsList({ seeker }){
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activePosition, setActivePosition] = useState(null);
 
   useEffect(()=>{
     if (!seeker) return;
@@ -47,7 +49,7 @@ export default function InterestedPositionsList({ seeker }){
             // find record for this seeker
             const match = (slist || []).find(si => si.seekerId === seeker.id || si.SeekerId === seeker.SeekerId || si.seekerId === seeker.seekerId || si.SeekerId === seeker.id);
             if (!match) return { ...it, posterStatus: 'Job-Poster Status: Unreviewed' };
-            const status = match.interested === true ? 'Job-Poster Status: Interested' : 'Job-Poster Status: Not-Intrested';
+            const status = match.interested === true ? 'Job-Poster Status: Interested' : 'Job-Poster Status: Not-Interested';
             return { ...it, posterStatus: status };
           }catch{
             return { ...it, posterStatus: 'Job-Poster Status: Unreviewed' };
@@ -73,18 +75,26 @@ export default function InterestedPositionsList({ seeker }){
             {item.position?.companyName && <div className="text-muted">{item.position.companyName}</div>}
           </div>
           <div className="text-end">
-            {/* posterStatus may be one of: 'Job-Poster Status: Interested', 'Job-Poster Status: Not-Intrested', or Unreviewed */}
+            {/* posterStatus may be one of: 'Job-Poster Status: Interested', 'Job-Poster Status: Not-Interested', or Unreviewed */}
             {(() => {
-              const ps = item.posterStatus ?? 'Job-Poster Status: Unreviewed';
-              let cls = 'text-secondary';
-              if (ps.toLowerCase().includes('interested')) cls = 'text-success';
-              else if (ps.toLowerCase().includes('not-intrested') || ps.toLowerCase().includes('not-interested')) cls = 'text-danger';
-              return <div className={`small mb-1 ${cls}`}>{ps}</div>;
+              const raw = item.posterStatus ?? 'Job-Poster Status: Unreviewed';
+              const ps = raw.replace('Not-Intrested', 'Not-Interested');
+              const psLower = ps.toLowerCase();
+              // badge classes: green = interested, dark gray = not-interested, gray = unreviewed
+              let badgeClass = 'bg-secondary text-dark';
+              if (psLower.includes('not-interested')) badgeClass = 'bg-dark text-white';
+              else if (psLower.includes('interested')) badgeClass = 'bg-success text-white';
+              return (
+                <div className="d-flex align-items-center justify-content-end">
+                  <span className={`badge ${badgeClass} me-2`} style={{borderRadius: '0.75rem'}}>{ps}</span>
+                  <button onClick={()=> setActivePosition(item.position ?? { id: item.id, title: item.title, description: item.position?.description ?? item.raw?.description })} className="btn btn-sm btn-outline-primary">Review position</button>
+                </div>
+              );
             })()}
-            <Link href={`/seeker/position/${item.id}`} className="btn btn-sm btn-outline-primary">Review position</Link>
           </div>
         </div>
       ))}
+      {activePosition && <PositionReviewModal position={activePosition} onClose={()=>setActivePosition(null)} />}
     </div>
   );
 }
