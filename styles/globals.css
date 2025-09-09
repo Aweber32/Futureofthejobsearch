@@ -5,7 +5,7 @@ body {
 
 a { text-decoration: none; }
 
-/* simple utility for the large chooser boxes */
+/* Enhanced mobile-friendly chooser boxes */
 .card-chooser {
   height: 220px;
   display: flex;
@@ -13,6 +13,50 @@ a { text-decoration: none; }
   justify-content: center;
   text-align: center;
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 12px;
+  border: 2px solid #dee2e6;
+}
+
+.card-chooser:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  text-decoration: none;
+}
+
+.card-chooser:active {
+  transform: translateY(0);
+}
+
+/* Mobile responsiveness improvements */
+@media (max-width: 768px) {
+  .card-chooser {
+    height: 180px;
+    margin-bottom: 1rem;
+  }
+  
+  .card-chooser h3 {
+    font-size: 1.5rem;
+  }
+  
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Touch-friendly button sizes for mobile */
+@media (max-width: 576px) {
+  .btn {
+    min-height: 44px;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+  
+  .btn-sm {
+    min-height: 40px;
+    padding: 0.5rem 1rem;
+  }
 }
 
 .logo-placeholder {
@@ -25,4 +69,72 @@ a { text-decoration: none; }
   justify-content: center;
   font-weight: 700;
   color: #6c757d;
+}
+
+/* Mobile-optimized position swiper */
+.position-swiper {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (max-width: 576px) {
+  .position-swiper .card {
+    margin: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  
+  .position-swiper .card-body {
+    padding: 1rem;
+  }
+  
+  /* Make video responsive */
+  .position-swiper video,
+  .position-swiper .video-placeholder {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 4/5;
+  }
+}
+
+/* Responsive badges and skills */
+.skill-badge {
+  display: inline-block;
+  margin-bottom: 0.25rem;
+  margin-right: 0.25rem;
+}
+
+@media (max-width: 576px) {
+  .skill-badge {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+  }
+}
+
+/* Mobile-friendly list items */
+.list-group-item {
+  padding: 1rem;
+}
+
+@media (max-width: 576px) {
+  .list-group-item {
+    padding: 0.75rem;
+  }
+  
+  .list-group-item .btn {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  
+  .list-group-item .d-flex {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  
+  .list-group-item .text-end {
+    text-align: left !important;
+    margin-top: 0.5rem;
+  }
 }

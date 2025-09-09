@@ -74,29 +74,75 @@ export default function PositionSwiper({ initialPositions }){
       <div className="card mb-3">
         <div style={{display:'flex', justifyContent:'center', paddingTop:12, paddingBottom:6}}>
           {top.posterVideoUrl ? (
-            <video src={top.posterVideoUrl} controls style={{width:320, height:380, objectFit:'cover', borderRadius:6}} />
+            <video 
+              src={top.posterVideoUrl} 
+              controls 
+              style={{
+                width: '100%', 
+                maxWidth: 320, 
+                height: 'auto', 
+                aspectRatio: '4/5',
+                objectFit:'cover', 
+                borderRadius:6
+              }} 
+              className="video-responsive"
+            />
           ) : (
-            <div style={{width:320, height:380, display:'flex', alignItems:'center', justifyContent:'center'}}>No video</div>
+            <div 
+              style={{
+                width: '100%', 
+                maxWidth: 320, 
+                height: 380, 
+                display:'flex', 
+                alignItems:'center', 
+                justifyContent:'center',
+                backgroundColor: '#f8f9fa',
+                borderRadius: 6,
+                color: '#6c757d'
+              }}
+              className="video-placeholder"
+            >
+              No video available
+            </div>
           )}
         </div>
         <div className="card-body">
           <h4 className="card-title">{title}</h4>
-          <p className="text-muted mb-1">{employer?.name ?? employer?.Name ?? ''}</p>
-          <h6>Skills</h6>
-          <div className="d-flex flex-wrap" style={{gap:6}}>
-            {skillsArr.map((s,idx)=> (
-              <span key={idx} className="badge bg-light text-dark me-1 mb-1">{s.skill ?? s.Skill ?? s}</span>
-            ))}
-          </div>
+          <p className="text-muted mb-3">{employer?.name ?? employer?.Name ?? 'Company not specified'}</p>
+          
+          {skillsArr.length > 0 && (
+            <>
+              <h6 className="mb-2">Required Skills</h6>
+              <div className="d-flex flex-wrap mb-3" style={{gap:6}}>
+                {skillsArr.map((s,idx)=> (
+                  <span key={idx} className="badge bg-primary skill-badge">{s.skill ?? s.Skill ?? s}</span>
+                ))}
+              </div>
+            </>
+          )}
+          
           <hr />
           <div>
-            <p>{top.description ?? top.Description ?? 'No description provided.'}</p>
+            <h6 className="mb-2">Job Description</h6>
+            <p className="mb-0">{top.description ?? top.Description ?? 'No description provided.'}</p>
           </div>
         </div>
-        <div className="card-footer d-flex justify-content-between">
-          <button className="btn btn-danger" onClick={()=>markNotInterested(top)}>Not Interested</button>
-          <div>
-            <button className="btn btn-success" onClick={()=>markInterested(top)}>Interested</button>
+        <div className="card-footer">
+          <div className="d-flex flex-column flex-sm-row justify-content-between gap-2">
+            <button 
+              className="btn btn-outline-danger flex-fill" 
+              onClick={()=>markNotInterested(top)}
+              style={{minHeight: '44px'}}
+            >
+              Not Interested
+            </button>
+            <button 
+              className="btn btn-success flex-fill" 
+              onClick={()=>markInterested(top)}
+              style={{minHeight: '44px'}}
+            >
+              I'm Interested
+            </button>
           </div>
         </div>
       </div>

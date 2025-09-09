@@ -69,28 +69,35 @@ export default function InterestedPositionsList({ seeker }){
   return (
     <div className="list-group">
       {items.map(item => (
-        <div key={item.id || JSON.stringify(item.raw)} className="list-group-item d-flex justify-content-between align-items-center">
-          <div>
-            <div className="fw-bold">{item.title || 'Position'}</div>
-            {item.position?.companyName && <div className="text-muted">{item.position.companyName}</div>}
-          </div>
-          <div className="text-end">
-            {/* posterStatus may be one of: 'Job-Poster Status: Interested', 'Job-Poster Status: Not-Interested', or Unreviewed */}
-            {(() => {
-              const raw = item.posterStatus ?? 'Job-Poster Status: Unreviewed';
-              const ps = raw.replace('Not-Intrested', 'Not-Interested');
-              const psLower = ps.toLowerCase();
-              // badge classes: green = interested, dark gray = not-interested, gray = unreviewed
-              let badgeClass = 'bg-secondary text-dark';
-              if (psLower.includes('not-interested')) badgeClass = 'bg-dark text-white';
-              else if (psLower.includes('interested')) badgeClass = 'bg-success text-white';
-              return (
-                <div className="d-flex align-items-center justify-content-end">
-                  <span className={`badge ${badgeClass} me-2`} style={{borderRadius: '0.75rem'}}>{ps}</span>
-                  <button onClick={()=> setActivePosition(item.position ?? { id: item.id, title: item.title, description: item.position?.description ?? item.raw?.description })} className="btn btn-sm btn-outline-primary">Review position</button>
-                </div>
-              );
-            })()}
+        <div key={item.id || JSON.stringify(item.raw)} className="list-group-item">
+          <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start">
+            <div className="flex-grow-1 mb-2 mb-sm-0">
+              <div className="fw-bold h6 mb-1">{item.title || 'Position'}</div>
+              {item.position?.companyName && <div className="text-muted small">{item.position.companyName}</div>}
+            </div>
+            <div className="w-100 w-sm-auto">
+              {(() => {
+                const raw = item.posterStatus ?? 'Job-Poster Status: Unreviewed';
+                const ps = raw.replace('Not-Intrested', 'Not-Interested');
+                const psLower = ps.toLowerCase();
+                // badge classes: green = interested, dark gray = not-interested, gray = unreviewed
+                let badgeClass = 'bg-secondary text-white';
+                if (psLower.includes('not-interested')) badgeClass = 'bg-dark text-white';
+                else if (psLower.includes('interested')) badgeClass = 'bg-success text-white';
+                return (
+                  <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+                    <span className={`badge ${badgeClass} text-center`} style={{borderRadius: '0.75rem', padding: '0.5rem 0.75rem'}}>{ps}</span>
+                    <button 
+                      onClick={()=> setActivePosition(item.position ?? { id: item.id, title: item.title, description: item.position?.description ?? item.raw?.description })} 
+                      className="btn btn-sm btn-outline-primary flex-grow-1 flex-sm-grow-0"
+                      style={{minHeight: '38px'}}
+                    >
+                      Review Position
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
       ))}
