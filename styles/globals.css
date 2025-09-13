@@ -138,3 +138,72 @@ a { text-decoration: none; }
     margin-top: 0.5rem;
   }
 }
+
+/* Signup multi-step slider styles */
+.signup-step-pane {
+  transition: transform 320ms cubic-bezier(.2,.9,.3,1), opacity 220ms ease-in-out;
+  will-change: transform, opacity;
+}
+.signup-step-pane.enter {
+  opacity: 0; transform: translateX(18px) scale(0.995);
+}
+.signup-step-pane.enter-active {
+  opacity: 1; transform: translateX(0) scale(1);
+}
+.signup-step-pane.exit {
+  opacity: 1; transform: translateX(0);
+}
+.signup-step-pane.exit-active {
+  opacity: 0; transform: translateX(-12px) scale(0.995);
+}
+
+.signup-progress-bar { height: 10px; border-radius: 999px; overflow: hidden; background: linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.03)); }
+.signup-progress-bar .progress-fill { height: 100%; background: linear-gradient(90deg,#6f42c1,#0d6efd); transition: width 420ms cubic-bezier(.2,.9,.3,1), transform 420ms cubic-bezier(.2,.9,.3,1); transform-origin: left center; }
+.signup-step-indicators { display:flex; gap:6px; justify-content:center; margin-top:8px; }
+.signup-step-indicators .dot { width:10px; height:10px; border-radius:50%; background:rgba(0,0,0,0.12); display:inline-block; }
+.signup-step-indicators .dot.active { background: linear-gradient(90deg,#6f42c1,#0d6efd); box-shadow:0 4px 10px rgba(13,110,253,0.18); transform:scale(1.08); }
+
+.signup-step-indicators { height: 20px; }
+
+.signup-progress-bar.sliding .progress-fill {
+  /* keep both width and transform transitions when sliding */
+  transition: width 420ms cubic-bezier(.2,.9,.3,1), transform 420ms cubic-bezier(.2,.9,.3,1);
+  transform: translateX(4px);
+}
+
+.signup-progress-bar .progress-fill { /* ensure non-sliding state has no translate */
+  transform: translateX(0);
+}
+
+
+
+/* Chips and small-button polish used in step controls */
+.chip-btn { border-radius: 999px; padding: 0.35rem 0.6rem; font-size: 0.875rem; }
+.chip-btn.btn-outline-secondary { border-color: rgba(0,0,0,0.08); }
+.badge .btn-link { padding-left: 0.35rem; padding-right: 0.35rem; }
+
+/* Styled Skip button on step 1 */
+.skip-btn { background: transparent; border: 1px solid rgba(13,110,253,0.12); color: #0d6efd; padding: 0.5rem 0.9rem; border-radius: 8px; }
+.skip-btn:hover { background: rgba(13,110,253,0.04); }
+
+/* Back to login styled as subtle outline button */
+.back-login-btn { display: inline-block; padding: 0.45rem 0.9rem; border-radius: 8px; border: 1px solid rgba(0,0,0,0.08); color: #212529; background: #fff; box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset; }
+.back-login-btn:hover { background: rgba(0,0,0,0.03); text-decoration: none; }
+
+/* Fullscreen parsing overlay */
+.parsing-overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:1200; }
+.parsing-card { background: #fff; padding: 1.25rem 1.5rem; border-radius: 12px; display:flex; gap:1rem; align-items:center; box-shadow:0 12px 40px rgba(0,0,0,0.4); }
+.parsing-spinner { width:36px; height:36px; border-radius:50%; border:4px solid rgba(0,0,0,0.08); border-top-color: #0d6efd; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Slight motion for step pane changes */
+.signup-step-pane { opacity: 1; transform: translateX(0); }
+.signup-step-pane.enter-active { opacity: 1; transform: translateX(0); }
+
+/* Directional sliding tweaks */
+.progress-wrap.sliding-forward .signup-progress-bar .progress-fill { transform: translateX(6px); }
+.progress-wrap.sliding-back .signup-progress-bar .progress-fill { transform: translateX(-6px); }
+/* indicator-thumb removed: directional thumb transforms deleted */
+
+
+

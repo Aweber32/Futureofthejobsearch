@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FutureOfTheJobSearch.Server.Migrations
 {
     /// <inheritdoc />
-    public partial class NoOp_Sync_20250905 : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -65,6 +65,16 @@ namespace FutureOfTheJobSearch.Server.Migrations
                     Skills = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     ResumeUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     VideoUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ExperienceJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    EducationJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    VisaStatus = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    PreferredSalary = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    WorkSetting = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Travel = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    Relocate = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    Languages = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    Certifications = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    Interests = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>

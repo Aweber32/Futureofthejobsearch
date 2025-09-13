@@ -47,11 +47,27 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 FirstName = req.FirstName,
                 LastName = req.LastName,
                 PhoneNumber = req.PhoneNumber,
-                ProfessionalSummary = req.ProfessionalSummary,
+                // ProfessionalSummary removed from model
                 ResumeUrl = req.ResumeUrl,
                 VideoUrl = req.VideoUrl
             };
             if (req.Skills != null && req.Skills.Length > 0) seeker.Skills = string.Join(',', req.Skills);
+            // optional structured fields
+            if (req.Experience != null && req.Experience.Length > 0) seeker.ExperienceJson = System.Text.Json.JsonSerializer.Serialize(req.Experience);
+            if (req.Education != null && req.Education.Length > 0)
+            {
+                // normalize levels
+                foreach(var ed in req.Education){ if (!string.IsNullOrEmpty(ed.Level)) ed.Level = NormalizeEducationLevel(ed.Level); }
+                seeker.EducationJson = System.Text.Json.JsonSerializer.Serialize(req.Education);
+            }
+            if (!string.IsNullOrEmpty(req.VisaStatus)) seeker.VisaStatus = req.VisaStatus;
+            if (!string.IsNullOrEmpty(req.PreferredSalary)) seeker.PreferredSalary = req.PreferredSalary;
+            if (req.WorkSetting != null && req.WorkSetting.Length > 0) seeker.WorkSetting = string.Join(',', req.WorkSetting);
+            if (!string.IsNullOrEmpty(req.Travel)) seeker.Travel = req.Travel;
+            if (!string.IsNullOrEmpty(req.Relocate)) seeker.Relocate = req.Relocate;
+            if (req.Languages != null && req.Languages.Length > 0) seeker.Languages = string.Join(',', req.Languages);
+            if (req.Certifications != null && req.Certifications.Length > 0) seeker.Certifications = string.Join(',', req.Certifications);
+            if (req.Interests != null && req.Interests.Length > 0) seeker.Interests = string.Join(',', req.Interests);
             _db.Seekers.Add(seeker);
             await _db.SaveChangesAsync();
 
@@ -153,10 +169,25 @@ namespace FutureOfTheJobSearch.Server.Controllers
             seeker.FirstName = req.FirstName ?? seeker.FirstName;
             seeker.LastName = req.LastName ?? seeker.LastName;
             seeker.PhoneNumber = req.PhoneNumber ?? seeker.PhoneNumber;
-            seeker.ProfessionalSummary = req.ProfessionalSummary ?? seeker.ProfessionalSummary;
+            // ProfessionalSummary removed from model
             if (req.Skills != null && req.Skills.Length > 0) seeker.Skills = string.Join(',', req.Skills);
             seeker.ResumeUrl = req.ResumeUrl ?? seeker.ResumeUrl;
             seeker.VideoUrl = req.VideoUrl ?? seeker.VideoUrl;
+            // structured updates
+            if (req.Experience != null && req.Experience.Length > 0) seeker.ExperienceJson = System.Text.Json.JsonSerializer.Serialize(req.Experience);
+            if (req.Education != null && req.Education.Length > 0)
+            {
+                foreach(var ed in req.Education){ if (!string.IsNullOrEmpty(ed.Level)) ed.Level = NormalizeEducationLevel(ed.Level); }
+                seeker.EducationJson = System.Text.Json.JsonSerializer.Serialize(req.Education);
+            }
+            seeker.VisaStatus = req.VisaStatus ?? seeker.VisaStatus;
+            seeker.PreferredSalary = req.PreferredSalary ?? seeker.PreferredSalary;
+            if (req.WorkSetting != null && req.WorkSetting.Length > 0) seeker.WorkSetting = string.Join(',', req.WorkSetting);
+            seeker.Travel = req.Travel ?? seeker.Travel;
+            seeker.Relocate = req.Relocate ?? seeker.Relocate;
+            if (req.Languages != null && req.Languages.Length > 0) seeker.Languages = string.Join(',', req.Languages);
+            if (req.Certifications != null && req.Certifications.Length > 0) seeker.Certifications = string.Join(',', req.Certifications);
+            if (req.Interests != null && req.Interests.Length > 0) seeker.Interests = string.Join(',', req.Interests);
 
             await _db.SaveChangesAsync();
             return Ok(new { message = "Seeker updated", seeker });
@@ -194,29 +225,84 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
             return Ok(new { message = "Seeker deleted" });
         }
+
+    // Normalize various education level strings to canonical set used by the app
+    private static string NormalizeEducationLevel(string level)
+    {
+        if (string.IsNullOrWhiteSpace(level)) return string.Empty;
+        var s = level.Trim().ToLowerInvariant();
+        if (s.Contains("high") || s.Contains("hs") || s.Contains("secondary")) return "High School";
+        if (s.Contains("associate") || s.Contains("aa") || s.Contains("as")) return "Associate's";
+        if (s.Contains("bachelor") || s.Contains("ba") || s.Contains("bs") || s.Contains("b.sc") || s.Contains("bsc")) return "Bachelor's";
+        if (s.Contains("master") || s.Contains("ms") || s.Contains("m.sc") || s.Contains("msc")) return "Master's";
+        if (s.Contains("doctor") || s.Contains("phd") || s.Contains("doctorate") || s.Contains("d.ph")) return "Doctorate";
+        if (s.Contains("none") || s.Contains("no degree") || s.Contains("not required") || s.Contains("none required")) return "None required";
+        // fallback: capitalize first letters
+        return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(level.Trim());
+    }
+
+    }
+
+    public class ExperienceDto {
+        public string? Title { get; set; }
+        public string? Company { get; set; }
+        // Expect ISO-like month strings: yyyy-MM
+        public string? StartDate { get; set; }
+        public string? EndDate { get; set; }
+        public string? Description { get; set; }
+    }
+
+    public class EducationDto {
+        public string? Level { get; set; }
+        public string? School { get; set; }
+        // Expect ISO-like month strings: yyyy-MM
+        public string? StartDate { get; set; }
+        public string? EndDate { get; set; }
     }
 
     public class SeekerRegisterRequest{
-        public string? FirstName { get; set; }
-        public string? LastName { get; set; }
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
     public string? Email { get; set; }
-        public string? PhoneNumber { get; set; }
-        public string? ProfessionalSummary { get; set; }
+    public string? PhoneNumber { get; set; }
     public string[]? Skills { get; set; }
-    // Optional URLs returned from uploads (resume, video)
-    public string? ResumeUrl { get; set; }
-    public string? VideoUrl { get; set; }
-    public string? Password { get; set; }
+        // Optional URLs returned from uploads (resume, video)
+        public string? ResumeUrl { get; set; }
+        public string? VideoUrl { get; set; }
+        public string? Password { get; set; }
+
+        // Structured fields
+        public ExperienceDto[]? Experience { get; set; }
+        public EducationDto[]? Education { get; set; }
+        public string? VisaStatus { get; set; }
+        public string? PreferredSalary { get; set; }
+        public string[]? WorkSetting { get; set; }
+        public string? Travel { get; set; }
+        public string? Relocate { get; set; }
+        public string[]? Languages { get; set; }
+        public string[]? Certifications { get; set; }
+        public string[]? Interests { get; set; }
     }
 
     public class UpdateSeekerRequest{
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? PhoneNumber { get; set; }
-        public string? ProfessionalSummary { get; set; }
-    public string[]? Skills { get; set; }
-    public string? ResumeUrl { get; set; }
-    public string? VideoUrl { get; set; }
+        public string[]? Skills { get; set; }
+        public string? ResumeUrl { get; set; }
+        public string? VideoUrl { get; set; }
+
+        // Structured updates
+        public ExperienceDto[]? Experience { get; set; }
+        public EducationDto[]? Education { get; set; }
+        public string? VisaStatus { get; set; }
+        public string? PreferredSalary { get; set; }
+        public string[]? WorkSetting { get; set; }
+        public string? Travel { get; set; }
+        public string? Relocate { get; set; }
+        public string[]? Languages { get; set; }
+        public string[]? Certifications { get; set; }
+        public string[]? Interests { get; set; }
     }
 
 }
