@@ -28,7 +28,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             if (string.IsNullOrEmpty(apiKey))
             {
                 // Fallback API key (temporary). Replace with environment variable in production.
-                apiKey = "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";
+                apiKey = "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";
             }
 
             if (req == null || string.IsNullOrEmpty(req.Content))
@@ -99,7 +99,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             if (string.IsNullOrEmpty(apiKey))
             {
                 // Fallback API key (temporary). Replace with environment variable in production.
-                apiKey = "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";
+                apiKey = "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";
             }
 
             var client = new HttpClient();
@@ -189,7 +189,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             if (string.IsNullOrEmpty(apiKey))
             {
                 // Fallback API key (temporary). Replace with environment variable in production.
-                apiKey = "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";
+                apiKey = "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";
             }
 
             var client = new HttpClient();

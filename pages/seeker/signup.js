@@ -213,8 +213,8 @@ export default function SeekerSignup(){
         Travel: form.travel,
         Relocate: form.relocate,
         Languages: form.languages,
-        Certifications: form.certifications,
-        Interests: form.interests
+        Certifications: certificationsList,
+        Interests: interestsList
       };
 
       const res = await fetch(`${API}/api/seekers/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
