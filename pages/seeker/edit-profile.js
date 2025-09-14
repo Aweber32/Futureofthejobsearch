@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
+import PreviewProfile from '../../components/PreviewProfile';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -10,14 +11,13 @@ export default function EditProfile(){
   const router = useRouter();
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phoneNumber: '',
-    visaStatus: '', preferredSalary: '', travel: '', relocate: ''
+    visaStatus: '', preferredSalary: '', travel: '', relocate: '',
+    professionalSummary: '', city: '', state: ''
   });
   const [skills, setSkills] = useState([]);
   const [skillInput, setSkillInput] = useState('');
   const [workSetting, setWorkSetting] = useState([]);
-  const [workSettingInput, setWorkSettingInput] = useState('');
   const [languages, setLanguages] = useState([]);
-  const [languageInput, setLanguageInput] = useState('');
   const [customLanguage, setCustomLanguage] = useState('');
   const [certifications, setCertifications] = useState([]);
   const [certificationInput, setCertificationInput] = useState('');
@@ -54,6 +54,7 @@ export default function EditProfile(){
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [showHeadshotModal, setShowHeadshotModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   
   // Experience modal fields
   const [newExpTitle, setNewExpTitle] = useState('');
@@ -149,7 +150,10 @@ export default function EditProfile(){
           visaStatus: s?.visaStatus ?? s?.VisaStatus ?? '',
           preferredSalary: s?.preferredSalary ?? s?.PreferredSalary ?? '',
           travel: s?.travel ?? s?.Travel ?? '',
-          relocate: s?.relocate ?? s?.Relocate ?? ''
+          relocate: s?.relocate ?? s?.Relocate ?? '',
+          professionalSummary: s?.professionalSummary ?? s?.ProfessionalSummary ?? '',
+          city: s?.city ?? s?.City ?? '',
+          state: s?.state ?? s?.State ?? ''
         });
         
         // Load current resume and video URLs
@@ -295,24 +299,6 @@ export default function EditProfile(){
   }
 
   function removeSkill(s){ setSkills(skills.filter(x=>x!==s)); }
-
-  // Work Setting functions
-  function addWorkSetting(){
-    const v = (workSettingInput || '').trim();
-    if (!v) return;
-    if (workSetting.includes(v)) { setWorkSettingInput(''); return; }
-    setWorkSetting([...workSetting, v]); setWorkSettingInput('');
-  }
-  function removeWorkSetting(s){ setWorkSetting(workSetting.filter(x=>x!==s)); }
-
-  // Language functions
-  function addLanguage(){
-    const v = (languageInput || '').trim();
-    if (!v) return;
-    if (languages.includes(v)) { setLanguageInput(''); return; }
-    setLanguages([...languages, v]); setLanguageInput('');
-  }
-  function removeLanguage(s){ setLanguages(languages.filter(x=>x!==s)); }
 
   // Certification functions
   function addCertification(){
@@ -608,11 +594,14 @@ export default function EditProfile(){
       const body = { 
         FirstName: form.firstName, 
         LastName: form.lastName, 
-        PhoneNumber: form.phoneNumber, 
+        PhoneNumber: form.phoneNumber,
+        City: form.city,
+        State: form.state,
         VisaStatus: form.visaStatus,
         PreferredSalary: combinedSalary || form.preferredSalary,
         Travel: form.travel,
-        Relocate: form.relocate
+        Relocate: form.relocate,
+        ProfessionalSummary: form.professionalSummary
       };
       
       // Add array fields
@@ -664,7 +653,7 @@ export default function EditProfile(){
           zIndex: 1050,
           boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
         }}
-        onClick={() => console.log('Preview Profile clicked')}
+        onClick={() => setShowPreviewModal(true)}
       >
         Preview Profile
       </button>
@@ -685,6 +674,24 @@ export default function EditProfile(){
         <div className="row">
           <div className="col-md-6 mb-3"><label className="form-label">Email</label><input type="email" className="form-control" value={form.email} readOnly /></div>
           <div className="col-md-6 mb-3"><label className="form-label">Phone</label><input className="form-control" value={form.phoneNumber} onChange={e=>setForm({...form, phoneNumber: e.target.value})} /></div>
+        </div>
+
+        <div className="row">
+          <div className="col-md-6 mb-3"><label className="form-label">City</label><input className="form-control" value={form.city} onChange={e=>setForm({...form, city: e.target.value})} placeholder="Enter your city" /></div>
+          <div className="col-md-6 mb-3"><label className="form-label">State</label><input className="form-control" value={form.state} onChange={e=>setForm({...form, state: e.target.value})} placeholder="Enter your state" /></div>
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label">Professional Summary</label>
+          <textarea 
+            className="form-control" 
+            rows="4" 
+            value={form.professionalSummary} 
+            onChange={e=>setForm({...form, professionalSummary: e.target.value})}
+            placeholder="Write a brief summary about yourself, your experience, and career goals..."
+            maxLength="2000"
+          />
+          <div className="form-text">{form.professionalSummary.length}/2000 characters</div>
         </div>
 
         <div className="mb-3">
@@ -772,24 +779,6 @@ export default function EditProfile(){
             })}
           </div>
           {languages && languages.includes('Other') && <input className="form-control mt-2" placeholder="Please specify other languages" value={customLanguage} onChange={e=>setCustomLanguage(e.target.value)} />}
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Work Setting Preferences</label>
-          <div className="d-flex gap-2 mb-2">
-            <input className="form-control" value={workSettingInput} onChange={e=>setWorkSettingInput(e.target.value)} placeholder="Add work setting (e.g. Remote, On-site, Hybrid)" />
-            <button type="button" className="btn btn-outline-secondary" onClick={addWorkSetting}>Add</button>
-          </div>
-          <div>{workSetting.map(s=> <span key={s} className="badge bg-secondary me-1">{s} <button type="button" className="btn btn-sm btn-link text-white" onClick={()=>removeWorkSetting(s)}>x</button></span>)}</div>
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Languages</label>
-          <div className="d-flex gap-2 mb-2">
-            <input className="form-control" value={languageInput} onChange={e=>setLanguageInput(e.target.value)} placeholder="Add language" />
-            <button type="button" className="btn btn-outline-secondary" onClick={addLanguage}>Add</button>
-          </div>
-          <div>{languages.map(s=> <span key={s} className="badge bg-secondary me-1">{s} <button type="button" className="btn btn-sm btn-link text-white" onClick={()=>removeLanguage(s)}>x</button></span>)}</div>
         </div>
 
         <div className="mb-3">
@@ -1091,6 +1080,47 @@ export default function EditProfile(){
         </>,
         document.body
       )}
+
+      {/* Preview Profile Modal */}
+      <PreviewProfile
+        seeker={{
+          id: seekerId,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phoneNumber: form.phoneNumber,
+          city: form.city,
+          state: form.state,
+          professionalSummary: form.professionalSummary,
+          skills: skills.join(','),
+          workSetting: workSetting.join(','),
+          languages: languages.join(',').replace('Other', customLanguage).replace(',,', ','), // Handle custom language
+          certifications: certifications.join(','),
+          interests: interests.join(','),
+          experienceJson: JSON.stringify(experience.map(exp => ({
+            title: exp.title || exp.Title || '',
+            company: exp.company || exp.Company || 'Company not specified',
+            startDate: exp.StartDate || exp.startDate || exp.start || '',
+            endDate: exp.EndDate || exp.endDate || exp.end || '',
+            description: exp.description || exp.Description || ''
+          }))),
+          educationJson: JSON.stringify(education.map(edu => ({
+            degree: edu.Level || edu.degree || 'Degree not specified',
+            school: edu.School || edu.school || 'School not specified',
+            startDate: edu.StartDate || edu.startDate || edu.start || '',
+            endDate: edu.EndDate || edu.endDate || edu.end || ''
+          }))),
+          headshotUrl: currentHeadshotUrl || null,
+          videoUrl: currentVideoUrl || null,
+          resumeUrl: currentResumeUrl || null,
+          visaStatus: form.visaStatus || null,
+          preferredSalary: form.preferredSalary || null,
+          travel: form.travel || null,
+          relocate: form.relocate || null
+        }}
+        show={showPreviewModal}
+        onHide={() => setShowPreviewModal(false)}
+      />
+
     </Layout>
   )
 }

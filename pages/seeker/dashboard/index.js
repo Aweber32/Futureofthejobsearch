@@ -156,12 +156,6 @@ export default function SeekerDashboard(){
       <div className="mb-4 d-flex justify-content-between align-items-center">
         <h4>Interested positions</h4>
         <div className="d-flex gap-2">
-          <button 
-            className="btn btn-outline-primary"
-            onClick={() => console.log('Preview Profile clicked')}
-          >
-            Preview Profile
-          </button>
           <Link href="/seeker/find-positions" className="btn btn-primary">Find Positions</Link>
         </div>
       </div>

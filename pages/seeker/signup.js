@@ -6,24 +6,6 @@ import Layout from '../../components/Layout';
 import Select from 'react-select';
 import { State, City } from 'country-state-city';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-  useEffect(()=>{
-    // load US states
-    const states = State.getStatesOfCountry('US').map(s=>({ value: s.isoCode, label: s.name }));
-    setStateOptions(states);
-  },[]);
-
-  useEffect(()=>{
-    // load cities for selected state
-    if (form.state) {
-      const cities = City.getCitiesOfState('US', form.state).map(c=>({ value: c.name, label: c.name }));
-      setCityOptions(cities);
-    } else {
-      setCityOptions([]);
-    }
-  },[form.state]);
-
 export default function SeekerSignup(){
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -59,6 +41,24 @@ export default function SeekerSignup(){
   const [parsing, setParsing] = useState(false);
   const [stateOptions, setStateOptions] = useState([]);
   const [cityOptions, setCityOptions] = useState([]);
+
+  const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  useEffect(()=>{
+    // load US states
+    const states = State.getStatesOfCountry('US').map(s=>({ value: s.isoCode, label: s.name }));
+    setStateOptions(states);
+  },[]);
+
+  useEffect(()=>{
+    // load cities for selected state
+    if (form.state) {
+      const cities = City.getCitiesOfState('US', form.state).map(c=>({ value: c.name, label: c.name }));
+      setCityOptions(cities);
+    } else {
+      setCityOptions([]);
+    }
+  },[form.state]);
 
   // helpers for skills
   function addSkill(){
