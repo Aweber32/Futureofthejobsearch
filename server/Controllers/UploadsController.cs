@@ -106,10 +106,10 @@ namespace FutureOfTheJobSearch.Server.Controllers
             return await UploadToContainer(file, _config["ResumeContainer"] ?? Environment.GetEnvironmentVariable("RESUME_CONTAINER") ?? (_config["BlobContainer"] ?? "qaresumes"));
         }
 
-        [HttpPost("seeker-video")]
-        public async Task<IActionResult> UploadSeekerVideo([FromForm] IFormFile file)
+        [HttpPost("seeker-headshot")]
+        public async Task<IActionResult> UploadSeekerHeadshot([FromForm] IFormFile file)
         {
-            return await UploadToContainer(file, _config["SeekerVideoContainer"] ?? Environment.GetEnvironmentVariable("SEEKER_VIDEO_CONTAINER") ?? (_config["BlobContainer"] ?? "qaseekervideo"));
+            return await UploadToContainer(file, _config["SeekerHeadshotContainer"] ?? Environment.GetEnvironmentVariable("SEEKER_HEADSHOT_CONTAINER") ?? "qaseekerheadshot");
         }
 
         [HttpPost("poster-video")]
@@ -130,6 +130,13 @@ namespace FutureOfTheJobSearch.Server.Controllers
         {
             if (string.IsNullOrEmpty(request?.Url)) return BadRequest(new { error = "No URL provided" });
             return await DeleteFromBlob(request.Url, _config["SeekerVideoContainer"] ?? Environment.GetEnvironmentVariable("SEEKER_VIDEO_CONTAINER") ?? (_config["BlobContainer"] ?? "qaseekervideo"));
+        }
+
+        [HttpDelete("delete-headshot")]
+        public async Task<IActionResult> DeleteHeadshot([FromBody] DeleteFileRequest request)
+        {
+            if (string.IsNullOrEmpty(request?.Url)) return BadRequest(new { error = "No URL provided" });
+            return await DeleteFromBlob(request.Url, _config["SeekerHeadshotContainer"] ?? Environment.GetEnvironmentVariable("SEEKER_HEADSHOT_CONTAINER") ?? "qaseekerheadshot");
         }
 
         private async Task<IActionResult> UploadToContainer(IFormFile file, string containerName)

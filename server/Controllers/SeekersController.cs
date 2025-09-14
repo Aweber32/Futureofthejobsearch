@@ -49,7 +49,8 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 PhoneNumber = req.PhoneNumber,
                 // ProfessionalSummary removed from model
                 ResumeUrl = req.ResumeUrl,
-                VideoUrl = req.VideoUrl
+                VideoUrl = req.VideoUrl,
+                HeadshotUrl = req.HeadshotUrl
             };
             if (req.Skills != null && req.Skills.Length > 0) seeker.Skills = string.Join(',', req.Skills);
             // optional structured fields
@@ -173,6 +174,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             if (req.Skills != null && req.Skills.Length > 0) seeker.Skills = string.Join(',', req.Skills);
             seeker.ResumeUrl = req.ResumeUrl ?? seeker.ResumeUrl;
             seeker.VideoUrl = req.VideoUrl ?? seeker.VideoUrl;
+            seeker.HeadshotUrl = req.HeadshotUrl ?? seeker.HeadshotUrl;
             // structured updates
             if (req.Experience != null && req.Experience.Length > 0) seeker.ExperienceJson = System.Text.Json.JsonSerializer.Serialize(req.Experience);
             if (req.Education != null && req.Education.Length > 0)
@@ -269,6 +271,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
         // Optional URLs returned from uploads (resume, video)
         public string? ResumeUrl { get; set; }
         public string? VideoUrl { get; set; }
+        public string? HeadshotUrl { get; set; }
         public string? Password { get; set; }
 
         // Structured fields
@@ -291,6 +294,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
         public string[]? Skills { get; set; }
         public string? ResumeUrl { get; set; }
         public string? VideoUrl { get; set; }
+        public string? HeadshotUrl { get; set; }
 
         // Structured updates
         public ExperienceDto[]? Experience { get; set; }

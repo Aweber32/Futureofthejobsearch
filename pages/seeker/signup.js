@@ -32,6 +32,7 @@ export default function SeekerSignup(){
   const [resumeFile, setResumeFile] = useState(null);
   const [showExpModal, setShowExpModal] = useState(false);
   const [videoFile, setVideoFile] = useState(null);
+  const [headshotFile, setHeadshotFile] = useState(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -182,6 +183,7 @@ export default function SeekerSignup(){
       // perform uploads now (only at final submit) and include returned URLs in registration payload
       let resumeUrl = form.resumeUrl || null;
       let videoUrl = form.videoUrl || null;
+      let headshotUrl = form.headshotUrl || null;
       try{
         if (resumeFile && !resumeUrl){
           const up = await uploadWithProgress(resumeFile, `${API}/api/uploads/resume`, ()=>{}, null);
@@ -194,6 +196,12 @@ export default function SeekerSignup(){
           videoUrl = up2?.url || up2?.uri || up2?.sasUrl || up2?.path || null;
         }
       } catch(uerr){ console.error('Video upload failed', uerr); }
+      try{
+        if (headshotFile && !headshotUrl){
+          const up3 = await uploadWithProgress(headshotFile, `${API}/api/uploads/seeker-headshot`, ()=>{}, null);
+          headshotUrl = up3?.url || up3?.uri || up3?.sasUrl || up3?.path || null;
+        }
+      } catch(uerr){ console.error('Headshot upload failed', uerr); }
 
       // Combine salary values into preferredSalary
       let combinedSalary = '';
@@ -218,6 +226,7 @@ export default function SeekerSignup(){
         Password: password,
         ResumeUrl: resumeUrl,
         VideoUrl: videoUrl,
+        HeadshotUrl: headshotUrl,
         Experience: form.experience,
         Education: form.education,
         VisaStatus: form.visaStatus,
@@ -464,6 +473,12 @@ export default function SeekerSignup(){
               <div className="col-md-6 mb-3"><label className="form-label">Email</label><input type="email" className="form-control" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} /></div>
             </div>
             <div className="mb-3"><label className="form-label">Phone</label><input className="form-control" value={form.phoneNumber} onChange={e=>setForm({...form, phoneNumber: e.target.value})} /></div>
+
+            <div className="mb-3">
+              <label className="form-label">Headshot (Optional)</label>
+              <input type="file" className="form-control" accept="image/*" onChange={e=>setHeadshotFile(e.target.files[0])} />
+              <small className="text-muted">Upload a professional headshot image</small>
+            </div>
 
             <div className="mb-3">
               <label className="form-label">Experience</label>

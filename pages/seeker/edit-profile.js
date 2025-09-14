@@ -26,14 +26,19 @@ export default function EditProfile(){
   const [education, setEducation] = useState([]);
   const [resumeFile, setResumeFile] = useState(null);
   const [videoFile, setVideoFile] = useState(null);
+  const [headshotFile, setHeadshotFile] = useState(null);
   const [currentResumeUrl, setCurrentResumeUrl] = useState('');
   const [currentVideoUrl, setCurrentVideoUrl] = useState('');
+  const [currentHeadshotUrl, setCurrentHeadshotUrl] = useState('');
   const [currentResumeName, setCurrentResumeName] = useState('');
   const [currentVideoName, setCurrentVideoName] = useState('');
+  const [currentHeadshotName, setCurrentHeadshotName] = useState('');
   const [resumeProgress, setResumeProgress] = useState(0);
   const [videoProgress, setVideoProgress] = useState(0);
+  const [headshotProgress, setHeadshotProgress] = useState(0);
   const [resumeUploading, setResumeUploading] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
+  const [headshotUploading, setHeadshotUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [seekerId, setSeekerId] = useState(null);
@@ -47,6 +52,7 @@ export default function EditProfile(){
   // Modal states for viewing files
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
+  const [showHeadshotModal, setShowHeadshotModal] = useState(false);
   
   // Experience modal fields
   const [newExpTitle, setNewExpTitle] = useState('');
@@ -148,8 +154,10 @@ export default function EditProfile(){
         // Load current resume and video URLs
         const resumeUrl = s?.resumeUrl ?? s?.ResumeUrl ?? '';
         const videoUrl = s?.videoUrl ?? s?.VideoUrl ?? '';
+        const headshotUrl = s?.headshotUrl ?? s?.HeadshotUrl ?? '';
         setCurrentResumeUrl(resumeUrl);
         setCurrentVideoUrl(videoUrl);
+        setCurrentHeadshotUrl(headshotUrl);
         
         // Extract filenames from URLs
         if (resumeUrl) {
@@ -159,6 +167,10 @@ export default function EditProfile(){
         if (videoUrl) {
           const videoFileName = videoUrl.split('/').pop() || 'Current Video';
           setCurrentVideoName(videoFileName);
+        }
+        if (headshotUrl) {
+          const headshotFileName = headshotUrl.split('/').pop() || 'Current Headshot';
+          setCurrentHeadshotName(headshotFileName);
         }
         
         // Parse salary data
@@ -539,6 +551,33 @@ export default function EditProfile(){
         catch(err){ setError('Video upload failed: ' + (err?.message||err)); } finally{ setVideoUploading(false); }
       }
 
+      // upload headshot
+      let headshotUrl = null;
+      if (headshotFile && seekerId){
+        // Delete old headshot if exists
+        if (currentHeadshotUrl) {
+          try {
+            console.log('Attempting to delete old headshot:', currentHeadshotUrl);
+            const deleteResponse = await fetch(`${API}/api/uploads/delete-headshot`, {
+              method: 'DELETE',
+              headers: { 
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}` 
+              },
+              body: JSON.stringify({ url: currentHeadshotUrl })
+            });
+            console.log('Delete headshot response status:', deleteResponse.status);
+            const deleteResult = await deleteResponse.text();
+            console.log('Delete headshot response:', deleteResult);
+          } catch (err) {
+            console.warn('Failed to delete old headshot:', err);
+          }
+        }
+        setHeadshotUploading(true); setHeadshotProgress(0);
+        try{ const up = await uploadWithProgress(headshotFile, `${API}/api/uploads/seeker-headshot`, p=>setHeadshotProgress(p), token); if (up?.url) { headshotUrl = up.url; setCurrentHeadshotUrl(up.url); setCurrentHeadshotName(headshotFile.name); } }
+        catch(err){ setError('Headshot upload failed: ' + (err?.message||err)); } finally{ setHeadshotUploading(false); }
+      }
+
       // Combine salary values into preferredSalary
       let combinedSalary = '';
       if (salaryType !== 'None' && (salaryMin || salaryMax)) {
@@ -577,6 +616,7 @@ export default function EditProfile(){
       // Add file URLs
       if (resumeUrl) body.ResumeUrl = resumeUrl;
       if (videoUrl) body.VideoUrl = videoUrl;
+      if (headshotUrl) body.HeadshotUrl = headshotUrl;
 
       const res = await fetch(`${API}/api/seekers/${seekerId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
       if (!res.ok){ const txt = await res.text(); throw new Error(txt || `Save failed (${res.status})`); }
@@ -807,7 +847,18 @@ export default function EditProfile(){
           </div>
         </div>
 
-        {error && <div className="alert alert-danger">{error}</div>}
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label className="form-label">Upload headshot (Optional)</label>
+            {currentHeadshotName && (
+              <div className="mb-2">
+                <button type="button" className="btn btn-link btn-sm p-0 text-primary fw-bold" onClick={() => setShowHeadshotModal(true)} style={{textDecoration: 'underline', cursor: 'pointer'}} onMouseEnter={(e) => e.target.style.textDecoration = 'underline'} onMouseLeave={(e) => e.target.style.textDecoration = 'underline'}>View</button>
+              </div>
+            )}
+            <input type="file" accept="image/*" className="form-control" onChange={e=>setHeadshotFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
+            {headshotUploading && <div className="mt-2"><div className="progress"><div className="progress-bar" role="progressbar" style={{width: `${headshotProgress}%`}} aria-valuenow={headshotProgress} aria-valuemin="0" aria-valuemax="100">{headshotProgress}%</div></div></div>}
+          </div>
+        </div>
         <div className="d-flex gap-2">
           <button className="btn btn-primary" type="submit" disabled={loading}>{loading? 'Saving…' : 'Save'}</button>
           <Link href="/seeker/dashboard" className="btn btn-outline-secondary">Cancel</Link>
@@ -958,6 +1009,44 @@ export default function EditProfile(){
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowVideoModal(false)}>Close</button>
                   <a href={currentVideoUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Open in New Tab</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
+
+      {/* Headshot Modal */}
+      {typeof window !== 'undefined' && showHeadshotModal && ReactDOM.createPortal(
+        <>
+          <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:1990}} onClick={() => setShowHeadshotModal(false)}></div>
+          <div className={`modal fade show`} style={{display:'block', zIndex:2000}} tabIndex={-1} role="dialog" aria-modal={true} aria-hidden={false} onKeyDown={(e) => { if (e.key === 'Escape') setShowHeadshotModal(false); }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Headshot Preview</h5>
+                  <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowHeadshotModal(false)}></button>
+                </div>
+                <div className="modal-body text-center">
+                  {currentHeadshotUrl ? (
+                    <img 
+                      src={currentHeadshotUrl} 
+                      alt="Headshot" 
+                      style={{maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain'}} 
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <i className="fas fa-user fa-3x text-muted mb-3"></i>
+                      <p className="text-muted">No headshot uploaded</p>
+                    </div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowHeadshotModal(false)}>Close</button>
+                  {currentHeadshotUrl && (
+                    <a href={currentHeadshotUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Open in New Tab</a>
+                  )}
                 </div>
               </div>
             </div>

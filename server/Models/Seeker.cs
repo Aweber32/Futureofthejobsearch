@@ -27,6 +27,7 @@ namespace FutureOfTheJobSearch.Server.Models
         // Paths/URLs to uploaded assets
         public string? ResumeUrl { get; set; }
         public string? VideoUrl { get; set; }
+        public string? HeadshotUrl { get; set; }
 
     // Structured fields stored as JSON
     public string? ExperienceJson { get; set; }
