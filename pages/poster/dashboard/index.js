@@ -11,6 +11,7 @@ export default function Dashboard(){
   const router = useRouter();
   const [company, setCompany] = useState(null);
   const [positions, setPositions] = useState([]);
+  const [userEmail, setUserEmail] = useState('');
 
   useEffect(()=>{
     const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
@@ -19,6 +20,9 @@ export default function Dashboard(){
     fetch(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r=>r.ok? r.json() : Promise.reject('Unauthorized'))
       .then(async data=>{
+        // Store user email for dropdown
+        setUserEmail(data.user?.email || '');
+        
         if (!data.employer) { setCompany(null); setPositions([]); return; }
         const emp = data.employer;
         let logo = emp.logoUrl;
@@ -56,6 +60,15 @@ export default function Dashboard(){
       .catch(()=>router.push('/poster/login'));
   },[]);
 
+  async function logout(){
+    const token = localStorage.getItem('fjs_token');
+    try{
+      await fetch(`${API}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+    }catch{}
+    localStorage.removeItem('fjs_token');
+    router.push('/poster/login');
+  }
+
   return (
     <Layout title="Dashboard">
       <div className="d-flex justify-content-between align-items-start mb-3">
@@ -63,9 +76,17 @@ export default function Dashboard(){
           <h1>Dashboard</h1>
           <CompanyCard company={company || { name: 'Acme Co', logo: '/logo.svg', description: 'Company profile' }} />
         </div>
-        <div>
-          <Link href="/poster/dashboard/edit-company" className="btn btn-outline-secondary me-2">Edit company</Link>
-          <Link href="/poster/login" className="btn btn-outline-danger">Logout</Link>
+        <div className="dropdown">
+          <button className="btn btn-outline-secondary dropdown-toggle" type="button" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            Account
+          </button>
+          <ul className="dropdown-menu" aria-labelledby="accountDropdown">
+            <li><span className="dropdown-item-text text-muted small">{userEmail}</span></li>
+            <li><hr className="dropdown-divider" /></li>
+            <li><Link href="/poster/dashboard/edit-company" className="dropdown-item">Edit Company</Link></li>
+            <li><span className="dropdown-item">Billing</span></li>
+            <li><button className="dropdown-item text-danger" onClick={logout}>Logout</button></li>
+          </ul>
         </div>
       </div>
 

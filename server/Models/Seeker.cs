@@ -29,6 +29,9 @@ namespace FutureOfTheJobSearch.Server.Models
         public string? VideoUrl { get; set; }
         public string? HeadshotUrl { get; set; }
 
+        // Profile status
+        public bool IsProfileActive { get; set; } = true;
+
     // Structured fields stored as JSON
     public string? ExperienceJson { get; set; }
     public string? EducationJson { get; set; }
@@ -58,6 +61,15 @@ namespace FutureOfTheJobSearch.Server.Models
 
     [MaxLength(1000)]
     public string? Interests { get; set; }
+
+    [MaxLength(100)]
+    public string? City { get; set; }
+
+    [MaxLength(100)]
+    public string? State { get; set; }
+
+    [MaxLength(2000)]
+    public string? ProfessionalSummary { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

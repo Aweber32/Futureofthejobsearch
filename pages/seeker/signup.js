@@ -3,14 +3,33 @@ import ReactDOM from 'react-dom';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
+import Select from 'react-select';
+import { State, City } from 'country-state-city';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  useEffect(()=>{
+    // load US states
+    const states = State.getStatesOfCountry('US').map(s=>({ value: s.isoCode, label: s.name }));
+    setStateOptions(states);
+  },[]);
+
+  useEffect(()=>{
+    // load cities for selected state
+    if (form.state) {
+      const cities = City.getCitiesOfState('US', form.state).map(c=>({ value: c.name, label: c.name }));
+      setCityOptions(cities);
+    } else {
+      setCityOptions([]);
+    }
+  },[form.state]);
 
 export default function SeekerSignup(){
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phoneNumber: '',
+    city: '', state: '', professionalSummary: '',
   experience: [], education: [], visaStatus: '', preferredSalary: '', workSetting: [], travel: '', relocate: '', languages: [], certifications: [], interests: ''
   });
   const [skills, setSkills] = useState([]);
@@ -38,6 +57,8 @@ export default function SeekerSignup(){
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [parsing, setParsing] = useState(false);
+  const [stateOptions, setStateOptions] = useState([]);
+  const [cityOptions, setCityOptions] = useState([]);
 
   // helpers for skills
   function addSkill(){
@@ -629,6 +650,50 @@ export default function SeekerSignup(){
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
               </select>
+            </div>
+
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <label className="form-label">State</label>
+                <Select
+                  options={stateOptions}
+                  value={stateOptions.find(option => option.value === form.state) || null}
+                  onChange={(selectedOption) => {
+                    setForm({...form, state: selectedOption ? selectedOption.value : '', city: ''});
+                    setCityOptions([]);
+                    if (selectedOption) {
+                      const cities = City.getCitiesOfState('US', selectedOption.value);
+                      setCityOptions(cities.map(city => ({ value: city.name, label: city.name })));
+                    }
+                  }}
+                  placeholder="Select your state"
+                  isClearable
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">City</label>
+                <Select
+                  options={cityOptions}
+                  value={cityOptions.find(option => option.value === form.city) || null}
+                  onChange={(selectedOption) => setForm({...form, city: selectedOption ? selectedOption.value : ''})}
+                  placeholder="Select your city"
+                  isClearable
+                  isDisabled={!form.state}
+                />
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Professional Summary</label>
+              <textarea
+                className="form-control"
+                rows={4}
+                value={form.professionalSummary || ''}
+                onChange={e => setForm({...form, professionalSummary: e.target.value})}
+                placeholder="Tell us about yourself, your experience, and what you're looking for in your next role..."
+                maxLength={1000}
+              />
+              <small className="text-muted">{(form.professionalSummary || '').length}/1000 characters</small>
             </div>
 
             <div className="row">

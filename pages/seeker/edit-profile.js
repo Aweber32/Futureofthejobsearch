@@ -18,6 +18,7 @@ export default function EditProfile(){
   const [workSettingInput, setWorkSettingInput] = useState('');
   const [languages, setLanguages] = useState([]);
   const [languageInput, setLanguageInput] = useState('');
+  const [customLanguage, setCustomLanguage] = useState('');
   const [certifications, setCertifications] = useState([]);
   const [certificationInput, setCertificationInput] = useState('');
   const [interests, setInterests] = useState([]);
@@ -264,10 +265,10 @@ export default function EditProfile(){
             
             // Normalize education data to ensure consistent property names
             const normalizedEduData = Array.isArray(eduData) ? eduData.map(edu => ({
-              level: edu.level || edu.Level || '',
-              school: edu.school || edu.School || '',
-              startDate: edu.startDate || edu.start || edu.StartDate || edu.Start || '',
-              endDate: edu.endDate || edu.end || edu.EndDate || edu.End || ''
+              Level: edu.level || edu.Level || '',
+              School: edu.school || edu.School || '',
+              StartDate: edu.startDate || edu.start || edu.StartDate || edu.Start || '',
+              EndDate: edu.endDate || edu.end || edu.EndDate || edu.End || ''
             })) : [];
             
             console.log('Normalized education data:', normalizedEduData); // Debug log
@@ -399,7 +400,16 @@ export default function EditProfile(){
   
   function editEducation(index){
     const edu = education[index];
-    setNewEduLevel(edu.Level || EDUCATION_LEVELS[0]);
+    console.log('Editing education at index:', index);
+    console.log('Education data:', edu);
+    console.log('Current Level value:', edu.Level);
+    console.log('EDUCATION_LEVELS:', EDUCATION_LEVELS);
+    const currentLevel = edu.Level || EDUCATION_LEVELS[0];
+    console.log('currentLevel after default:', currentLevel);
+    // Ensure the level is one of the valid options
+    const validLevel = EDUCATION_LEVELS.includes(currentLevel) ? currentLevel : EDUCATION_LEVELS[0];
+    console.log('validLevel:', validLevel);
+    setNewEduLevel(validLevel);
     setNewEduSchool(edu.School || '');
     setNewEduStart(edu.StartDate || edu.startDate || edu.start || '');
     setNewEduEnd(edu.EndDate || edu.endDate || edu.end || '');
@@ -413,12 +423,15 @@ export default function EditProfile(){
     const start = (newEduStart || '').trim();
     const end = (newEduEnd || '').trim();
     
+    console.log('Saving education with level:', level);
+    
     if (!school) {
       setError('School name is required');
       return;
     }
     
     const eduEntry = { Level: level, School: school, StartDate: start, EndDate: end };
+    console.log('Education entry:', eduEntry);
     
     if (editingEduIndex !== null) {
       // Update existing
@@ -605,7 +618,13 @@ export default function EditProfile(){
       // Add array fields
       if (skills.length) body.Skills = skills;
       if (workSetting.length) body.WorkSetting = workSetting;
-      if (languages.length) body.Languages = languages;
+      // Process languages to include custom language
+      let processedLanguages = [...languages];
+      if (customLanguage && customLanguage.trim()) {
+        processedLanguages.push(customLanguage.trim());
+      }
+      processedLanguages = processedLanguages.filter(lang => lang !== 'Other'); // Remove 'Other' placeholder
+      if (processedLanguages.length) body.Languages = processedLanguages;
       if (certifications.length) body.Certifications = certifications;
       if (interests.length) body.Interests = interests;
       
@@ -636,6 +655,20 @@ export default function EditProfile(){
 
   return (
     <Layout title="Edit profile">
+      {/* Fixed Preview Profile Button */}
+      <button 
+        className="btn btn-primary position-fixed"
+        style={{
+          bottom: '20px',
+          right: '20px',
+          zIndex: 1050,
+          boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+        }}
+        onClick={() => console.log('Preview Profile clicked')}
+      >
+        Preview Profile
+      </button>
+
       <div className="d-flex justify-content-between align-items-center">
         <h2>Edit profile</h2>
         <div>
@@ -738,7 +771,7 @@ export default function EditProfile(){
               }}>{l}</button>
             })}
           </div>
-          {languages && languages.includes('Other') && <input className="form-control mt-2" placeholder="Please specify other languages" onChange={e=>setLanguages(languages.map(x=> x==='Other' ? e.target.value : x))} />}
+          {languages && languages.includes('Other') && <input className="form-control mt-2" placeholder="Please specify other languages" value={customLanguage} onChange={e=>setCustomLanguage(e.target.value)} />}
         </div>
 
         <div className="mb-3">
@@ -811,13 +844,13 @@ export default function EditProfile(){
               <div key={index} className="card mb-2">
                 <div className="card-body p-2">
                   <div className="d-flex justify-content-between">
-                    <strong>{edu.school || 'School'}</strong>
+                    <strong>{edu.School || 'School'}</strong>
                     <div>
                       <button type="button" className="btn btn-sm btn-link" onClick={() => editEducation(index)}>Edit</button>
                       <button type="button" className="btn btn-sm btn-link text-danger" onClick={() => removeEducation(index)}>Remove</button>
                     </div>
                   </div>
-                  <div className="small text-muted">{edu.Level} {formatDateRange(edu.StartDate || edu.startDate || edu.start, edu.EndDate || edu.endDate || edu.end) ? `(${formatDateRange(edu.StartDate || edu.startDate || edu.start, edu.EndDate || edu.endDate || edu.end)})` : ''}</div>
+                  <div className="small text-muted">{edu.Level} {formatDateRange(edu.StartDate, edu.EndDate) ? `(${formatDateRange(edu.StartDate, edu.EndDate)})` : ''}</div>
                 </div>
               </div>
             ))}
@@ -908,7 +941,11 @@ export default function EditProfile(){
                 </div>
                 <div className="modal-body">
                   <div className="mb-2"><label className="form-label small">Level</label>
-                    <select className="form-control" value={newEduLevel} onChange={e=>setNewEduLevel(e.target.value)}>
+                    <select 
+                      className="form-select" 
+                      value={newEduLevel} 
+                      onChange={e=>setNewEduLevel(e.target.value)}
+                    >
                       {EDUCATION_LEVELS.map(level => <option key={level} value={level}>{level}</option>)}
                     </select>
                   </div>

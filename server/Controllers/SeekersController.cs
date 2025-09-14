@@ -69,6 +69,9 @@ namespace FutureOfTheJobSearch.Server.Controllers
             if (req.Languages != null && req.Languages.Length > 0) seeker.Languages = string.Join(',', req.Languages);
             if (req.Certifications != null && req.Certifications.Length > 0) seeker.Certifications = string.Join(',', req.Certifications);
             if (req.Interests != null && req.Interests.Length > 0) seeker.Interests = string.Join(',', req.Interests);
+            if (!string.IsNullOrEmpty(req.City)) seeker.City = req.City;
+            if (!string.IsNullOrEmpty(req.State)) seeker.State = req.State;
+            if (!string.IsNullOrEmpty(req.ProfessionalSummary)) seeker.ProfessionalSummary = req.ProfessionalSummary;
             _db.Seekers.Add(seeker);
             await _db.SaveChangesAsync();
 
@@ -175,6 +178,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             seeker.ResumeUrl = req.ResumeUrl ?? seeker.ResumeUrl;
             seeker.VideoUrl = req.VideoUrl ?? seeker.VideoUrl;
             seeker.HeadshotUrl = req.HeadshotUrl ?? seeker.HeadshotUrl;
+            if (req.IsProfileActive.HasValue) seeker.IsProfileActive = req.IsProfileActive.Value;
             // structured updates
             if (req.Experience != null && req.Experience.Length > 0) seeker.ExperienceJson = System.Text.Json.JsonSerializer.Serialize(req.Experience);
             if (req.Education != null && req.Education.Length > 0)
@@ -190,6 +194,9 @@ namespace FutureOfTheJobSearch.Server.Controllers
             if (req.Languages != null && req.Languages.Length > 0) seeker.Languages = string.Join(',', req.Languages);
             if (req.Certifications != null && req.Certifications.Length > 0) seeker.Certifications = string.Join(',', req.Certifications);
             if (req.Interests != null && req.Interests.Length > 0) seeker.Interests = string.Join(',', req.Interests);
+            seeker.City = req.City ?? seeker.City;
+            seeker.State = req.State ?? seeker.State;
+            seeker.ProfessionalSummary = req.ProfessionalSummary ?? seeker.ProfessionalSummary;
 
             await _db.SaveChangesAsync();
             return Ok(new { message = "Seeker updated", seeker });
@@ -285,6 +292,9 @@ namespace FutureOfTheJobSearch.Server.Controllers
         public string[]? Languages { get; set; }
         public string[]? Certifications { get; set; }
         public string[]? Interests { get; set; }
+        public string? City { get; set; }
+        public string? State { get; set; }
+        public string? ProfessionalSummary { get; set; }
     }
 
     public class UpdateSeekerRequest{
@@ -295,6 +305,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
         public string? ResumeUrl { get; set; }
         public string? VideoUrl { get; set; }
         public string? HeadshotUrl { get; set; }
+        public bool? IsProfileActive { get; set; }
 
         // Structured updates
         public ExperienceDto[]? Experience { get; set; }
@@ -307,6 +318,9 @@ namespace FutureOfTheJobSearch.Server.Controllers
         public string[]? Languages { get; set; }
         public string[]? Certifications { get; set; }
         public string[]? Interests { get; set; }
+        public string? City { get; set; }
+        public string? State { get; set; }
+        public string? ProfessionalSummary { get; set; }
     }
 
 }

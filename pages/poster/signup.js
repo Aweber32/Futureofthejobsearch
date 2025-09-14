@@ -12,14 +12,16 @@ export default function Signup(){
   const [form, setForm] = useState({
     companyName: 'Acme Co',
     contactName: 'Jane Doe',
+    contactEmail: '',
     website: '',
     companyDescription: '',
     companySize: 'Small',
-  city: '',
-  state: '',
+    address: '',
+    city: '',
+    state: '',
     email: 'hello@acme.test',
-  password: '',
-  confirmPassword: ''
+    password: '',
+    confirmPassword: ''
   });
   const [logoFile, setLogoFile] = useState(null);
   const [stateOptions, setStateOptions] = useState([]);
@@ -46,11 +48,13 @@ export default function Signup(){
         body: JSON.stringify({
           CompanyName: form.companyName,
           ContactName: form.contactName,
+          ContactEmail: form.contactEmail,
           Website: form.website,
           CompanyDescription: form.companyDescription,
-            CompanySize: form.companySize,
-            City: form.city,
-            State: form.state,
+          CompanySize: form.companySize,
+          Address: form.address,
+          City: form.city,
+          State: form.state,
           Email: form.email,
           Password: form.password
         })
@@ -202,6 +206,10 @@ export default function Signup(){
                   <div className="col-md-6 mb-3">
                     <label className="form-label">Contact name</label>
                     <input className="form-control" value={form.contactName} onChange={e=>setForm({...form, contactName: e.target.value})} />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Contact email</label>
+                    <input type="email" className="form-control" value={form.contactEmail} onChange={e=>setForm({...form, contactEmail: e.target.value})} />
                   </div>
                 </div>
 

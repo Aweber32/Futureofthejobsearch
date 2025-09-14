@@ -35,11 +35,62 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _signInManager = signInManager;
         }
 
+        private async Task DeleteLogoBlobAsync(string logoUrl)
+        {
+            if (string.IsNullOrEmpty(logoUrl)) return;
+
+            try
+            {
+                var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
+                var containerName = _config["BlobContainer"] ?? Environment.GetEnvironmentVariable("BLOB_CONTAINER") ?? "qalogos";
+                if (!string.IsNullOrEmpty(conn))
+                {
+                    // try to derive container/blob from stored URL
+                    string blobName;
+                    if (Uri.IsWellFormedUriString(logoUrl, UriKind.Absolute))
+                    {
+                        var uri = new Uri(logoUrl);
+                        var segments = uri.AbsolutePath.Trim('/').Split('/');
+                        if (segments.Length >= 2) { containerName = segments[0]; blobName = string.Join('/', segments.Skip(1)); }
+                        else blobName = string.Join('/', segments);
+                    }
+                    else blobName = logoUrl.TrimStart('/');
+
+                    var parts = conn.Split(';', StringSplitOptions.RemoveEmptyEntries);
+                    var acctName = string.Empty; var acctKey = string.Empty;
+                    foreach (var p in parts)
+                    {
+                        var kv = p.Split('=', 2);
+                        if (kv.Length != 2) continue;
+                        var k = kv[0].Trim(); var v = kv[1].Trim();
+                        if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
+                        if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
+                    }
+                    if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
+                    {
+                        var blobClient = new BlobClient(conn, containerName, blobName);
+                        await blobClient.DeleteIfExistsAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete logo blob with URL: {LogoUrl}", logoUrl);
+            }
+        }
+
         [HttpPatch("{id}/logo")]
         public async Task<IActionResult> UpdateLogo([FromRoute] int id, [FromBody] UpdateLogoRequest req)
         {
             var emp = await _db.Employers.FirstOrDefaultAsync(e => e.Id == id);
             if (emp == null) return NotFound(new { error = "Employer not found" });
+
+            // Delete the old logo blob if it exists
+            if (!string.IsNullOrEmpty(emp.LogoUrl))
+            {
+                await DeleteLogoBlobAsync(emp.LogoUrl);
+            }
+
             emp.LogoUrl = req.LogoUrl;
             await _db.SaveChangesAsync();
             return Ok(new { message = "Logo updated" });
@@ -190,44 +241,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             // Attempt to delete blob if LogoUrl present and parseable
             if (!string.IsNullOrEmpty(emp.LogoUrl))
             {
-                try
-                {
-                    var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
-                    var containerName = _config["BlobContainer"] ?? Environment.GetEnvironmentVariable("BLOB_CONTAINER") ?? "qalogos";
-                    if (!string.IsNullOrEmpty(conn))
-                    {
-                        // try to derive container/blob from stored URL
-                        string blobName;
-                        if (Uri.IsWellFormedUriString(emp.LogoUrl, UriKind.Absolute))
-                        {
-                            var uri = new Uri(emp.LogoUrl);
-                            var segments = uri.AbsolutePath.Trim('/').Split('/');
-                            if (segments.Length >= 2) { containerName = segments[0]; blobName = string.Join('/', segments.Skip(1)); }
-                            else blobName = string.Join('/', segments);
-                        }
-                        else blobName = emp.LogoUrl.TrimStart('/');
-
-                        var parts = conn.Split(';', StringSplitOptions.RemoveEmptyEntries);
-                        var acctName = string.Empty; var acctKey = string.Empty;
-                        foreach (var p in parts)
-                        {
-                            var kv = p.Split('=', 2);
-                            if (kv.Length != 2) continue;
-                            var k = kv[0].Trim(); var v = kv[1].Trim();
-                            if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
-                            if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
-                        }
-                        if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
-                        {
-                            var blobClient = new BlobClient(conn, containerName, blobName);
-                            await blobClient.DeleteIfExistsAsync();
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to delete logo blob for employer {EmployerId}", id);
-                }
+                await DeleteLogoBlobAsync(emp.LogoUrl);
             }
 
             // remove employer record
@@ -254,7 +268,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
         }
     }
 
-    public class UpdateLogoRequest { public string LogoUrl { get; set; } }
+    public class UpdateLogoRequest { public string? LogoUrl { get; set; } }
 
     public class UpdateEmployerRequest
     {
