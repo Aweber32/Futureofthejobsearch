@@ -10,7 +10,7 @@ export default function SeekerSignup(){
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    firstName: '', lastName: '', email: '', phoneNumber: '', professionalSummary: '',
+    firstName: '', lastName: '', email: '', phoneNumber: '',
   experience: [], education: [], visaStatus: '', preferredSalary: '', workSetting: [], travel: '', relocate: '', languages: [], certifications: [], interests: ''
   });
   const [skills, setSkills] = useState([]);
@@ -22,7 +22,7 @@ export default function SeekerSignup(){
   const [newExpDesc, setNewExpDesc] = useState('');
   const [editingIndex, setEditingIndex] = useState(null);
   // Education entry helpers
-  const EDUCATION_LEVELS = ["High School","Associate's","Bachelor's","Master's","Doctorate","None required"];
+  const EDUCATION_LEVELS = ["High School","Associate's","Bachelor's","Master's","Doctorate","None"];
   const [newEduLevel, setNewEduLevel] = useState(EDUCATION_LEVELS[0]);
   const [newEduSchool, setNewEduSchool] = useState('');
   const [newEduStart, setNewEduStart] = useState('');
@@ -195,12 +195,25 @@ export default function SeekerSignup(){
         }
       } catch(uerr){ console.error('Video upload failed', uerr); }
 
+      // Combine salary values into preferredSalary
+      let combinedSalary = '';
+      if (salaryType !== 'None' && (salaryMin || salaryMax)) {
+        const min = salaryMin ? formatWithCommas(salaryMin) : '';
+        const max = salaryMax ? formatWithCommas(salaryMax) : '';
+        if (min && max) {
+          combinedSalary = `${salaryType}: $${min} - $${max}`;
+        } else if (min) {
+          combinedSalary = `${salaryType}: $${min}+`;
+        } else if (max) {
+          combinedSalary = `${salaryType}: Up to $${max}`;
+        }
+      }
+
       const payload = {
         FirstName: form.firstName,
         LastName: form.lastName,
         Email: form.email,
         PhoneNumber: form.phoneNumber,
-        ProfessionalSummary: form.professionalSummary,
         Skills: skills,
         Password: password,
         ResumeUrl: resumeUrl,
@@ -208,7 +221,7 @@ export default function SeekerSignup(){
         Experience: form.experience,
         Education: form.education,
         VisaStatus: form.visaStatus,
-        PreferredSalary: form.preferredSalary,
+        PreferredSalary: combinedSalary || form.preferredSalary,
         WorkSetting: form.workSetting,
         Travel: form.travel,
         Relocate: form.relocate,
@@ -355,7 +368,6 @@ export default function SeekerSignup(){
                       }
                     if (parsed.Email) setForm(prev=>({...prev, email: parsed.Email}));
                     if (parsed.PhoneNumber) setForm(prev=>({...prev, phoneNumber: parsed.PhoneNumber}));
-                    if (parsed.ProfessionalSummary) setForm(prev=>({...prev, professionalSummary: parsed.ProfessionalSummary}));
                     if (parsed.Experience) {
                       // parsed.Experience may be a string or array. Normalize to structured entries.
                       if (Array.isArray(parsed.Experience)) {
@@ -392,14 +404,14 @@ export default function SeekerSignup(){
 
                           const start = startRaw ? String(startRaw) : '';
                           const end = endRaw ? String(endRaw) : '';
-                          return { title, start, end, description: desc };
+                          return { title, StartDate: start, EndDate: end, description: desc };
                         });
                         const entries = await Promise.all(processPromises);
                         setForm(prev=>({...prev, experience: entries}));
                       } else if (typeof parsed.Experience === 'string') {
                         const desc = parsed.Experience;
                         const short = desc.length > 100 ? await summarizeText(desc) : desc;
-                        setForm(prev=>({...prev, experience: [{ title:'', start:'', end:'', description: short }]}));
+                        setForm(prev=>({...prev, experience: [{ title:'', StartDate:'', EndDate:'', description: short }]}));
                       } else {
                         // unknown shape, set raw
                         setForm(prev=>({...prev, experience: [parsed.Experience]}));
@@ -410,17 +422,17 @@ export default function SeekerSignup(){
                       const norm = (function(src){
                         if (!src) return [];
                         if (Array.isArray(src)) return src.map(it=>{
-                          if (!it) return { level: '', school: '', start: '', end: '' };
-                          if (typeof it === 'string') return { level: '', school: it, start: '', end: '' };
+                          if (!it) return { Level: '', School: '', StartDate: '', EndDate: '' };
+                          if (typeof it === 'string') return { Level: '', School: it, StartDate: '', EndDate: '' };
                           // try common keys
                           const get = (o, ...keys) => { for (const k of keys){ if (o[k]!==undefined && o[k]!==null) return o[k]; const lk = k.toLowerCase(); if (o[lk]!==undefined && o[lk]!==null) return o[lk]; } return undefined; };
                           const level = get(it,'Education','Degree','level','Level') || '';
                           const school = get(it,'School','Institution','SchoolName','school','institution') || '';
                           const start = get(it,'StartDate','startDate','start','from') || '';
                           const end = get(it,'EndDate','endDate','end','to') || '';
-                          return { level: String(level), school: String(school), start: String(start), end: String(end) };
+                          return { Level: String(level), School: String(school), StartDate: String(start), EndDate: String(end) };
                         });
-                        if (typeof src === 'string') return [{ level:'', school: String(src), start:'', end:'' }];
+                        if (typeof src === 'string') return [{ Level:'', School: String(src), StartDate:'', EndDate:'' }];
                         return [];
                       })(parsed.Education);
                       setForm(prev=>({...prev, education: norm}));
@@ -465,11 +477,11 @@ export default function SeekerSignup(){
                       <div className="d-flex justify-content-between">
                         <strong>{ex.title || 'Untitled'}</strong>
                         <div>
-                          <button type="button" className="btn btn-sm btn-link" onClick={()=>{ setNewExpTitle(ex.title || ''); setNewExpStart(ex.start || ''); setNewExpEnd(ex.end || ''); setNewExpDesc(ex.description || ''); setEditingIndex(idx); setShowExpModal(true); }}>Edit</button>
+                          <button type="button" className="btn btn-sm btn-link" onClick={()=>{ setNewExpTitle(ex.title || ''); setNewExpStart(ex.StartDate || ex.start || ''); setNewExpEnd(ex.EndDate || ex.end || ''); setNewExpDesc(ex.description || ''); setEditingIndex(idx); setShowExpModal(true); }}>Edit</button>
                           <button type="button" className="btn btn-sm btn-link text-danger" onClick={()=>{ setForm(prev=> ({ ...prev, experience: prev.experience.filter((_,i)=>i!==idx) }) ); if (editingIndex !== null && editingIndex === idx) setEditingIndex(null); }}>Remove</button>
                         </div>
                       </div>
-                        <div className="small text-muted">{ex.time || (ex.start && ex.end ? `${ex.start} — ${ex.end}` : '')}</div>
+                        <div className="small text-muted">{ex.time || ((ex.StartDate || ex.start) && (ex.EndDate || ex.end) ? `${ex.StartDate || ex.start} — ${ex.EndDate || ex.end}` : '')}</div>
                         <div className="mt-2" style={{whiteSpace:'pre-wrap'}}>{ex.description}</div>
                     </div>
                   </div>
@@ -499,7 +511,7 @@ export default function SeekerSignup(){
                           <button type="button" className="btn btn-primary" onClick={()=>{
                             const title = (newExpTitle||'').trim(); const start = (newExpStart||'').trim(); const end = (newExpEnd||'').trim(); const desc = (newExpDesc||'').trim().slice(0,2000);
                             if (!title && !desc) { setError('Please provide at least a title or description for experience'); return; }
-                            const entry = { title, start, end, description: desc };
+                            const entry = { title, StartDate: start, EndDate: end, description: desc };
                             if (editingIndex !== null && Number.isInteger(editingIndex)){
                               setForm(prev=>{
                                 const arr = Array.isArray(prev.experience) ? [...prev.experience] : [];
@@ -540,11 +552,11 @@ export default function SeekerSignup(){
                   <div key={idx} className="card mb-2">
                     <div className="card-body p-2 d-flex justify-content-between align-items-start">
                       <div>
-                        <div><strong>{ed.school || ed.level || 'Untitled'}</strong></div>
-                        <div className="small text-muted">{ed.level || ''}{(ed.start && ed.end) ? ` • ${ed.start} — ${ed.end}` : (ed.start ? ` • ${ed.start}` : (ed.end ? ` • ${ed.end}` : ''))}</div>
+                        <div><strong>{ed.School || ed.Level || 'Untitled'}</strong></div>
+                        <div className="small text-muted">{ed.Level || ''}{((ed.StartDate || ed.start) && (ed.EndDate || ed.end)) ? ` • ${ed.StartDate || ed.start} — ${ed.EndDate || ed.end}` : ((ed.StartDate || ed.start) ? ` • ${ed.StartDate || ed.start}` : ((ed.EndDate || ed.end) ? ` • ${ed.EndDate || ed.end}` : ''))}</div>
                       </div>
                       <div>
-                        <button type="button" className="btn btn-sm btn-link" onClick={()=>{ setNewEduLevel(ed.level || EDUCATION_LEVELS[0]); setNewEduSchool(ed.school || ''); setNewEduStart(ed.start || ''); setNewEduEnd(ed.end || ''); setEditingEduIndex(idx); setShowEduModal(true); }}>Edit</button>
+                        <button type="button" className="btn btn-sm btn-link" onClick={()=>{ setNewEduLevel(ed.Level || EDUCATION_LEVELS[0]); setNewEduSchool(ed.School || ''); setNewEduStart(ed.StartDate || ed.start || ''); setNewEduEnd(ed.EndDate || ed.end || ''); setEditingEduIndex(idx); setShowEduModal(true); }}>Edit</button>
                         <button type="button" className="btn btn-sm btn-link text-danger" onClick={()=>{ setForm(prev=> ({ ...prev, education: (prev.education||[]).filter((_,i)=>i!==idx) }) ); if (editingEduIndex !== null && editingEduIndex === idx) setEditingEduIndex(null); }}>Remove</button>
                       </div>
                     </div>
@@ -579,7 +591,7 @@ export default function SeekerSignup(){
                           <button type="button" className="btn btn-primary" onClick={()=>{
                             const level = (newEduLevel||'').trim(); const school = (newEduSchool||'').trim(); const start = (newEduStart||'').trim(); const end = (newEduEnd||'').trim();
                             if (!school && !level) { setError('Please provide at least a school name or level'); return; }
-                            const entry = { level, school, start, end };
+                            const entry = { Level: level, School: school, StartDate: start, EndDate: end };
                             if (editingEduIndex !== null && Number.isInteger(editingEduIndex)){
                               setForm(prev=>{ const arr = Array.isArray(prev.education) ? [...prev.education] : []; arr[editingEduIndex] = entry; return { ...prev, education: arr }; });
                               setEditingEduIndex(null);

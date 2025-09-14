@@ -30,7 +30,7 @@ export default function SeekerDashboard(){
         if (!res.ok) throw new Error('Unauthorized');
         const data = await res.json();
         // API returns { user, seeker }
-        setSeeker(data.seeker ?? data);
+        setSeeker({ ...data.seeker, user: data.user });
       }catch(err){ setError(err?.message || 'Failed to load'); }
       finally{ setLoading(false); }
     })();
@@ -52,7 +52,7 @@ export default function SeekerDashboard(){
   // tolerate different JSON naming: camelCase or PascalCase
   const firstName = seeker?.firstName ?? seeker?.FirstName ?? seeker?.first_name ?? seeker?.givenName ?? seeker?.user?.firstName ?? seeker?.user?.name ?? '';
   const lastName = seeker?.lastName ?? seeker?.LastName ?? seeker?.last_name ?? '';
-  const email = seeker?.email ?? seeker?.Email ?? seeker?.user?.email ?? seeker?.user?.Email ?? '';
+  const email = seeker?.user?.email ?? seeker?.email ?? seeker?.Email ?? '';
   const displayName = firstName || (email ? email.split('@')[0] : '') || seeker?.user?.name || 'Seeker';
   const rawSkills = seeker?.skills ?? seeker?.Skills ?? '';
   const skills = rawSkills ? rawSkills.split(',').map(s=>s.trim()).filter(Boolean) : [];
@@ -64,9 +64,16 @@ export default function SeekerDashboard(){
           <h1>{greeting ? `${greeting}, ${displayName}` : `Welcome, ${displayName}`}</h1>
           <SeekerCard seeker={seeker} />
         </div>
-        <div className="d-flex gap-2">
-          <Link href="/seeker/edit-profile" className="btn btn-outline-secondary">Edit profile</Link>
-          <button className="btn btn-outline-danger" onClick={logout}>Logout</button>
+        <div className="dropdown">
+          <button className="btn btn-outline-secondary dropdown-toggle" type="button" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            Account
+          </button>
+          <ul className="dropdown-menu" aria-labelledby="accountDropdown">
+            <li><span className="dropdown-item-text text-muted small">{email}</span></li>
+            <li><hr className="dropdown-divider" /></li>
+            <li><Link href="/seeker/edit-profile" className="dropdown-item">Edit Profile</Link></li>
+            <li><button className="dropdown-item text-danger" onClick={logout}>Logout</button></li>
+          </ul>
         </div>
       </div>
 

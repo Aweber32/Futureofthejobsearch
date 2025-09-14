@@ -8,7 +8,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const JOB_CATEGORIES = ['Engineering','Sales','Finance','Marketing','Product','Design','Operations','Human Resources','Customer Success','Legal','IT','Data Science','DevOps','Quality Assurance','Support','Administration','Research','Education','Healthcare','Hospitality','Manufacturing','Retail','Other'];
 const EMPLOYMENT_TYPES = ['Full-time','Part-time','Contract','Temporary','Internship'];
 const WORK_SETTINGS = ['Remote','In-office','Hybrid','On-site'];
-const EDUCATION_LEVELS = ["High School","Associate's","Bachelor's","Master's","Doctorate","None required"];
+const EDUCATION_LEVELS = ["High School","Associate's","Bachelor's","Master's","Doctorate","None"];
 
 export default function EditPosition(){
   const router = useRouter();

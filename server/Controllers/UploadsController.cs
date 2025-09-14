@@ -19,6 +19,11 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _logger = logger;
         }
 
+        public class DeleteFileRequest
+        {
+            public string Url { get; set; } = string.Empty;
+        }
+
         [HttpPost("logo")]
         public async Task<IActionResult> UploadLogo([FromForm] IFormFile file)
         {
@@ -113,6 +118,20 @@ namespace FutureOfTheJobSearch.Server.Controllers
             return await UploadToContainer(file, _config["PosterVideoContainer"] ?? Environment.GetEnvironmentVariable("POSTER_VIDEO_CONTAINER") ?? (_config["BlobContainer"] ?? "qapostervideo"));
         }
 
+        [HttpDelete("delete-resume")]
+        public async Task<IActionResult> DeleteResume([FromBody] DeleteFileRequest request)
+        {
+            if (string.IsNullOrEmpty(request?.Url)) return BadRequest(new { error = "No URL provided" });
+            return await DeleteFromBlob(request.Url, _config["ResumeContainer"] ?? Environment.GetEnvironmentVariable("RESUME_CONTAINER") ?? (_config["BlobContainer"] ?? "qaresumes"));
+        }
+
+        [HttpDelete("delete-video")]
+        public async Task<IActionResult> DeleteVideo([FromBody] DeleteFileRequest request)
+        {
+            if (string.IsNullOrEmpty(request?.Url)) return BadRequest(new { error = "No URL provided" });
+            return await DeleteFromBlob(request.Url, _config["SeekerVideoContainer"] ?? Environment.GetEnvironmentVariable("SEEKER_VIDEO_CONTAINER") ?? (_config["BlobContainer"] ?? "qaseekervideo"));
+        }
+
         private async Task<IActionResult> UploadToContainer(IFormFile file, string containerName)
         {
             if (file == null || file.Length == 0) return BadRequest(new { error = "No file provided" });
@@ -154,6 +173,65 @@ namespace FutureOfTheJobSearch.Server.Controllers
             catch (Exception) { /* fallback to direct URI */ }
 
             return Ok(new { url = resultUrl });
+        }
+
+        private async Task<IActionResult> DeleteFromBlob(string url, string containerName)
+        {
+            if (string.IsNullOrEmpty(url)) return BadRequest(new { error = "No URL provided" });
+
+            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
+            if (string.IsNullOrEmpty(conn)) return StatusCode(500, new { error = "Blob storage not configured" });
+
+            BlobServiceClient blobService;
+            try { blobService = new BlobServiceClient(conn); }
+            catch (Exception ex) { return StatusCode(500, new { error = "Failed to initialize blob client", detail = ex.Message }); }
+
+            try
+            {
+                // Extract blob name from URL
+                var uri = new Uri(url);
+                var blobName = uri.AbsolutePath.TrimStart('/');
+
+                _logger.LogInformation($"Attempting to delete blob. Original URL: {url}");
+                _logger.LogInformation($"Parsed blob name: {blobName}");
+                _logger.LogInformation($"Container name: {containerName}");
+
+                // Remove container name from path if present
+                if (blobName.StartsWith(containerName + "/"))
+                {
+                    blobName = blobName.Substring(containerName.Length + 1);
+                    _logger.LogInformation($"Blob name after container removal: {blobName}");
+                }
+
+                // Remove SAS token if present
+                if (blobName.Contains('?'))
+                {
+                    blobName = blobName.Split('?')[0];
+                    _logger.LogInformation($"Blob name after SAS token removal: {blobName}");
+                }
+
+                var container = blobService.GetBlobContainerClient(containerName);
+                var blob = container.GetBlobClient(blobName);
+
+                _logger.LogInformation($"Final blob name for deletion: {blobName}");
+
+                var response = await blob.DeleteIfExistsAsync();
+                if (response.Value)
+                {
+                    _logger.LogInformation("File deleted successfully");
+                    return Ok(new { message = "File deleted successfully" });
+                }
+                else
+                {
+                    _logger.LogWarning("File not found for deletion");
+                    return NotFound(new { error = "File not found" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to delete blob. URL: {url}, Container: {containerName}");
+                return StatusCode(500, new { error = "Failed to delete file", detail = ex.Message });
+            }
         }
     }
 }

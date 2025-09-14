@@ -236,7 +236,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
         if (s.Contains("bachelor") || s.Contains("ba") || s.Contains("bs") || s.Contains("b.sc") || s.Contains("bsc")) return "Bachelor's";
         if (s.Contains("master") || s.Contains("ms") || s.Contains("m.sc") || s.Contains("msc")) return "Master's";
         if (s.Contains("doctor") || s.Contains("phd") || s.Contains("doctorate") || s.Contains("d.ph")) return "Doctorate";
-        if (s.Contains("none") || s.Contains("no degree") || s.Contains("not required") || s.Contains("none required")) return "None required";
+        if (s.Contains("none") || s.Contains("no degree") || s.Contains("not required") || s.Contains("none required")) return "None";
         // fallback: capitalize first letters
         return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(level.Trim());
     }

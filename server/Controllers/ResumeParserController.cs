@@ -2,9 +2,10 @@ using System;
 using System.Net.Http;
 using System.IO;
 using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+using System.Net.Http.Headers;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -20,15 +21,14 @@ namespace FutureOfTheJobSearch.Server.Controllers
     [ApiController]
     public class ResumeParserController : ControllerBase
     {
-    [HttpPost]
-    [Route("/api/parse-resume")]
-    public async Task<IActionResult> ParseResume([FromBody] ResumeParseRequest req)
+        [HttpPost]
+        [Route("/api/parse-resume")]
+        public async Task<IActionResult> ParseResume([FromBody] ResumeParseRequest req)
         {
             var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
             if (string.IsNullOrEmpty(apiKey))
             {
-                // Fallback API key (temporary). Replace with environment variable in production.
-                apiKey = "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";
+                return StatusCode(500, new { message = "OpenAI API key not configured. Please set the OPENAI_API_KEY environment variable." });
             }
 
             if (req == null || string.IsNullOrEmpty(req.Content))
@@ -42,8 +42,8 @@ namespace FutureOfTheJobSearch.Server.Controllers
             userPrompt.AppendLine($"Filename: {req.Filename}");
             userPrompt.AppendLine("\nResume content:\n");
             userPrompt.AppendLine(req.Content);
-            userPrompt.AppendLine("\n\nInstruction: Extract the following fields from the resume when present and return ONLY valid JSON with these keys: FirstName, LastName, Email, PhoneNumber, ProfessionalSummary, Experience (array), Education (array), VisaStatus, Skills (array), Certifications (array), Interests (array), Languages (array), PreferredSalary. For Experience, return an array of objects with keys: Title (string), StartDate (yyyy-mm-dd if possible or human-readable), EndDate (yyyy-mm-dd or human-readable), Description (string). For Education, return an array of objects with keys: Level (string, one of: High School, Associate's, Bachelor's, Master's, Doctorate, None required if present), School (string), StartDate (yyyy-mm or yyyy-mm-dd if available), EndDate (yyyy-mm or yyyy-mm-dd if available). Return the full Description text for each position (do not truncate or summarize). If a Title is not explicitly present, synthesize a concise Title from the position text (e.g. 'Software Engineer', 'Product Manager'). Use null for missing scalar fields and empty arrays for lists. Return strict JSON only and do not include any commentary or explanation.");
-            userPrompt.AppendLine("\nExample output JSON:\n{\n  \"FirstName\": \"John\",\n  \"LastName\": \"Doe\",\n  \"Email\": \"john@example.com\",\n  \"PhoneNumber\": \"(555) 555-5555\",\n  \"ProfessionalSummary\": \"Experienced engineer...\",\n  \"Experience\": [\n    { \"Title\": \"Software Engineer\", \"StartDate\": \"2019-01-01\", \"EndDate\": \"2021-06-30\", \"Description\": \"Worked on X and Y...\" }\n  ],\n  \"Education\": [\n    { \"Level\": \"Bachelor's\", \"School\": \"State University\", \"StartDate\": \"2015-09\", \"EndDate\": \"2019-06\" }\n  ],\n  \"VisaStatus\": null,\n  \"Skills\": [\"C#\",\"JavaScript\"],\n  \"Certifications\": [],\n  \"Interests\": [],\n  \"Languages\": [\"English\"]\n}\n\nReturn only JSON. Do not include any surrounding text or commentary.");
+            userPrompt.AppendLine("\n\nInstruction: Extract the following fields from the resume when present and return ONLY valid JSON with these keys: FirstName, LastName, Email, PhoneNumber, Experience (array), Education (array), VisaStatus, Skills (array), Certifications (array), Interests (array), Languages (array), PreferredSalary. For Experience, return an array of objects with keys: Title (string), StartDate (yyyy-mm-dd if possible or human-readable), EndDate (yyyy-mm-dd or human-readable), Description (string). For Education, return an array of objects with keys: Level (string, one of: High School, Associate's, Bachelor's, Master's, Doctorate, None if present), School (string), StartDate (yyyy-mm or yyyy-mm-dd if available), EndDate (yyyy-mm or yyyy-mm-dd if available). Return the full Description text for each position (do not truncate or summarize). If a Title is not explicitly present, synthesize a concise Title from the position text (e.g. 'Software Engineer', 'Product Manager'). Use null for missing scalar fields and empty arrays for lists. Return strict JSON only and do not include any commentary or explanation.");
+            userPrompt.AppendLine("\nExample output JSON:\n{\n  \"FirstName\": \"John\",\n  \"LastName\": \"Doe\",\n  \"Email\": \"john@example.com\",\n  \"PhoneNumber\": \"(555) 555-5555\",\n  \"Experience\": [\n    { \"Title\": \"Software Engineer\", \"StartDate\": \"2019-01-01\", \"EndDate\": \"2021-06-30\", \"Description\": \"Worked on X and Y...\" }\n  ],\n  \"Education\": [\n    { \"Level\": \"Bachelor's\", \"School\": \"State University\", \"StartDate\": \"2015-09\", \"EndDate\": \"2019-06\" }\n  ],\n  \"VisaStatus\": null,\n  \"Skills\": [\"C#\",\"JavaScript\"],\n  \"Certifications\": [],\n  \"Interests\": [],\n  \"Languages\": [\"English\"]\n}\n\nReturn only JSON. Do not include any surrounding text or commentary.");
 
             var payload = new
             {
@@ -98,8 +98,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
             if (string.IsNullOrEmpty(apiKey))
             {
-                // Fallback API key (temporary). Replace with environment variable in production.
-                apiKey = "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";
+                return StatusCode(500, new { message = "OpenAI API key not configured. Please set the OPENAI_API_KEY environment variable." });
             }
 
             var client = new HttpClient();
@@ -188,8 +187,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
             if (string.IsNullOrEmpty(apiKey))
             {
-                // Fallback API key (temporary). Replace with environment variable in production.
-                apiKey = "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";
+                return StatusCode(500, new { message = "OpenAI API key not configured. Please set the OPENAI_API_KEY environment variable." });
             }
 
             var client = new HttpClient();
@@ -199,7 +197,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             userPrompt.AppendLine($"Filename: {file.FileName}");
             userPrompt.AppendLine("\nResume content:\n");
             userPrompt.AppendLine(content);
-            userPrompt.AppendLine("\n\nInstruction: Extract the following fields from the resume when present and return ONLY valid JSON with these keys: FirstName, LastName, Email, PhoneNumber, ProfessionalSummary, Experience (array), Education (array), VisaStatus, Skills (array), Certifications (array), Interests (array), Languages (array), PreferredSalary. For Experience, return an array of objects with keys: Title (string), StartDate (yyyy-mm-dd if possible or human-readable), EndDate (yyyy-mm-dd or human-readable), Description (string). For Education, return an array of objects with keys: Level (string, one of: High School, Associate's, Bachelor's, Master's, Doctorate, None required if present), School (string), StartDate (yyyy-mm or yyyy-mm-dd if available), EndDate (yyyy-mm or yyyy-mm-dd if available). Return the full Description text for each position (do not truncate or summarize). Use null for missing scalar fields and empty arrays for lists. Return strict JSON only and do not include any commentary or explanation.");
+            userPrompt.AppendLine("\n\nInstruction: Extract the following fields from the resume when present and return ONLY valid JSON with these keys: FirstName, LastName, Email, PhoneNumber, Experience (array), Education (array), VisaStatus, Skills (array), Certifications (array), Interests (array), Languages (array), PreferredSalary. For Experience, return an array of objects with keys: Title (string), StartDate (yyyy-mm-dd if possible or human-readable), EndDate (yyyy-mm-dd or human-readable), Description (string). For Education, return an array of objects with keys: Level (string, one of: High School, Associate's, Bachelor's, Master's, Doctorate, None if present), School (string), StartDate (yyyy-mm or yyyy-mm-dd if available), EndDate (yyyy-mm or yyyy-mm-dd if available). Return the full Description text for each position (do not truncate or summarize). Use null for missing scalar fields and empty arrays for lists. Return strict JSON only and do not include any commentary or explanation.");
 
             var payload = new
             {

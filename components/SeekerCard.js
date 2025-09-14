@@ -2,7 +2,7 @@ export default function SeekerCard({ seeker = {} }){
   const firstName = seeker?.firstName ?? seeker?.FirstName ?? seeker?.user?.firstName ?? seeker?.user?.name ?? '';
   const lastName = seeker?.lastName ?? seeker?.LastName ?? '';
   const name = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : 'Job Seeker';
-  const summary = seeker?.professionalSummary ?? seeker?.ProfessionalSummary ?? seeker?.headline ?? '';
+  const summary = seeker?.headline ?? '';
   const resume = seeker?.resumeUrl ?? seeker?.ResumeUrl ?? '';
   const video = seeker?.videoUrl ?? seeker?.VideoUrl ?? '';
 

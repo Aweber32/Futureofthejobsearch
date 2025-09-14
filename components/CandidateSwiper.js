@@ -137,7 +137,7 @@ export default function CandidateSwiper({ initialCandidates }){
             </div>
             <div className="col-md-8">
               <h6>Description</h6>
-              <p className="text-wrap">{top.professionalSummary ?? top.ProfessionalSummary ?? top.headline ?? top.Headline ?? 'No description provided.'}</p>
+              <p className="text-wrap">{top.headline ?? top.Headline ?? 'No description provided.'}</p>
             </div>
           </div>
         </div>
