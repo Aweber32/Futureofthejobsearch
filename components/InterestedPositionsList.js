@@ -9,16 +9,18 @@ export default function InterestedPositionsList({ seeker }){
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activePosition, setActivePosition] = useState(null);
+  const [token, setToken] = useState(null);
 
   useEffect(()=>{
     if (!seeker) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
-    if (!token) { setError('Not authenticated'); setLoading(false); return; }
+    const authToken = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+    if (!authToken) { setError('Not authenticated'); setLoading(false); return; }
+    setToken(authToken);
 
     (async ()=>{
       try{
         // fetch all position interests for the current seeker
-        const res = await fetch(`${API}/api/positioninterests`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API}/api/positioninterests`, { headers: { Authorization: `Bearer ${authToken}` } });
         if (!res.ok) throw new Error('Failed to load interests');
         const data = await res.json();
         // filter for this seeker and interested=true
@@ -29,9 +31,14 @@ export default function InterestedPositionsList({ seeker }){
           if (i.position) return { id: i.position.id ?? i.position.Id ?? i.position.positionId, title: i.position.title ?? i.position.Title ?? i.position.jobTitle, raw: i, position: i.position };
           // otherwise fetch basic position data
           try{
-            const pres = await fetch(`${API}/api/positions/${i.positionId ?? i.positionID ?? i.PositionId}`, { headers: { Authorization: `Bearer ${token}` } });
+            const pres = await fetch(`${API}/api/positions/${i.positionId ?? i.positionID ?? i.PositionId}`, { headers: { Authorization: `Bearer ${authToken}` } });
             if (pres.ok) {
               const pjson = await pres.json();
+              console.log('✅ Fetched position data from API:', pjson);
+              console.log('🏢 API position employer:', pjson.employer);
+              console.log('📚 API position educations:', pjson.educations);
+              console.log('📚 API position experiences:', pjson.experiences);
+              console.log('📚 API position skillsList:', pjson.skillsList);
               return { id: pjson.id ?? pjson.Id, title: pjson.title ?? pjson.Title ?? pjson.jobTitle ?? pjson.positionTitle, raw: i, position: pjson };
             }
           }catch{}
@@ -43,7 +50,7 @@ export default function InterestedPositionsList({ seeker }){
           try{
             const pid = it.id;
             if (!pid) return { ...it, posterStatus: 'Job-Poster Status: Unreviewed' };
-            const sres = await fetch(`${API}/api/seekerinterests?positionId=${pid}`, { headers: { Authorization: `Bearer ${token}` } });
+            const sres = await fetch(`${API}/api/seekerinterests?positionId=${pid}`, { headers: { Authorization: `Bearer ${authToken}` } });
             if (!sres.ok) return { ...it, posterStatus: 'Job-Poster Status: Unreviewed' };
             const slist = await sres.json();
             // find record for this seeker
@@ -87,8 +94,47 @@ export default function InterestedPositionsList({ seeker }){
                 return (
                   <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
                     <span className={`badge ${badgeClass} text-center`} style={{borderRadius: '0.75rem', padding: '0.5rem 0.75rem'}}>{ps}</span>
-                    <button 
-                      onClick={()=> setActivePosition(item.position ?? { id: item.id, title: item.title, description: item.position?.description ?? item.raw?.description })} 
+                    <button
+                      onClick={async ()=> {
+                        console.log('🎯 Review Position clicked for item:', item);
+                        console.log('📋 Item position data:', item.position);
+                        console.log('🏢 Item position employer:', item.position?.employer);
+                        console.log('📚 Item position educations:', item.position?.educations);
+                        console.log('📚 Item position experiences:', item.position?.experiences);
+                        console.log('📚 Item position skillsList:', item.position?.skillsList);
+
+                        let positionToShow = item.position;
+
+                        // If position data exists but is missing key information, try to re-fetch
+                        if (positionToShow && (!positionToShow.employer || !positionToShow.educations || !positionToShow.experiences || !positionToShow.skillsList)) {
+                          console.log('🔄 Re-fetching position data because key information is missing');
+                          try {
+                            const pres = await fetch(`${API}/api/positions/${item.id}`, { headers: { Authorization: `Bearer ${token}` } });
+                            if (pres.ok) {
+                              const freshData = await pres.json();
+                              console.log('✅ Re-fetched position data:', freshData);
+                              positionToShow = freshData;
+                            }
+                          } catch (error) {
+                            console.error('❌ Failed to re-fetch position data:', error);
+                          }
+                        }
+
+                        setActivePosition(positionToShow ?? {
+                          id: item.id,
+                          title: item.title,
+                          description: item.position?.description ?? item.raw?.description ?? 'No description available',
+                          employer: item.position?.employer ?? null,
+                          educations: item.position?.educations ?? [],
+                          experiences: item.position?.experiences ?? [],
+                          skillsList: item.position?.skillsList ?? [],
+                          salaryMin: item.position?.salaryMin ?? null,
+                          salaryMax: item.position?.salaryMax ?? null,
+                          salaryType: item.position?.salaryType ?? 'None',
+                          workSetting: item.position?.workSetting ?? 'Not specified',
+                          travelRequirements: item.position?.travelRequirements ?? 'None'
+                        });
+                      }}
                       className="btn btn-sm btn-outline-primary flex-grow-1 flex-sm-grow-0"
                       style={{minHeight: '38px'}}
                     >
