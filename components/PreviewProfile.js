@@ -135,15 +135,15 @@ const PreviewProfile = ({ seeker, show, onHide }) => {
                               borderRadius: '8px',
                               borderLeft: '4px solid #667eea'
                             }}>
-                              <h6 style={{ marginBottom: '4px', color: '#333' }}>{exp.title}</h6>
+                              <h6 style={{ marginBottom: '4px', color: '#333' }}>{exp.title || exp.Title || 'Title not specified'}</h6>
                               <p style={{ marginBottom: '4px', color: '#666', fontSize: '14px' }}>
-                                {exp.company || 'Company not specified'}
+                                {exp.company || exp.Company || 'Company not specified'}
                               </p>
                               <p style={{ marginBottom: '8px', color: '#888', fontSize: '12px' }}>
-                                {formatDateRange(exp.startDate, exp.endDate)}
+                                {formatDateRange(exp.startDate || exp.StartDate, exp.endDate || exp.EndDate)}
                               </p>
-                              {exp.description && (
-                                <p style={{ fontSize: '14px', color: '#555' }}>{exp.description}</p>
+                              {(exp.description || exp.Description) && (
+                                <p style={{ fontSize: '14px', color: '#555' }}>{exp.description || exp.Description}</p>
                               )}
                             </div>
                           ))}
@@ -167,12 +167,12 @@ const PreviewProfile = ({ seeker, show, onHide }) => {
                               borderRadius: '8px',
                               borderLeft: '4px solid #28a745'
                             }}>
-                              <h6 style={{ marginBottom: '4px', color: '#333' }}>{edu.degree || 'Degree not specified'}</h6>
+                              <h6 style={{ marginBottom: '4px', color: '#333' }}>{edu.degree || edu.Level || 'Degree not specified'}</h6>
                               <p style={{ marginBottom: '4px', color: '#666', fontSize: '14px' }}>
-                                {edu.school || 'School not specified'}
+                                {edu.school || edu.School || 'School not specified'}
                               </p>
                               <p style={{ color: '#888', fontSize: '12px' }}>
-                                {formatDateRange(edu.startDate, edu.endDate)}
+                                {formatDateRange(edu.startDate || edu.StartDate, edu.endDate || edu.EndDate)}
                               </p>
                             </div>
                           ))}
