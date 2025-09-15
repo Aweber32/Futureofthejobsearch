@@ -132,6 +132,13 @@ namespace FutureOfTheJobSearch.Server.Controllers
             return await DeleteFromBlob(request.Url, _config["SeekerVideoContainer"] ?? Environment.GetEnvironmentVariable("SEEKER_VIDEO_CONTAINER") ?? (_config["BlobContainer"] ?? "qaseekervideo"));
         }
 
+        [HttpDelete("delete-poster-video")]
+        public async Task<IActionResult> DeletePosterVideo([FromBody] DeleteFileRequest request)
+        {
+            if (string.IsNullOrEmpty(request?.Url)) return BadRequest(new { error = "No URL provided" });
+            return await DeleteFromBlob(request.Url, _config["PosterVideoContainer"] ?? Environment.GetEnvironmentVariable("POSTER_VIDEO_CONTAINER") ?? (_config["BlobContainer"] ?? "qapostervideo"));
+        }
+
         [HttpDelete("delete-headshot")]
         public async Task<IActionResult> DeleteHeadshot([FromBody] DeleteFileRequest request)
         {
@@ -199,44 +206,48 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 var uri = new Uri(url);
                 var blobName = uri.AbsolutePath.TrimStart('/');
 
-                _logger.LogInformation($"Attempting to delete blob. Original URL: {url}");
-                _logger.LogInformation($"Parsed blob name: {blobName}");
-                _logger.LogInformation($"Container name: {containerName}");
+                _logger.LogInformation($"🔄 Attempting to delete blob. Original URL: {url}");
+                _logger.LogInformation($"📁 Container name: {containerName}");
+                _logger.LogInformation($"📄 Initial blob name: {blobName}");
 
                 // Remove container name from path if present
                 if (blobName.StartsWith(containerName + "/"))
                 {
                     blobName = blobName.Substring(containerName.Length + 1);
-                    _logger.LogInformation($"Blob name after container removal: {blobName}");
+                    _logger.LogInformation($"✂️ Blob name after container removal: {blobName}");
                 }
 
                 // Remove SAS token if present
                 if (blobName.Contains('?'))
                 {
                     blobName = blobName.Split('?')[0];
-                    _logger.LogInformation($"Blob name after SAS token removal: {blobName}");
+                    _logger.LogInformation($"🔑 Blob name after SAS token removal: {blobName}");
                 }
+
+                // Additional cleanup - remove any double slashes or extra path segments
+                blobName = blobName.Trim('/');
+                _logger.LogInformation($"🧹 Final cleaned blob name: {blobName}");
 
                 var container = blobService.GetBlobContainerClient(containerName);
                 var blob = container.GetBlobClient(blobName);
 
-                _logger.LogInformation($"Final blob name for deletion: {blobName}");
+                _logger.LogInformation($"🎯 Final blob client URI: {blob.Uri}");
 
                 var response = await blob.DeleteIfExistsAsync();
                 if (response.Value)
                 {
-                    _logger.LogInformation("File deleted successfully");
+                    _logger.LogInformation("✅ File deleted successfully");
                     return Ok(new { message = "File deleted successfully" });
                 }
                 else
                 {
-                    _logger.LogWarning("File not found for deletion");
+                    _logger.LogWarning("⚠️ File not found for deletion");
                     return NotFound(new { error = "File not found" });
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Failed to delete blob. URL: {url}, Container: {containerName}");
+                _logger.LogError(ex, $"❌ Failed to delete blob. URL: {url}, Container: {containerName}, Error: {ex.Message}");
                 return StatusCode(500, new { error = "Failed to delete file", detail = ex.Message });
             }
         }

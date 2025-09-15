@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Layout from '../../../../components/Layout';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import JobPostCard from '../../../../components/JobPostCard';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -24,6 +25,7 @@ export default function EditPosition(){
   const [posterVideoUrl, setPosterVideoUrl] = useState('');
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
+  const [removeVideo, setRemoveVideo] = useState(false);
   const [employmentType, setEmploymentType] = useState(EMPLOYMENT_TYPES[0]);
   const [workSetting, setWorkSetting] = useState(WORK_SETTINGS[0]);
   const [travel, setTravel] = useState('None');
@@ -35,6 +37,18 @@ export default function EditPosition(){
   const [salaryType, setSalaryType] = useState('None');
   const [salaryMin, setSalaryMin] = useState('');
   const [salaryMax, setSalaryMax] = useState('');
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  // Employer data state
+  const [employerData, setEmployerData] = useState({
+    companyName: '',
+    logoUrl: null,
+    companyDescription: '',
+    website: '',
+    companySize: '',
+    city: '',
+    state: ''
+  });
 
   useEffect(()=>{
     if (!id) return;
@@ -51,6 +65,7 @@ export default function EditPosition(){
         setCategory(pos.category || pos.Category || JOB_CATEGORIES[0]);
         setDescription(pos.description || pos.Description || '');
         setPosterVideoUrl(pos.posterVideoUrl || pos.PosterVideoUrl || '');
+        setRemoveVideo(false); // Reset remove video state when loading position
         setEmploymentType(pos.employmentType || pos.EmploymentType || EMPLOYMENT_TYPES[0]);
         setWorkSetting(pos.workSetting || pos.WorkSetting || WORK_SETTINGS[0]);
         setTravel(pos.travelRequirements || pos.TravelRequirements || 'None');
@@ -60,7 +75,32 @@ export default function EditPosition(){
         setSalaryType(pos.salaryType || pos.SalaryType || 'None');
         setSalaryMin(pos.salaryMin ?? pos.SalaryMin ?? '');
         setSalaryMax(pos.salaryMax ?? pos.SalaryMax ?? '');
-  setIsOpen(pos.isOpen ?? pos.IsOpen ?? true);
+        setIsOpen(pos.isOpen ?? pos.IsOpen ?? true);
+
+        // Extract employer data
+        const employer = pos.employer || pos.Employer;
+        if (employer) {
+          console.log('🔍 Employer data from API:', employer);
+          console.log('🔍 Company size value:', employer.companySize || employer.CompanySize);
+          setEmployerData({
+            companyName: employer.companyName || employer.CompanyName || '',
+            logoUrl: employer.logoUrl || employer.LogoUrl || null,
+            companyDescription: employer.companyDescription || employer.CompanyDescription || '',
+            website: employer.website || employer.Website || '',
+            companySize: employer.companySize !== null && employer.companySize !== undefined ? employer.companySize : (employer.CompanySize !== null && employer.CompanySize !== undefined ? employer.CompanySize : null),
+            city: employer.city || employer.City || '',
+            state: employer.state || employer.State || ''
+          });
+          console.log('✅ Employer data set:', {
+            companyName: employer.companyName || employer.CompanyName || '',
+            logoUrl: employer.logoUrl || employer.LogoUrl || null,
+            companyDescription: employer.companyDescription || employer.CompanyDescription || '',
+            website: employer.website || employer.Website || '',
+            companySize: employer.companySize !== null && employer.companySize !== undefined ? employer.companySize : (employer.CompanySize !== null && employer.CompanySize !== undefined ? employer.CompanySize : null),
+            city: employer.city || employer.City || '',
+            state: employer.state || employer.State || ''
+          });
+        }
       }catch(err){ console.error(err); setError('Failed to load position'); }
       finally{ if (!cancelled) setLoading(false); }
     }
@@ -77,24 +117,183 @@ export default function EditPosition(){
   function unformatInput(str){ if (!str && str !== 0) return ''; const cleaned = String(str).replace(/,/g, '').replace(/[^0-9.]/g, ''); const firstDot = cleaned.indexOf('.'); if (firstDot === -1) return cleaned; const before = cleaned.slice(0, firstDot + 1); const after = cleaned.slice(firstDot + 1).replace(/\./g, ''); return before + after; }
   function formatWithCommas(val){ if (val === null || val === undefined || val === '') return ''; const s = String(val); const parts = s.split('.'); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); if (parts.length > 1) return parts[0] + '.' + parts[1].slice(0,2); return parts[0]; }
 
-  async function submit(e){ e.preventDefault(); setError(''); if (!title) { setError('Job title required'); return; } setLoading(true);
+  async function submit(e){ 
+    e.preventDefault(); 
+    setError(''); 
+    if (!title) { setError('Job title required'); return; } 
+    setLoading(true);
+
+    console.log('🚀 Form submit triggered');
+    console.log('📊 Initial state:', {
+      title,
+      posterVideoFile: posterVideoFile ? {
+        name: posterVideoFile.name,
+        size: posterVideoFile.size,
+        type: posterVideoFile.type
+      } : null,
+      posterVideoUrl,
+      removeVideo,
+      videoUploading
+    });
+
+    // Track the current video URL for the payload
+    let currentVideoUrl = posterVideoUrl;
+
     try{
       const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
-      // upload video if selected
-      if (posterVideoFile && !posterVideoUrl){ setVideoUploading(true); setVideoProgress(0);
+
+      // Handle video upload/replacement/removal
+      console.log('🎬 Video operation check:', {
+        hasPosterVideoFile: !!posterVideoFile,
+        hasRemoveVideo: removeVideo,
+        condition: posterVideoFile || removeVideo
+      });
+
+      if (posterVideoFile || removeVideo){
+        console.log('🎬 Starting video operations...');
+        setVideoUploading(true);
+        setVideoProgress(0);
+
         try{
-          const fd = new FormData(); fd.append('file', posterVideoFile, posterVideoFile.name);
-          const xhr = new XMLHttpRequest();
-          const upUrl = `${API}/api/uploads/poster-video`;
-          const uploadResult = await new Promise((resolve,reject)=>{
-            xhr.upload.onprogress = (ev)=>{ if (ev.lengthComputable) setVideoProgress(Math.round((ev.loaded/ev.total)*100)); };
-            xhr.onreadystatechange = ()=>{ if (xhr.readyState===4){ try{ const json = xhr.responseText? JSON.parse(xhr.responseText) : {}; if (xhr.status>=200 && xhr.status<300) resolve(json); else reject(new Error(json?.message || json?.error || `Upload failed (${xhr.status})`)); } catch(err){ reject(err); } }};
-            xhr.open('POST', upUrl);
-            if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-            xhr.send(fd);
+          // Delete existing video if it exists and we're replacing or removing
+          if (posterVideoUrl && posterVideoUrl.length > 0 && (posterVideoFile || removeVideo)){
+            console.log('🔄 Attempting to delete existing video:', posterVideoUrl);
+            console.log('📊 Video URL details:', {
+              url: posterVideoUrl,
+              length: posterVideoUrl.length,
+              hasQuery: posterVideoUrl.includes('?'),
+              domain: posterVideoUrl.split('/')[2],
+              path: posterVideoUrl.split('/').slice(3).join('/')
+            });
+
+            try {
+              const deleteResult = await fetch(`${API}/api/uploads/delete-poster-video`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify({ url: posterVideoUrl })
+              });
+
+              const deleteResponse = await deleteResult.json().catch(() => ({}));
+              console.log('🗑️ Delete API Response:', {
+                status: deleteResult.status,
+                statusText: deleteResult.statusText,
+                response: deleteResponse
+              });
+
+              if (!deleteResult.ok){
+                console.error('❌ Failed to delete existing video:', deleteResponse);
+                // Show user-friendly error but don't block the upload
+                setError(`Warning: Could not delete old video (${deleteResponse.error || 'Unknown error'}), but new video will still be uploaded.`);
+              } else {
+                console.log('✅ Existing video deleted successfully');
+              }
+            } catch (deleteError) {
+              console.error('❌ Error calling delete API:', deleteError);
+              setError('Warning: Could not delete old video, but new video will still be uploaded.');
+            }
+          }
+
+          // If we're uploading a new video
+          console.log('🎬 Video upload check:', {
+            hasPosterVideoFile: !!posterVideoFile,
+            posterVideoFileName: posterVideoFile?.name,
+            posterVideoFileSize: posterVideoFile?.size,
+            removeVideo: removeVideo
           });
-          if (uploadResult?.url) setPosterVideoUrl(uploadResult.url);
-        }catch(err){ console.error('Poster video upload failed', err); setError('Poster video upload failed'); } finally{ setVideoUploading(false); }
+
+          if (posterVideoFile){
+            console.log('🎬 Starting video upload process...');
+            // Upload new video
+            const fd = new FormData();
+            fd.append('file', posterVideoFile, posterVideoFile.name);
+            const xhr = new XMLHttpRequest();
+            const upUrl = `${API}/api/uploads/poster-video`;
+
+            const uploadResult = await new Promise((resolve,reject)=>{
+              console.log('📤 Starting video upload to:', upUrl);
+              console.log('📤 File details:', {
+                name: posterVideoFile.name,
+                size: posterVideoFile.size,
+                type: posterVideoFile.type
+              });
+
+              xhr.upload.onprogress = (ev)=>{
+                if (ev.lengthComputable) {
+                  const progress = Math.round((ev.loaded/ev.total)*100);
+                  setVideoProgress(progress);
+                  console.log('📊 Upload progress:', progress + '%');
+                }
+              };
+
+              xhr.onreadystatechange = ()=>{
+                console.log('📡 XMLHttpRequest state change:', {
+                  readyState: xhr.readyState,
+                  status: xhr.status,
+                  statusText: xhr.statusText,
+                  responseText: xhr.responseText
+                });
+
+                if (xhr.readyState===4){
+                  console.log('📡 Upload complete - raw response:', xhr.responseText);
+                  try{
+                    const json = xhr.responseText? JSON.parse(xhr.responseText) : {};
+                    console.log('📡 Parsed response:', json);
+
+                    if (xhr.status>=200 && xhr.status<300) {
+                      console.log('✅ Upload successful');
+                      resolve(json);
+                    } else {
+                      console.error('❌ Upload failed with status:', xhr.status);
+                      reject(new Error(json?.message || json?.error || `Upload failed (${xhr.status})`));
+                    }
+                  } catch(err){
+                    console.error('❌ Error parsing upload response:', err);
+                    console.error('❌ Raw response text:', xhr.responseText);
+                    reject(err);
+                  }
+                }
+              };
+
+              xhr.onerror = (error) => {
+                console.error('❌ XMLHttpRequest error:', error);
+                reject(new Error('Network error during upload'));
+              };
+
+              xhr.open('POST', upUrl);
+              if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+              console.log('📤 Sending upload request...');
+              xhr.send(fd);
+            });
+
+            if (uploadResult?.url){
+              console.log('✅ Upload result URL:', uploadResult.url);
+              setPosterVideoUrl(uploadResult.url);
+              console.log('✅ PosterVideoUrl state updated to:', uploadResult.url);
+              // Use the URL directly from upload result for the payload
+              currentVideoUrl = uploadResult.url;
+            } else {
+              console.error('❌ Upload result missing URL:', uploadResult);
+              throw new Error('Upload succeeded but no URL returned');
+            }
+          } else if (removeVideo) {
+            // If we're just removing the video, clear the URL
+            console.log('🗑️ Removing video - current posterVideoUrl:', posterVideoUrl);
+            setPosterVideoUrl('');
+            console.log('✅ Video removed successfully - posterVideoUrl set to empty string');
+            currentVideoUrl = ''; // Update our local variable too
+          }
+        }catch(err){
+          console.error('❌ Video operation failed:', err);
+          setError(`Video operation failed: ${err.message}`);
+          setVideoUploading(false);
+          return; // Stop here if video operation fails
+        } finally{
+          setVideoUploading(false);
+          setRemoveVideo(false);
+        }
       }
 
       const payload = {
@@ -111,11 +310,33 @@ export default function EditPosition(){
         SalaryValue: null,
         SalaryMin: salaryMin !== '' ? parseFloat(salaryMin) : null,
         SalaryMax: salaryMax !== '' ? parseFloat(salaryMax) : null,
-        PosterVideoUrl: posterVideoUrl && posterVideoUrl.length>0 ? posterVideoUrl : null
+        PosterVideoUrl: currentVideoUrl && currentVideoUrl.length>0 ? currentVideoUrl : null
       };
 
-      const res = await fetch(`${API}/api/positions/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }, body: JSON.stringify(payload) });
-      if (!res.ok){ const txt = await res.text(); throw new Error(txt || `Update failed (${res.status})`); }
+      console.log('📤 Sending payload to update position:', payload);
+      console.log('📤 PosterVideoUrl in payload:', payload.PosterVideoUrl);
+      console.log('📤 Current posterVideoUrl state:', posterVideoUrl);
+      console.log('📤 Current currentVideoUrl variable:', currentVideoUrl);
+
+      const res = await fetch(`${API}/api/positions/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify(payload)
+      });
+
+      console.log('📥 API Response status:', res.status);
+
+      if (!res.ok){
+        const txt = await res.text();
+        console.error('❌ API Error response:', txt);
+        throw new Error(txt || `Update failed (${res.status})`);
+      }
+
+      const responseData = await res.json();
+      console.log('✅ Position updated successfully:', responseData);
       router.push('/poster/dashboard');
     }catch(err){ console.error(err); setError(err?.message || 'Update failed'); }
     finally{ setLoading(false); }
@@ -150,9 +371,46 @@ export default function EditPosition(){
         <div className="row">
           <div className="col-md-6 mb-3">
             <label className="form-label">Upload short poster video (optional)</label>
-            <input type="file" accept="video/*" className="form-control" onChange={e=>setPosterVideoFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
+            <input type="file" accept="video/*" className="form-control" onChange={e=>{
+              const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+              setPosterVideoFile(file);
+              // If user clears the file input and there's an existing video, mark for removal
+              if (!file && posterVideoUrl) {
+                setRemoveVideo(true);
+              } else {
+                setRemoveVideo(false);
+              }
+            }} />
             {videoUploading && <div className="mt-2"><div className="progress"><div className="progress-bar" role="progressbar" style={{width: `${videoProgress}%`}} aria-valuenow={videoProgress} aria-valuemin="0" aria-valuemax="100">{videoProgress}%</div></div></div>}
-            {posterVideoUrl && <div className="mt-2"><a href={posterVideoUrl} target="_blank" rel="noreferrer">Current poster video</a></div>}
+            {posterVideoUrl && (
+              <div className="mt-2 d-flex align-items-center gap-2">
+                <a href={posterVideoUrl} target="_blank" rel="noreferrer" className="text-decoration-none">
+                  <i className="fas fa-video me-1"></i>Current poster video
+                </a>
+                {removeVideo ? (
+                  <span className="badge bg-warning text-dark">
+                    <i className="fas fa-exclamation-triangle me-1"></i>Will be removed on save
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to remove the current video?')) {
+                        setRemoveVideo(true);
+                        setPosterVideoFile(null);
+                        // Clear the file input
+                        const fileInput = document.querySelector('input[type="file"][accept="video/*"]');
+                        if (fileInput) fileInput.value = '';
+                      }
+                    }}
+                    disabled={videoUploading}
+                  >
+                    <i className="fas fa-trash"></i> Remove
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -234,6 +492,19 @@ export default function EditPosition(){
         {error && <div className="alert alert-danger">{error}</div>}
         <div className="d-flex gap-2">
           <button className="btn btn-primary" type="submit" disabled={loading}>{loading? 'Saving…' : 'Save'}</button>
+          <button
+            type="button"
+            className="btn btn-outline-info"
+            onClick={() => {
+              console.log('Preview button clicked');
+              console.log('Current showPreviewModal:', showPreviewModal);
+              setShowPreviewModal(true);
+              console.log('Setting showPreviewModal to true');
+            }}
+            disabled={loading}
+          >
+            Preview Job Post
+          </button>
           {isOpen ? (
             <button type="button" className="btn btn-danger" disabled={loading} onClick={async ()=>{
             if (!confirm('Close this position? It will no longer be open for applicants.')) return;
@@ -262,6 +533,37 @@ export default function EditPosition(){
           <Link href="/poster/dashboard" className="btn btn-outline-secondary">Cancel</Link>
         </div>
       </form>
+
+      {/* Preview Job Post Modal */}
+      <JobPostCard
+        position={{
+          id: id,
+          title: title,
+          category: category,
+          description: description,
+          employmentType: employmentType,
+          workSetting: workSetting,
+          travel: travel,
+          education: education,
+          experiences: experiences,
+          skills: skills,
+          salaryType: salaryType,
+          salaryMin: salaryMin !== '' ? parseFloat(salaryMin) : null,
+          salaryMax: salaryMax !== '' ? parseFloat(salaryMax) : null,
+          posterVideoUrl: posterVideoUrl,
+          // Real employer data from API
+          companyName: employerData.companyName,
+          companyLogo: employerData.logoUrl,
+          companyDescription: employerData.companyDescription,
+          companyWebsite: employerData.website,
+          companySize: employerData.companySize,
+          city: employerData.city,
+          state: employerData.state
+        }}
+        show={showPreviewModal}
+        onHide={() => setShowPreviewModal(false)}
+      />
+
     </Layout>
   )
 }

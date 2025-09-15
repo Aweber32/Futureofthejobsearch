@@ -5,8 +5,8 @@ namespace FutureOfTheJobSearch.Server.Models
 {
     public enum CompanySize
     {
-        Small = 0,   // <50
-        Medium = 1,  // 50-999
+        Small = 0,   // <500
+        Medium = 1,  // 500-1000
         Large = 2    // 1000+
     }
 

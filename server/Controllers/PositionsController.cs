@@ -113,6 +113,10 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 .Include(p => p.SkillsList)
                 .FirstOrDefaultAsync(p => p.Id == id);
             if (pos == null) return NotFound(new { error = "Position not found" });
+
+            // Debug logging
+            _logger.LogInformation($"Position {id} retrieved. Employer: {pos.Employer?.CompanyName}, CompanySize: {pos.Employer?.CompanySize}");
+
             return Ok(pos);
         }
 
@@ -147,7 +151,12 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 pos.SalaryValue = req.SalaryValue ?? pos.SalaryValue;
                 pos.SalaryMin = req.SalaryMin ?? pos.SalaryMin;
                 pos.SalaryMax = req.SalaryMax ?? pos.SalaryMax;
-                pos.PosterVideoUrl = req.PosterVideoUrl ?? pos.PosterVideoUrl;
+
+                // Handle PosterVideoUrl - allow null to clear the field
+                if (req.PosterVideoUrl != null)
+                {
+                    pos.PosterVideoUrl = req.PosterVideoUrl;
+                }
 
                 // replace collections: remove existing and add new ones
                 if (pos.Educations != null) _db.PositionEducations.RemoveRange(pos.Educations);
