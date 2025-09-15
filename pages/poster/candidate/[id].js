@@ -19,7 +19,9 @@ export default function CandidateReviewPage(){
 				if (!res.ok){ if (!cancelled) setCandidate(null); return; }
 				const data = await res.json();
 				const list = Array.isArray(data) ? data : (data.seekers || data);
-				const seeker = (list || []).find(s => (s.id ?? s.Id)?.toString() === id.toString());
+				// Filter out seekers with inactive profiles
+				const activeSeekers = Array.isArray(list) ? list.filter(seeker => seeker.isProfileActive !== false) : [];
+				const seeker = (activeSeekers || []).find(s => (s.id ?? s.Id)?.toString() === id.toString());
 				if (!cancelled){
 					if (seeker){
 						const posNum = positionId ? (Array.isArray(positionId) ? parseInt(positionId[0],10) : parseInt(positionId,10)) : null;

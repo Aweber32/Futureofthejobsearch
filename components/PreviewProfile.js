@@ -78,17 +78,31 @@ const PreviewProfile = ({ seeker, show, onHide }) => {
                         width: '120px',
                         height: '120px',
                         borderRadius: '50%',
-                        background: seeker.headshotUrl ? `url(${seeker.headshotUrl})` : '#ccc',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
                         margin: '0 auto',
                         border: '4px solid white',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                        overflow: 'hidden',
+                        position: 'relative'
                       }}>
-                        {!seeker.headshotUrl && (
+                        {seeker.headshotUrl ? (
+                          <img
+                            src={seeker.headshotUrl}
+                            alt={`${seeker.firstName} ${seeker.lastName}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'contain',
+                              position: 'absolute',
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)'
+                            }}
+                          />
+                        ) : (
                           <div style={{
                             width: '100%',
                             height: '100%',
+                            background: '#ccc',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',

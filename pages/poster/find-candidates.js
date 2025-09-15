@@ -18,9 +18,11 @@ export default function FindCandidates(){
         if (!res.ok) throw new Error('no seekers');
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.seekers || data);
+        // Filter out seekers with inactive profiles
+        const activeSeekers = Array.isArray(list) ? list.filter(seeker => seeker.isProfileActive !== false) : [];
 
         // if we have a positionId, fetch existing interest reviews and merge
-        let merged = Array.isArray(list) ? list : [];
+        let merged = Array.isArray(activeSeekers) ? activeSeekers : [];
         if (positionId) {
           try{
             const r2 = await fetch(`${base}/api/seekerinterests?positionId=${positionId}`);

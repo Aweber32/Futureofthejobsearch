@@ -20,7 +20,9 @@ export default function CandidateSwiper({ initialCandidates }){
         if (cancelled) return;
         // expect array of seekers or {seekers: [...]}
         const list = Array.isArray(data) ? data : (data.seekers || data);
-        setStack(Array.isArray(list) ? list : []);
+        // Filter out seekers with inactive profiles
+        const activeSeekers = Array.isArray(list) ? list.filter(seeker => seeker.isProfileActive !== false) : [];
+        setStack(activeSeekers);
       }catch(err){
         // on error, show empty list — user asked for real data only
         if (!cancelled) setStack([]);
@@ -172,19 +174,31 @@ export default function CandidateSwiper({ initialCandidates }){
                 width: '120px',
                 height: '120px',
                 borderRadius: '50%',
-                background: top.headshotUrl ? `url(${top.headshotUrl})` : '#ccc',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center center',
-                backgroundRepeat: 'no-repeat',
                 margin: '0 auto',
                 border: '4px solid white',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                position: 'relative'
               }}>
-                {!top.headshotUrl && (
+                {top.headshotUrl ? (
+                  <img
+                    src={top.headshotUrl}
+                    alt={`${top.firstName} ${top.lastName}`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                  />
+                ) : (
                   <div style={{
                     width: '100%',
                     height: '100%',
+                    background: '#ccc',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
