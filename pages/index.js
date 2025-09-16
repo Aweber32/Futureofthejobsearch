@@ -121,10 +121,10 @@ export default function Home(){
           </div>
           <div className="col-md-4">
             <blockquote className="text-center">
-              <p className="mb-2">"ELEV8R transformed our hiring process completely."</p>
+              <p className="mb-2">"ELEV8R is great Sweetie"</p>
               <footer className="d-flex align-items-center justify-content-center">
                 <div className="bg-primary rounded-circle me-2" style={{width: '32px', height: '32px'}}></div>
-                <small className="text-muted">Sarah Chen, HR Director</small>
+                <small className="text-muted">-Mom</small>
               </footer>
             </blockquote>
           </div>
@@ -141,7 +141,7 @@ export default function Home(){
       >
         <motion.div className="text-center mb-5" variants={fadeInUp}>
           <h2 className="display-6 mb-3">How ELEV8R Works</h2>
-          <p className="text-muted">Simple steps for both job seekers and employers</p>
+          <p className="text-muted">ELEV8R is designed to solve today's hiring challenges</p>
         </motion.div>
 
         <div className="row">
@@ -154,8 +154,8 @@ export default function Home(){
               <div className="row">
                 {[
                   { icon: UserPlus, title: "Create Profile", desc: "Build your professional profile in minutes" },
-                  { icon: Heart, title: "Filter & Match", desc: "Filter through curated job opportunities" },
-                  { icon: Target, title: "Quick Feedback", desc: "Learn quickly if the Employer is interested" }
+                  { icon: Heart, title: "Filter & Match", desc: "Quickly filter through curated job opportunities" },
+                  { icon: Target, title: "Quick Feedback", desc: "Get speedy updates on employer interest" }
                 ].map((step, i) => (
                   <div key={i} className="col-12 mb-3">
                     <div className="d-flex align-items-start">
