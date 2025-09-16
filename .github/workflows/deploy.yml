@@ -1,0 +1,171 @@
+name: Deploy ELEV8R to Azure
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    paths:
+      - 'pages/**'
+      - 'components/**'
+      - 'styles/**'
+      - 'server/**'
+
+env:
+  NODE_VERSION: '20'
+  DOTNET_VERSION: '8.0'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      backend: ${{ steps.changes.outputs.backend }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v2
+      id: changes
+      with:
+        filters: |
+          frontend:
+            - 'pages/**'
+            - 'components/**'
+            - 'styles/**'
+            - 'public/**'
+            - 'package.json'
+            - 'package-lock.json'
+            - 'next.config.js'
+            - 'tailwind.config.js'
+            - 'postcss.config.js'
+          backend:
+            - 'server/**'
+
+  deploy-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build ELEV8R frontend
+      run: npm run build
+      env:
+        NEXT_TELEMETRY_DISABLED: 1
+        NODE_ENV: production
+        API_BASE_URL: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Deploy to Azure App Service (Frontend)
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'futureofthejobsearch-d3d3fad4c2h4g4hc'
+        package: '.'
+        startup-command: 'npm start'
+
+    - name: Configure Frontend Environment Variables
+      run: |
+        az webapp config appsettings set \
+          --name 'futureofthejobsearch-d3d3fad4c2h4g4hc' \
+          --resource-group '${{ secrets.AZURE_RG }}' \
+          --settings \
+            NEXT_PUBLIC_API_URL='https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net' \
+            NEXT_PUBLIC_API_BASE='https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net' \
+            NODE_ENV='production'
+
+    - name: Azure logout
+      run: az logout
+      if: always()
+
+  deploy-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: |
+        cd server
+        dotnet restore
+
+    - name: Build application
+      run: |
+        cd server
+        dotnet build --configuration Release --no-restore
+
+    - name: Run tests
+      run: |
+        cd server
+        dotnet test --no-build --verbosity normal
+
+    - name: Publish application
+      run: |
+        cd server
+        dotnet publish --configuration Release --no-build --output ./publish
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Deploy to Azure App Service (Backend)
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'futureofthejobsearch-api-brd3cjc3f2debhek'
+        package: './server/publish'
+
+    - name: Configure Backend CORS and Settings
+      run: |
+        az webapp cors add \
+          --name 'futureofthejobsearch-api-brd3cjc3f2debhek' \
+          --resource-group '${{ secrets.AZURE_RG }}' \
+          --allowed-origins 'https://futureofthejobsearch-d3d3fad4c2h4g4hc.centralus-01.azurewebsites.net'
+        
+        az webapp config appsettings set \
+          --name 'futureofthejobsearch-api-brd3cjc3f2debhek' \
+          --resource-group '${{ secrets.AZURE_RG }}' \
+          --settings \
+            ASPNETCORE_ENVIRONMENT='Production' \
+            DEFAULT_CONNECTION='${{ secrets.AZURE_SQL_CONNECTION_STRING }}'
+
+    - name: Azure logout
+      run: az logout
+      if: always()
+
+  notify:
+    needs: [deploy-frontend, deploy-backend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deployment Summary
+      run: |
+        echo "## ELEV8R Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Frontend | ${{ needs.deploy-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Backend | ${{ needs.deploy-backend.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🚀 **Live URLs:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Frontend: https://futureofthejobsearch-d3d3fad4c2h4g4hc.centralus-01.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+        echo "- Backend API: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net" >> $GITHUB_STEP_SUMMARY

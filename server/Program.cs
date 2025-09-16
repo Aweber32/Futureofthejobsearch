@@ -54,10 +54,21 @@ builder.Services.ConfigureApplicationCookie(options => {
     options.LoginPath = "/poster/login"; // not used by API but helpful
 });
 
-// CORS for local dev - adjust in production
+// CORS for local dev and production
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowLocalhost", policy => {
-        policy.AllowAnyHeader().AllowAnyMethod().WithOrigins("http://localhost:3000").AllowCredentials();
+        var allowedOrigins = new List<string> { "http://localhost:3000" };
+        
+        // Add production frontend URL if we're in production
+        if (!builder.Environment.IsDevelopment())
+        {
+            allowedOrigins.Add("https://futureofthejobsearch-d3d3fad4c2h4g4hc.centralus-01.azurewebsites.net");
+        }
+        
+        policy.AllowAnyHeader()
+              .AllowAnyMethod()
+              .WithOrigins(allowedOrigins.ToArray())
+              .AllowCredentials();
     });
 });
 
