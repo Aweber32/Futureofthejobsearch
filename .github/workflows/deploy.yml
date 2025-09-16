@@ -72,14 +72,14 @@ jobs:
     - name: Deploy to Azure App Service (Frontend)
       uses: azure/webapps-deploy@v2
       with:
-        app-name: 'futureofthejobsearch-d3d3fad4c2h4g4hc'
+        app-name: 'Futureofthejobsearch'
         package: '.'
         startup-command: 'npm start'
 
     - name: Configure Frontend Environment Variables
       run: |
         az webapp config appsettings set \
-          --name 'futureofthejobsearch-d3d3fad4c2h4g4hc' \
+          --name 'Futureofthejobsearch' \
           --resource-group '${{ secrets.AZURE_RG }}' \
           --settings \
             NEXT_PUBLIC_API_URL='https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net' \
@@ -132,18 +132,18 @@ jobs:
     - name: Deploy to Azure App Service (Backend)
       uses: azure/webapps-deploy@v2
       with:
-        app-name: 'futureofthejobsearch-api-brd3cjc3f2debhek'
+        app-name: 'futureofthejobsearch-api'
         package: './server/publish'
 
     - name: Configure Backend CORS and Settings
       run: |
         az webapp cors add \
-          --name 'futureofthejobsearch-api-brd3cjc3f2debhek' \
+          --name 'futureofthejobsearch-api' \
           --resource-group '${{ secrets.AZURE_RG }}' \
           --allowed-origins 'https://futureofthejobsearch-d3d3fad4c2h4g4hc.centralus-01.azurewebsites.net'
         
         az webapp config appsettings set \
-          --name 'futureofthejobsearch-api-brd3cjc3f2debhek' \
+          --name 'futureofthejobsearch-api' \
           --resource-group '${{ secrets.AZURE_RG }}' \
           --settings \
             ASPNETCORE_ENVIRONMENT='Production' \
