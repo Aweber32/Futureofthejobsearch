@@ -82,7 +82,19 @@ jobs:
         mkdir -p deploy
 
         # Copy ONLY the standalone build (this includes server.js and .next with BUILD_ID)
-        cp -r .next/standalone/* deploy/
+        echo "Listing .next/standalone before copy:"
+        ls -la .next/standalone || true
+        echo "Copying standalone contents into deploy/ (preserve metadata)"
+        cp -a .next/standalone/. deploy/
+        # Defensive: remove any accidental .git or top-level repo artifacts that shouldn't be deployed
+        if [ -d "deploy/.git" ]; then
+          echo "Removing accidental .git from deploy/"
+          rm -rf deploy/.git || true
+        fi
+        echo "Listing deploy/ after copy:"
+        ls -la deploy || true
+        echo "Listing deploy/.next (if present):"
+        ls -la deploy/.next || true
 
         # Copy static files from main build to standalone .next (these are needed at runtime)
         if [ -d ".next/static" ]; then
@@ -98,11 +110,31 @@ jobs:
         if [ -f deploy.zip ]; then rm deploy.zip; fi
         # Create deploy.zip. Prefer system 'zip' if present, otherwise use a Python fallback.
         if command -v zip >/dev/null 2>&1; then
+          echo "Creating deploy.zip from deploy/ using zip"
           (cd deploy && zip -r ../deploy.zip .)
         else
           echo "zip not found, installing zip and using it to create deploy.zip"
           sudo apt-get update -y && sudo apt-get install -y zip
           (cd deploy && zip -r ../deploy.zip .)
+        fi
+
+        echo "Contents of deploy.zip (first 200 lines):"
+        unzip -l deploy.zip | sed -n '1,200p' || true
+
+        # Ensure BUILD_ID is present in the standalone output and explicitly copy it into deploy/.next
+        if [ -f ".next/standalone/.next/BUILD_ID" ]; then
+          echo "Found BUILD_ID in .next/standalone; copying into deploy/.next/"
+          mkdir -p deploy/.next
+          cp .next/standalone/.next/BUILD_ID deploy/.next/BUILD_ID
+        else
+          echo "⚠️ .next/standalone/.next/BUILD_ID not present in build output"
+        fi
+
+        # Fail fast if BUILD_ID is not in deploy.zip (prevents deploying broken package)
+        if ! unzip -l deploy.zip | grep -q '.next/BUILD_ID'; then
+          echo "❌ deploy.zip does not include .next/BUILD_ID - aborting deployment"
+          unzip -l deploy.zip || true
+          exit 1
         fi
 
         # Verify the standalone .next directory has the BUILD_ID file

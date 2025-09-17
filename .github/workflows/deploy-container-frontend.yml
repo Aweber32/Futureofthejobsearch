@@ -1,0 +1,49 @@
+name: Build & Deploy Frontend Container to ACR
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  IMAGE_NAME: elev8r-frontend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build Next.js standalone
+      run: npm run build
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Login to ACR
+      run: az acr login --name ${{ secrets.ACR_NAME }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: Dockerfile.frontend
+        push: true
+        tags: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+    - name: Update App Service to use new image
+      run: |
+        az webapp config container set --name ${{ secrets.FRONTEND_APP_NAME }} --resource-group ${{ secrets.AZURE_RG }} --docker-custom-image-name ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+    - name: Restart App Service
+      run: |
+        az webapp restart --name ${{ secrets.FRONTEND_APP_NAME }} --resource-group ${{ secrets.AZURE_RG }}
