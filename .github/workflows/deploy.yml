@@ -108,7 +108,7 @@ jobs:
       with:
         app-name: 'Futureofthejobsearch'
         package: './deploy'
-        startup-command: 'node server.js'
+        startup-command: 'node startup.js'
         
     - name: Verify Deployment
       run: |
