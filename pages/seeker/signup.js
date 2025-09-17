@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Layout from '../../components/Layout';
 import Select from 'react-select';
 import { State, City } from 'country-state-city';
+import { API_CONFIG } from '../../config/api';
 
 export default function SeekerSignup(){
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function SeekerSignup(){
   const [stateOptions, setStateOptions] = useState([]);
   const [cityOptions, setCityOptions] = useState([]);
 
-  const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API = API_CONFIG.BASE_URL;
 
   useEffect(()=>{
     // load US states

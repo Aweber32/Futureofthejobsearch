@@ -3,8 +3,9 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../../components/Layout';
 import InterestedPositionsList from '../../../components/InterestedPositionsList';
+import { API_CONFIG } from '../../../config/api';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = API_CONFIG.BASE_URL;
 
 export default function SeekerDashboard(){
   const router = useRouter();
