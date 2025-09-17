@@ -24,6 +24,9 @@ jobs:
 
     - name: Build Next.js standalone
       run: npm run build
+      env:
+        NEXT_PUBLIC_API_URL: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net
+        NEXT_PUBLIC_API_BASE: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net
 
     - name: Login to Azure
       uses: azure/login@v1
