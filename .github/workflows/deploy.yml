@@ -80,13 +80,21 @@ jobs:
         # Copy standalone build to deployment directory
         mkdir -p deploy
         cp -r .next/standalone/* deploy/
-        cp -r .next/static deploy/.next/static/
-        cp -r public deploy/public/
-        cp web.config deploy/web.config
-        cp package.json deploy/package.json
-        cp startup.js deploy/startup.js
+        
+        # Create .next directory structure and copy static files
+        mkdir -p deploy/.next
+        cp -r .next/static deploy/.next/
+        
+        # Copy public assets and configuration files
+        cp -r public deploy/
+        cp web.config deploy/
+        cp package.json deploy/
+        cp startup.js deploy/
+        
         echo "Deployment package contents:"
         ls -la deploy/
+        echo "Static files:"
+        ls -la deploy/.next/static/ || echo "No static files found"
         
     - name: Deploy to Azure App Service (Frontend)
       uses: azure/webapps-deploy@v2
