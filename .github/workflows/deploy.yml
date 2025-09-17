@@ -7,8 +7,21 @@ on:
     paths:
       - 'pages/**'
       - 'components/**'
-      - 'styles/**'
-      - 'server/**'
+      - 'styles/**'    - name: Configure Backend CORS and Settings
+      run: |
+        # Configure CORS for production domain  
+        az webapp cors add \
+          --name 'futureofthejobsearch-api' \
+          --resource-group '${{ secrets.AZURE_RG }}' \
+          --allowed-origins 'https://futureofthejobsearch-brd3cjc3f2debhek.centralus-01.azurewebsites.net' \
+        || echo "CORS origin already exists"
+        
+        # Add localhost for development
+        az webapp cors add \
+          --name 'futureofthejobsearch-api' \
+          --resource-group '${{ secrets.AZURE_RG }}' \
+          --allowed-origins 'http://localhost:3000' \
+        || echo "Localhost CORS already configured"  - 'server/**'
 
 env:
   NODE_VERSION: '20'
@@ -168,12 +181,17 @@ jobs:
           --resource-group '${{ secrets.AZURE_RG }}' \
           --allowed-origins 'https://futureofthejobsearch-d3d3fad4c2h4g4hc.centralus-01.azurewebsites.net'
         
+        # Configure application settings
         az webapp config appsettings set \
           --name 'futureofthejobsearch-api' \
           --resource-group '${{ secrets.AZURE_RG }}' \
           --settings \
             ASPNETCORE_ENVIRONMENT='Production' \
             DEFAULT_CONNECTION='${{ secrets.AZURE_SQL_CONNECTION_STRING }}'
+            
+        # Verify CORS configuration
+        echo "Current CORS configuration:"
+        az webapp cors show --name 'futureofthejobsearch-api' --resource-group '${{ secrets.AZURE_RG }}'
 
     - name: Azure logout
       run: az logout
