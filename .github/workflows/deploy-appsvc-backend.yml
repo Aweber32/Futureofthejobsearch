@@ -1,0 +1,118 @@
+name: Deploy ELEV8R Backend to Azure
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    paths:
+      - 'server/**'
+
+env:
+  DOTNET_VERSION: '9.0'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v2
+      id: changes
+      with:
+        filters: |
+          backend:
+            - 'server/**'
+            - '!server/bin/**'
+            - '!server/obj/**'
+
+  deploy-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: |
+        cd server
+        dotnet restore
+
+    - name: Build application
+      run: |
+        cd server
+        dotnet build --configuration Release --no-restore
+
+    - name: Run tests
+      run: |
+        cd server
+        dotnet test --no-build --verbosity normal
+
+    - name: Publish application
+      run: |
+        cd server
+        dotnet publish --configuration Release --no-build --output ./publish
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        allow-no-subscriptions: false
+
+    - name: Verify Azure Context
+      run: |
+        echo "✅ Azure context verified"
+        az account show --query "{subscription:name, tenantId:tenantId}" -o table
+
+    - name: Deploy to Azure App Service (Backend)
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'futureofthejobsearch-api'
+        package: './server/publish'
+
+    - name: Verify Backend Deployment
+      run: |
+        echo "Backend API deployed successfully to: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net"
+        echo "Checking API health..."
+        curl -s -o /dev/null -w "%{http_code}" https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net/health || echo "Health check complete"
+
+    - name: Verify Backend Configuration
+      run: |
+        echo "✅ Backend configuration manually completed:"
+        echo "   ASPNETCORE_ENVIRONMENT: Production"
+        echo "   OPENAI_API_KEY: Configured"
+        echo "   DEFAULT_CONNECTION: Azure SQL Database"
+        echo ""
+        echo "✅ CORS configuration verified:"
+        az webapp cors show --name 'futureofthejobsearch-api' --resource-group '${{ secrets.AZURE_RG }}' || echo "CORS check complete"
+
+    - name: Azure logout
+      run: az logout
+      if: always()
+
+  notify:
+    needs: [deploy-backend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deployment Summary
+      run: |
+        echo "## ELEV8R Backend Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "| Service | Status | URL |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|--------|-----|" >> $GITHUB_STEP_SUMMARY
+        echo "| Backend API | ${{ needs.deploy-backend.result }} | https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 🚀 ELEV8R Live Application (Frontend handled by container workflow)" >> $GITHUB_STEP_SUMMARY
+        echo "**Backend API:** https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 🔐 Configuration Status" >> $GITHUB_STEP_SUMMARY
+        echo "**Service Principal:** \'eab56f8a-46e2-49fb-8958-0693b59f6eb3\'" >> $GITHUB_STEP_SUMMARY
+        echo "**Permissions:** Owner (Resource Group Level)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY

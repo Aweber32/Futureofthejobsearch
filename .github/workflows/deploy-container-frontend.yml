@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 env:
-  IMAGE_NAME: elev8r-frontend
+  IMAGE_NAME: futureofthejobsearch-frontend
 
 jobs:
   build-and-push:
