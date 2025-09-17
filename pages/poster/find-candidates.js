@@ -2,6 +2,7 @@ import Layout from '../../components/Layout';
 import CandidateSwiper from '../../components/CandidateSwiper';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { API_CONFIG } from '../../config/api';
 
 export default function FindCandidates(){
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function FindCandidates(){
     let cancelled = false;
     async function load(){
       try{
-        const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+        const base = API_CONFIG.BASE_URL;
         // fetch seekers
         const res = await fetch(`${base}/api/seekers`);
         if (!res.ok) throw new Error('no seekers');

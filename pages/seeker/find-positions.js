@@ -2,6 +2,7 @@ import Layout from '../../components/Layout'
 import PositionSwiper from '../../components/PositionSwiper'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { API_CONFIG } from '../../config/api'
 
 export default function FindPositions(){
   const [positions, setPositions] = useState(null);
@@ -10,7 +11,7 @@ export default function FindPositions(){
     let cancelled = false;
     async function load(){
       try{
-        const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+        const base = API_CONFIG.BASE_URL;
         const res = await fetch(`${base}/api/positions`);
         if (!res.ok){ setPositions([]); return; }
         const data = await res.json();

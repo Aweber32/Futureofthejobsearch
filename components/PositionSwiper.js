@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { API_CONFIG } from '../config/api'
 
 export default function PositionSwiper({ initialPositions }){
   const [stack, setStack] = useState(initialPositions || []);
@@ -10,7 +11,7 @@ export default function PositionSwiper({ initialPositions }){
     let cancelled = false;
     async function load(){
       try{
-        const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+        const base = API_CONFIG.BASE_URL;
         const res = await fetch(`${base}/api/positions`);
         if (!res.ok) { setStack([]); return; }
         const data = await res.json();
@@ -31,7 +32,7 @@ export default function PositionSwiper({ initialPositions }){
       let positionId = position.id ?? position.Id ?? position.positionId ?? position.PositionId;
       positionId = parseInt(positionId,10);
       if (!Number.isFinite(positionId)) throw new Error('invalid positionId');
-      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+      const base = API_CONFIG.BASE_URL;
       const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
       const existingId = position._interest?.id ?? position._interest?.Id ?? null;
       if (existingId){
@@ -48,7 +49,7 @@ export default function PositionSwiper({ initialPositions }){
       let positionId = position.id ?? position.Id ?? position.positionId ?? position.PositionId;
       positionId = parseInt(positionId,10);
       if (!Number.isFinite(positionId)) throw new Error('invalid positionId');
-      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+      const base = API_CONFIG.BASE_URL;
       const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
       const existingId = position._interest?.id ?? position._interest?.Id ?? null;
       if (existingId){

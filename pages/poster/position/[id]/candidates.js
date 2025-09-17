@@ -2,6 +2,7 @@ import Layout from '../../../../components/Layout';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
+import { API_CONFIG } from '../../../../config/api';
 
 export default function PositionCandidates(){
   const router = useRouter();
@@ -13,7 +14,7 @@ export default function PositionCandidates(){
     let cancelled = false;
     async function load(){
       try{
-        const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+        const base = API_CONFIG.BASE_URL;
         const res = await fetch(`${base}/api/seekerinterests?positionId=${id}`);
         if (!res.ok) { setList([]); return; }
         const data = await res.json();

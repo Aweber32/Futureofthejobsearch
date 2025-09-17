@@ -2,6 +2,7 @@ import Layout from '../../../components/Layout';
 import CandidateSwiper from '../../../components/CandidateSwiper';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
+import { API_CONFIG } from '../../../config/api';
 
 export default function CandidateReviewPage(){
 	const router = useRouter();
@@ -14,7 +15,7 @@ export default function CandidateReviewPage(){
 		let cancelled = false;
 		async function load(){
 			try{
-				const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+				const base = API_CONFIG.BASE_URL;
 				const res = await fetch(`${base}/api/seekers`);
 				if (!res.ok){ if (!cancelled) setCandidate(null); return; }
 				const data = await res.json();

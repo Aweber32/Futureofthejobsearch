@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
+import { API_CONFIG } from '../../config/api';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = API_CONFIG.BASE_URL;
 
 export default function Seeker(){
   const router = useRouter();

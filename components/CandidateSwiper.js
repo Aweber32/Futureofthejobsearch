@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { API_CONFIG } from '../config/api'
 
 export default function CandidateSwiper({ initialCandidates }){
   const [stack, setStack] = useState(initialCandidates || []);
@@ -10,7 +11,7 @@ export default function CandidateSwiper({ initialCandidates }){
     let cancelled = false;
     async function load(){
       try{
-        const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+        const base = API_CONFIG.BASE_URL;
         const res = await fetch(`${base}/api/seekers`);
         if (!res.ok) {
           setStack([]);
@@ -53,7 +54,7 @@ export default function CandidateSwiper({ initialCandidates }){
         removeTop();
         return;
       }
-      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+      const base = API_CONFIG.BASE_URL;
       const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
       const existingId = candidate._interest?.id ?? candidate._interest?.Id ?? null;
       if (existingId){
@@ -84,7 +85,7 @@ export default function CandidateSwiper({ initialCandidates }){
         removeTop();
         return;
       }
-      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+      const base = API_CONFIG.BASE_URL;
       const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
       const existingId = candidate._interest?.id ?? candidate._interest?.Id ?? null;
       if (existingId){

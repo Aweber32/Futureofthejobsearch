@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import PreviewProfile from '../../components/PreviewProfile';
+import { API_CONFIG } from '../../config/api';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = API_CONFIG.BASE_URL;
 
 export default function EditProfile(){
   const router = useRouter();
