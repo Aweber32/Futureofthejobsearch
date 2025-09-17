@@ -62,23 +62,38 @@ jobs:
     - name: Build ELEV8R frontend
       run: |
         npm run build
-        echo "Build output:" && ls -la out/ || echo "No out directory found"
+        echo "Build output:" && ls -la .next/standalone/ || echo "No standalone directory found"
+        echo "Static files:" && ls -la .next/static/ || echo "No static directory found"
       env:
         NEXT_TELEMETRY_DISABLED: 1
         NODE_ENV: production
-        API_BASE_URL: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net
+        NEXT_PUBLIC_API_URL: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net
+        NEXT_PUBLIC_API_BASE: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net
 
     - name: Login to Azure
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+    - name: Prepare deployment package
+      run: |
+        # Copy standalone build to deployment directory
+        mkdir -p deploy
+        cp -r .next/standalone/* deploy/
+        cp -r .next/static deploy/.next/static/
+        cp -r public deploy/public/
+        cp web.config deploy/web.config
+        cp package.json deploy/package.json
+        cp startup.js deploy/startup.js
+        echo "Deployment package contents:"
+        ls -la deploy/
+        
     - name: Deploy to Azure App Service (Frontend)
       uses: azure/webapps-deploy@v2
       with:
         app-name: 'Futureofthejobsearch'
-        package: '.'
-        startup-command: 'npm start'
+        package: './deploy'
+        startup-command: 'node server.js'
         clean: true
         
     - name: Verify Deployment
@@ -89,10 +104,11 @@ jobs:
 
     - name: Verify Frontend Configuration
       run: |
-        echo "✅ Frontend environment variables manually configured:"
+        echo "✅ Frontend environment variables configured during build:"
         echo "   NEXT_PUBLIC_API_URL='https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net'"
         echo "   NEXT_PUBLIC_API_BASE='https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net'"
         echo "   NODE_ENV='production'"
+        echo "   Build Mode: Next.js Standalone"
 
     - name: Azure logout
       run: az logout
@@ -192,11 +208,12 @@ jobs:
         echo "## 🔐 Configuration Status" >> $GITHUB_STEP_SUMMARY
         echo "**Service Principal:** \`eab56f8a-46e2-49fb-8958-0693b59f6eb3\`" >> $GITHUB_STEP_SUMMARY
         echo "**Permissions:** Owner (Resource Group Level)" >> $GITHUB_STEP_SUMMARY
-        echo "**Frontend Config:** ✅ Manual - Environment variables set via Azure Portal" >> $GITHUB_STEP_SUMMARY
+        echo "**Frontend Config:** ✅ Build-time - Environment variables baked into Next.js standalone build" >> $GITHUB_STEP_SUMMARY
         echo "**Backend Config:** ✅ Manual - OPENAI_API_KEY and CORS configured" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## ⚡ Deployment Features" >> $GITHUB_STEP_SUMMARY
+        echo "- **Next.js Standalone:** Optimized server-side rendering with minimal dependencies" >> $GITHUB_STEP_SUMMARY
         echo "- **Clean Deployments:** Fresh artifacts with zero-downtime" >> $GITHUB_STEP_SUMMARY
         echo "- **Health Checks:** Automated verification of both services" >> $GITHUB_STEP_SUMMARY
         echo "- **Smart Change Detection:** Only deploys modified components" >> $GITHUB_STEP_SUMMARY
-        echo "- **Manual Configuration:** Environment variables managed via Azure Portal for reliability" >> $GITHUB_STEP_SUMMARY
+        echo "- **Proper Node.js Hosting:** IIS configuration for Azure App Service" >> $GITHUB_STEP_SUMMARY
