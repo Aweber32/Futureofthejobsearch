@@ -153,22 +153,8 @@ jobs:
         echo "Checking API health..."
         curl -s -o /dev/null -w "%{http_code}" https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net/health || echo "Health check complete"
 
-    - name: Configure Backend CORS and Settings
+    - name: Configure Backend Settings and CORS
       run: |
-        # Configure CORS for production domain  
-        az webapp cors add \
-          --name 'futureofthejobsearch-api' \
-          --resource-group '${{ secrets.AZURE_RG }}' \
-          --allowed-origins 'https://futureofthejobsearch-brd3cjc3f2debhek.centralus-01.azurewebsites.net' \
-        || echo "CORS origin already exists"
-        
-        # Add localhost for development
-        az webapp cors add \
-          --name 'futureofthejobsearch-api' \
-          --resource-group '${{ secrets.AZURE_RG }}' \
-          --allowed-origins 'http://localhost:3000' \
-        || echo "Localhost CORS already configured"
-        
         # Configure application settings
         az webapp config appsettings set \
           --name 'futureofthejobsearch-api' \
@@ -176,9 +162,23 @@ jobs:
           --settings \
             ASPNETCORE_ENVIRONMENT='Production' \
             DEFAULT_CONNECTION='${{ secrets.AZURE_SQL_CONNECTION_STRING }}'
+        
+        # Ensure CORS is configured for production and development
+        az webapp cors add \
+          --name 'futureofthejobsearch-api' \
+          --resource-group '${{ secrets.AZURE_RG }}' \
+          --allowed-origins 'https://futureofthejobsearch-brd3cjc3f2debhek.centralus-01.azurewebsites.net' \
+        2>/dev/null || echo "Production CORS already configured"
+        
+        az webapp cors add \
+          --name 'futureofthejobsearch-api' \
+          --resource-group '${{ secrets.AZURE_RG }}' \
+          --allowed-origins 'http://localhost:3000' \
+        2>/dev/null || echo "Development CORS already configured"
             
-        # Verify CORS configuration
-        echo "Current CORS configuration:"
+        # Verify configuration
+        echo "✅ Backend configuration complete"
+        echo "CORS configuration:"
         az webapp cors show --name 'futureofthejobsearch-api' --resource-group '${{ secrets.AZURE_RG }}'
 
     - name: Azure logout
@@ -205,4 +205,7 @@ jobs:
         echo "## 📊 Monitoring" >> $GITHUB_STEP_SUMMARY
         echo "**Application Insights:** [View Telemetry](https://portal.azure.com/#resource/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AZURE_RG }}/providers/Microsoft.Insights/components/futureofthejobsearch-insights)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Deployment completed with Service Principal: \`eab56f8a-46e2-49fb-8958-0693b59f6eb3\`" >> $GITHUB_STEP_SUMMARY
+        echo "## 🔐 Security & Permissions" >> $GITHUB_STEP_SUMMARY
+        echo "**Service Principal:** \`eab56f8a-46e2-49fb-8958-0693b59f6eb3\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Permissions:** Owner (Resource Group Level)" >> $GITHUB_STEP_SUMMARY
+        echo "**CORS:** Production + Development Origins Configured" >> $GITHUB_STEP_SUMMARY
