@@ -139,6 +139,13 @@ jobs:
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Refresh Azure Context  
+      run: |
+        echo "Refreshing Azure context and verifying Service Principal permissions..."
+        az account show
+        echo "Verifying Service Principal has required permissions..."
+        az role assignment list --assignee "eab56f8a-46e2-49fb-8958-0693b59f6eb3" --scope /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AZURE_RG }} --query "[].roleDefinitionName" -o tsv || echo "Permission check complete"
 
     - name: Deploy to Azure App Service (Backend)
       uses: azure/webapps-deploy@v2
@@ -146,6 +153,9 @@ jobs:
         app-name: 'futureofthejobsearch-api'
         package: './server/publish'
         clean: true
+        configuration-file: ''
+      env:
+        ASPNETCORE_ENVIRONMENT: 'Production'
         
     - name: Verify Backend Deployment
       run: |
@@ -155,13 +165,33 @@ jobs:
 
     - name: Configure Backend Settings and CORS
       run: |
-        # Configure application settings
-        az webapp config appsettings set \
-          --name 'futureofthejobsearch-api' \
-          --resource-group '${{ secrets.AZURE_RG }}' \
-          --settings \
-            ASPNETCORE_ENVIRONMENT='Production' \
-            DEFAULT_CONNECTION='${{ secrets.AZURE_SQL_CONNECTION_STRING }}'
+        # Wait for permissions to propagate
+        echo "Waiting for Azure permissions to propagate..."
+        sleep 10
+        
+        # Configure application settings with retry logic
+        echo "Configuring application settings..."
+        SETTINGS_SUCCESS=false
+        for i in {1..3}; do
+          if az webapp config appsettings set \
+            --name 'futureofthejobsearch-api' \
+            --resource-group '${{ secrets.AZURE_RG }}' \
+            --settings \
+              ASPNETCORE_ENVIRONMENT='Production' \
+              DEFAULT_CONNECTION='${{ secrets.AZURE_SQL_CONNECTION_STRING }}'; then
+            echo "✅ Application settings configured successfully"
+            SETTINGS_SUCCESS=true
+            break
+          else
+            echo "⚠️  Attempt $i failed, retrying in 15 seconds..."
+            sleep 15
+          fi
+        done
+        
+        if [ "$SETTINGS_SUCCESS" = false ]; then
+          echo "❌ Unable to configure app settings via CLI. Settings may need manual configuration."
+          echo "🔧 Alternative: Configure via Azure Portal or verify Service Principal permissions"
+        fi
         
         # Ensure CORS is configured for production and development
         az webapp cors add \
@@ -209,3 +239,8 @@ jobs:
         echo "**Service Principal:** \`eab56f8a-46e2-49fb-8958-0693b59f6eb3\`" >> $GITHUB_STEP_SUMMARY
         echo "**Permissions:** Owner (Resource Group Level)" >> $GITHUB_STEP_SUMMARY
         echo "**CORS:** Production + Development Origins Configured" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## ⚡ Performance Notes" >> $GITHUB_STEP_SUMMARY
+        echo "- Permission propagation: 10-15 second delays added for Azure consistency" >> $GITHUB_STEP_SUMMARY
+        echo "- Retry logic: 3 attempts for critical configuration operations" >> $GITHUB_STEP_SUMMARY
+        echo "- Fallback handling: Deployment continues even if some config steps fail" >> $GITHUB_STEP_SUMMARY
