@@ -7,21 +7,8 @@ on:
     paths:
       - 'pages/**'
       - 'components/**'
-      - 'styles/**'    - name: Configure Backend CORS and Settings
-      run: |
-        # Configure CORS for production domain  
-        az webapp cors add \
-          --name 'futureofthejobsearch-api' \
-          --resource-group '${{ secrets.AZURE_RG }}' \
-          --allowed-origins 'https://futureofthejobsearch-brd3cjc3f2debhek.centralus-01.azurewebsites.net' \
-        || echo "CORS origin already exists"
-        
-        # Add localhost for development
-        az webapp cors add \
-          --name 'futureofthejobsearch-api' \
-          --resource-group '${{ secrets.AZURE_RG }}' \
-          --allowed-origins 'http://localhost:3000' \
-        || echo "Localhost CORS already configured"  - 'server/**'
+      - 'styles/**'
+      - 'server/**'
 
 env:
   NODE_VERSION: '20'
@@ -41,14 +28,6 @@ jobs:
         filters: |
           frontend:
             - 'pages/**'
-            - 'components/**'
-            - 'styles/**'
-            - 'public/**'
-            - 'package.json'
-            - 'package-lock.json'
-            - 'next.config.js'
-            - 'tailwind.config.js'
-            - 'postcss.config.js'
             - 'components/**'
             - 'styles/**'
             - 'public/**'
@@ -176,10 +155,19 @@ jobs:
 
     - name: Configure Backend CORS and Settings
       run: |
+        # Configure CORS for production domain  
         az webapp cors add \
           --name 'futureofthejobsearch-api' \
           --resource-group '${{ secrets.AZURE_RG }}' \
-          --allowed-origins 'https://futureofthejobsearch-d3d3fad4c2h4g4hc.centralus-01.azurewebsites.net'
+          --allowed-origins 'https://futureofthejobsearch-brd3cjc3f2debhek.centralus-01.azurewebsites.net' \
+        || echo "CORS origin already exists"
+        
+        # Add localhost for development
+        az webapp cors add \
+          --name 'futureofthejobsearch-api' \
+          --resource-group '${{ secrets.AZURE_RG }}' \
+          --allowed-origins 'http://localhost:3000' \
+        || echo "Localhost CORS already configured"
         
         # Configure application settings
         az webapp config appsettings set \
