@@ -77,31 +77,34 @@ jobs:
 
     - name: Prepare deployment package
       run: |
-        # Copy standalone build to deployment directory (includes all necessary Next.js files)
+        # Create clean deployment directory with ONLY standalone build
         mkdir -p deploy
+        
+        # Copy ONLY the standalone build (this includes server.js and .next with BUILD_ID)
         cp -r .next/standalone/* deploy/
         
-        # Copy static files from the main build to the standalone .next directory
-        if [ -d ".next/static" ]; then
-          cp -r .next/static deploy/.next/
-          echo "Static files copied successfully"
-        else
-          echo "No static files found in .next/static"
-        fi
+        # Copy static files from main build to standalone .next (these are needed at runtime)
+        cp -r .next/static deploy/.next/
         
         # Copy public assets and configuration files
         cp -r public deploy/
         cp web.config deploy/
         cp startup.js deploy/
         
-        echo "Deployment package contents:"
+        # Verify the standalone .next directory has the BUILD_ID file
+        echo "=== DEPLOYMENT PACKAGE VERIFICATION ==="
+        echo "Root contents:"
         ls -la deploy/
-        echo "Next.js build files in standalone:"
+        echo "Next.js standalone .next contents:"
         ls -la deploy/.next/
+        echo "Checking for BUILD_ID:"
+        if [ -f "deploy/.next/BUILD_ID" ]; then
+          echo "✅ BUILD_ID found: $(cat deploy/.next/BUILD_ID)"
+        else
+          echo "❌ BUILD_ID missing!"
+        fi
         echo "Static files:"
         ls -la deploy/.next/static/ || echo "No static files found"
-        echo "Server file:"
-        ls -la deploy/server.js
         
     - name: Deploy to Azure App Service (Frontend)
       uses: azure/webapps-deploy@v2
