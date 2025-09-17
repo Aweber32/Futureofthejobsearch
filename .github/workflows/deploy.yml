@@ -81,15 +81,22 @@ jobs:
         mkdir -p deploy
         cp -r .next/standalone/* deploy/
         
-        # Copy essential Next.js build files that the server needs
-        cp .next/BUILD_ID deploy/.next/
-        cp .next/build-manifest.json deploy/.next/
-        cp .next/prerender-manifest.json deploy/.next/
-        cp .next/routes-manifest.json deploy/.next/
-        cp .next/react-loadable-manifest.json deploy/.next/
+        # Create .next directory structure in deploy folder
+        mkdir -p deploy/.next
         
-        # Copy static files
-        cp -r .next/static deploy/.next/
+        # Copy essential Next.js build files that the server needs
+        cp .next/BUILD_ID deploy/.next/ 2>/dev/null || echo "BUILD_ID not found"
+        cp .next/build-manifest.json deploy/.next/ 2>/dev/null || echo "build-manifest.json not found"
+        cp .next/prerender-manifest.json deploy/.next/ 2>/dev/null || echo "prerender-manifest.json not found"
+        cp .next/routes-manifest.json deploy/.next/ 2>/dev/null || echo "routes-manifest.json not found"
+        cp .next/react-loadable-manifest.json deploy/.next/ 2>/dev/null || echo "react-loadable-manifest.json not found"
+        
+        # Copy static files if they exist
+        if [ -d ".next/static" ]; then
+          cp -r .next/static deploy/.next/
+        else
+          echo "No static files found"
+        fi
         
         # Copy public assets and configuration files
         cp -r public deploy/
