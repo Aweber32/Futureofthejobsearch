@@ -26,12 +26,19 @@ jobs:
       run: |
         echo "NEXT_PUBLIC_API_URL=https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net" >> $GITHUB_ENV
         echo "NEXT_PUBLIC_API_BASE=https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net" >> $GITHUB_ENV
+
+    - name: Verify environment variables
+      run: |
         echo "Environment variables set:"
         echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL"
         echo "NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE"
 
     - name: Build Next.js standalone
-      run: npm run build
+      run: |
+        echo "Building with environment variables:"
+        echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL"
+        echo "NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE"
+        npm run build
 
     - name: Login to Azure
       uses: azure/login@v1
