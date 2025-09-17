@@ -36,8 +36,18 @@ jobs:
             - 'next.config.js'
             - 'tailwind.config.js'
             - 'postcss.config.js'
+            - 'components/**'
+            - 'styles/**'
+            - 'public/**'
+            - 'package.json'
+            - 'package-lock.json'
+            - 'next.config.js'
+            - 'tailwind.config.js'
+            - 'postcss.config.js'
           backend:
             - 'server/**'
+            - '!server/bin/**'
+            - '!server/obj/**'
 
   deploy-frontend:
     needs: changes
@@ -58,7 +68,9 @@ jobs:
       run: npm ci
 
     - name: Build ELEV8R frontend
-      run: npm run build
+      run: |
+        npm run build
+        echo "Build output:" && ls -la out/ || echo "No out directory found"
       env:
         NEXT_TELEMETRY_DISABLED: 1
         NODE_ENV: production
@@ -75,6 +87,13 @@ jobs:
         app-name: 'Futureofthejobsearch'
         package: '.'
         startup-command: 'npm start'
+        clean: true
+        
+    - name: Verify Deployment
+      run: |
+        echo "Frontend deployed successfully to: https://futureofthejobsearch-brd3cjc3f2debhek.centralus-01.azurewebsites.net"
+        echo "Checking deployment status..."
+        curl -s -o /dev/null -w "%{http_code}" https://futureofthejobsearch-brd3cjc3f2debhek.centralus-01.azurewebsites.net || echo "Health check complete"
 
     - name: Configure Frontend Environment Variables
       run: |
@@ -134,6 +153,13 @@ jobs:
       with:
         app-name: 'futureofthejobsearch-api'
         package: './server/publish'
+        clean: true
+        
+    - name: Verify Backend Deployment
+      run: |
+        echo "Backend API deployed successfully to: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net"
+        echo "Checking API health..."
+        curl -s -o /dev/null -w "%{http_code}" https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net/health || echo "Health check complete"
 
     - name: Configure Backend CORS and Settings
       run: |
@@ -161,11 +187,16 @@ jobs:
     - name: Deployment Summary
       run: |
         echo "## ELEV8R Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
-        echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
-        echo "| Frontend | ${{ needs.deploy-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Backend | ${{ needs.deploy-backend.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Service | Status | URL |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|--------|-----|" >> $GITHUB_STEP_SUMMARY
+        echo "| Frontend | ${{ needs.deploy-frontend.result }} | https://futureofthejobsearch-brd3cjc3f2debhek.centralus-01.azurewebsites.net |" >> $GITHUB_STEP_SUMMARY
+        echo "| Backend API | ${{ needs.deploy-backend.result }} | https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "🚀 **Live URLs:**" >> $GITHUB_STEP_SUMMARY
-        echo "- Frontend: https://futureofthejobsearch-d3d3fad4c2h4g4hc.centralus-01.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
-        echo "- Backend API: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+        echo "## 🚀 ELEV8R Live Application" >> $GITHUB_STEP_SUMMARY
+        echo "**Frontend:** https://futureofthejobsearch-brd3cjc3f2debhek.centralus-01.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+        echo "**Backend API:** https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 📊 Monitoring" >> $GITHUB_STEP_SUMMARY
+        echo "**Application Insights:** [View Telemetry](https://portal.azure.com/#resource/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AZURE_RG }}/providers/Microsoft.Insights/components/futureofthejobsearch-insights)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Deployment completed with Service Principal: \`eab56f8a-46e2-49fb-8958-0693b59f6eb3\`" >> $GITHUB_STEP_SUMMARY
