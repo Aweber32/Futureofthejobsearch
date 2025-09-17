@@ -1,6 +1,6 @@
 # Server — FutureOfTheJobSearch API
 
-This folder contains an ASP.NET Core Web API using Identity + EF Core and SQL Server.
+This folder contains an ASP.NET Core Web API using Identity + EF Core and SQL Server. 
 
 Quick start (local):
 
