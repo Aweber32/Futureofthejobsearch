@@ -22,11 +22,16 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Set production environment variables
+      run: |
+        echo "NEXT_PUBLIC_API_URL=https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net" >> $GITHUB_ENV
+        echo "NEXT_PUBLIC_API_BASE=https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net" >> $GITHUB_ENV
+        echo "Environment variables set:"
+        echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL"
+        echo "NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE"
+
     - name: Build Next.js standalone
       run: npm run build
-      env:
-        NEXT_PUBLIC_API_URL: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net
-        NEXT_PUBLIC_API_BASE: https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net
 
     - name: Login to Azure
       uses: azure/login@v1
@@ -50,8 +55,8 @@ jobs:
 
     - name: Configure App Service port and verify image
       run: |
-        az webapp config appsettings set --name ${{ secrets.FRONTEND_APP_NAME }} --resource-group ${{ secrets.AZURE_RG }} --settings WEBSITES_PORT=8080 PORT=8080 NEXT_PUBLIC_API_URL=https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net NEXT_PUBLIC_API_BASE=https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net
-        echo "Configured WEBSITES_PORT=8080, PORT=8080, NEXT_PUBLIC_API_URL, and NEXT_PUBLIC_API_BASE"
+        az webapp config appsettings set --name ${{ secrets.FRONTEND_APP_NAME }} --resource-group ${{ secrets.AZURE_RG }} --settings WEBSITES_PORT=8080 PORT=8080
+        echo "Configured WEBSITES_PORT=8080 and PORT=8080"
         echo "Configured image:"
         az webapp show --name ${{ secrets.FRONTEND_APP_NAME }} --resource-group ${{ secrets.AZURE_RG }} --query "siteConfig.linuxFxVersion" -o tsv
 
