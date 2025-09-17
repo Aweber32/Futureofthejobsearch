@@ -17,6 +17,9 @@ WORKDIR /app
 COPY --from=build /app/.next/standalone/ .
 
 ENV NODE_ENV=production
+# Ensure the node process listens on the same port App Service will route to
+# Default to 8080 which matches our App Service WEBSITES_PORT setting
+ENV PORT=8080
 EXPOSE 8080
 
 # Start the standalone server
