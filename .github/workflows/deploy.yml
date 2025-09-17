@@ -81,8 +81,14 @@ jobs:
         mkdir -p deploy
         cp -r .next/standalone/* deploy/
         
-        # Create .next directory structure and copy static files
-        mkdir -p deploy/.next
+        # Copy essential Next.js build files that the server needs
+        cp .next/BUILD_ID deploy/.next/
+        cp .next/build-manifest.json deploy/.next/
+        cp .next/prerender-manifest.json deploy/.next/
+        cp .next/routes-manifest.json deploy/.next/
+        cp .next/react-loadable-manifest.json deploy/.next/
+        
+        # Copy static files
         cp -r .next/static deploy/.next/
         
         # Copy public assets and configuration files
@@ -93,6 +99,8 @@ jobs:
         
         echo "Deployment package contents:"
         ls -la deploy/
+        echo "Next.js build files:"
+        ls -la deploy/.next/
         echo "Static files:"
         ls -la deploy/.next/static/ || echo "No static files found"
         
