@@ -77,39 +77,31 @@ jobs:
 
     - name: Prepare deployment package
       run: |
-        # Copy standalone build to deployment directory
+        # Copy standalone build to deployment directory (includes all necessary Next.js files)
         mkdir -p deploy
         cp -r .next/standalone/* deploy/
         
-        # Create .next directory structure in deploy folder
-        mkdir -p deploy/.next
-        
-        # Copy essential Next.js build files that the server needs
-        cp .next/BUILD_ID deploy/.next/ 2>/dev/null || echo "BUILD_ID not found"
-        cp .next/build-manifest.json deploy/.next/ 2>/dev/null || echo "build-manifest.json not found"
-        cp .next/prerender-manifest.json deploy/.next/ 2>/dev/null || echo "prerender-manifest.json not found"
-        cp .next/routes-manifest.json deploy/.next/ 2>/dev/null || echo "routes-manifest.json not found"
-        cp .next/react-loadable-manifest.json deploy/.next/ 2>/dev/null || echo "react-loadable-manifest.json not found"
-        
-        # Copy static files if they exist
+        # Copy static files from the main build to the standalone .next directory
         if [ -d ".next/static" ]; then
           cp -r .next/static deploy/.next/
+          echo "Static files copied successfully"
         else
-          echo "No static files found"
+          echo "No static files found in .next/static"
         fi
         
         # Copy public assets and configuration files
         cp -r public deploy/
         cp web.config deploy/
-        cp package.json deploy/
         cp startup.js deploy/
         
         echo "Deployment package contents:"
         ls -la deploy/
-        echo "Next.js build files:"
+        echo "Next.js build files in standalone:"
         ls -la deploy/.next/
         echo "Static files:"
         ls -la deploy/.next/static/ || echo "No static files found"
+        echo "Server file:"
+        ls -la deploy/server.js
         
     - name: Deploy to Azure App Service (Frontend)
       uses: azure/webapps-deploy@v2
