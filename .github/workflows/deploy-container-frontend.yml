@@ -1,5 +1,6 @@
 name: Build & Deploy Frontend Container to ACR
 
+# Trigger rebuild with production API URLs
 on:
   push:
     branches: [ main ]
