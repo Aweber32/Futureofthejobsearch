@@ -57,7 +57,14 @@ builder.Services.ConfigureApplicationCookie(options => {
 // CORS for local dev and production
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowLocalhost", policy => {
-        policy.AllowAnyOrigin()
+        var allowedOrigins = new List<string> { "http://localhost:3000" };
+        // Add production frontend URL when not in development
+        if (!builder.Environment.IsDevelopment())
+        {
+            allowedOrigins.Add("https://futureofthejobsearch-d3d3fad4c2h4g4hc.centralus-01.azurewebsites.net");
+        }
+
+        policy.WithOrigins(allowedOrigins.ToArray())
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -137,11 +144,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Handle OPTIONS requests for CORS preflight
-app.MapMethods("/api/{*path}", new[] { "OPTIONS" }, (HttpContext context) => {
-    context.Response.StatusCode = 200;
-    return Task.CompletedTask;
-});
 
 app.Run();
