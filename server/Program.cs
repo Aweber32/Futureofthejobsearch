@@ -49,8 +49,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
 // Configure cookie authentication for Identity
 builder.Services.ConfigureApplicationCookie(options => {
     options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.SameAsRequest;
+    // Allow cross-site cookie for credentialed requests from the frontend
+    options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
+    // Require secure cookie delivery
+    options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
     options.LoginPath = "/poster/login"; // not used by API but helpful
 });
 
@@ -106,8 +108,10 @@ builder.Services.AddAuthentication(options => {
 // ensure API requests are not redirected to login by cookie middleware
 builder.Services.ConfigureApplicationCookie(options => {
     options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.SameAsRequest;
+    // Allow cross-site cookie for credentialed requests from the frontend
+    options.Cookie.SameSite = SameSiteMode.None;
+    // Require secure cookie delivery
+    options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
     options.LoginPath = "/poster/login"; // not used by API but helpful
     options.Events = new CookieAuthenticationEvents
     {
