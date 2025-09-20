@@ -6,6 +6,12 @@ Quick start (local):
 
 - Ensure .NET 7 SDK is installed.
 - From `server/` set a connection string in environment or `appsettings.json`.
+- For the API to connect locally run the below script
+az login
+$env:ConnectionStrings__DefaultConnection = "Server=...;Database=...;Authentication=Active Directory Default;..."
+cd server
+dotnet run
+# dotnet will see ConnectionStrings__DefaultConnection for the lifetime of this shell session
 
 Example (PowerShell):
 
