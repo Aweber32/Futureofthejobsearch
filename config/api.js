@@ -7,20 +7,22 @@
 const PROD_API = 'https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net';
 const LOCAL_API = 'http://localhost:5000';
 
-function getApiBase(){
-  try{
+//function getApiBase(){
+ // try{
     // runtime injection pattern used by some hosting platforms
-    if (typeof window !== 'undefined' && window.__ENV && window.__ENV.API_BASE) return window.__ENV.API_BASE;
+   // if (typeof window !== 'undefined' && window.__ENV && window.__ENV.API_BASE) return window.__ENV.API_BASE;
     // Next.js public env (available on client and server when prefixed with NEXT_PUBLIC_)
-    if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_BASE) return process.env.NEXT_PUBLIC_API_BASE;
+   // if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_BASE) return process.env.NEXT_PUBLIC_API_BASE;
     // fallback to checking NEXT_PUBLIC_ENV
-    if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_ENV === 'PROD') return PROD_API;
-  }catch(e){}
+   // if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_ENV === 'PROD') return PROD_API;
+  //}catch(e){}
   // default to local during development
-  return LOCAL_API;
-}
+  //return LOCAL_API;
+//}
 
-const API_BASE_URL = getApiBase();
+//const API_BASE_URL = getApiBase();
+
+const API_BASE_URL = PROD_API; // hardcode to PROD for now, since runtime injection not working on Azure
 
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
