@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import PositionReviewModal from './PositionReviewModal';
+import ChatButton from './ChatButton';
 import { API_CONFIG } from '../config/api';
 
 const API = API_CONFIG.BASE_URL;
@@ -64,7 +65,22 @@ export default function InterestedPositionsList({ seeker }){
           }
         }));
 
-        setItems(withStatus);
+        // Some APIs return a nested position object without the related Employer navigation property.
+        // For those items, re-fetch the full position (which includes Employer via server Include) so we can reliably derive company name.
+        const enriched = await Promise.all(withStatus.map(async it => {
+          try{
+            if (it.position && !it.position.employer && it.id) {
+              const pres = await fetch(`${API}/api/positions/${it.id}`, { headers: { Authorization: `Bearer ${authToken}` } });
+              if (pres.ok) {
+                const pjson = await pres.json();
+                return { ...it, position: pjson, title: pjson.title ?? it.title };
+              }
+            }
+          }catch{}
+          return it;
+        }));
+
+        setItems(enriched);
       }catch(err){ setError(err?.message || 'Failed to load'); }
       finally{ setLoading(false); }
     })();
@@ -95,7 +111,40 @@ export default function InterestedPositionsList({ seeker }){
                 return (
                   <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
                     <span className={`badge ${badgeClass} text-center`} style={{borderRadius: '0.75rem', padding: '0.5rem 0.75rem'}}>{ps}</span>
-                    <button
+                    <div className="d-flex gap-2 align-items-center">
+                      {(() => {
+                        // Derive a robust company name from many possible response shapes
+                        const tryVals = [
+                          item.position?.companyName,
+                          item.position?.company,
+                          item.position?.employer?.companyName,
+                          item.position?.employer?.name,
+                          item.position?.company?.name,
+                          item.position?.company?.companyName,
+                          item.raw?.position?.companyName,
+                          item.raw?.position?.employer?.name,
+                          item.raw?.companyName,
+                          item.raw?.company,
+                          item.raw?.employer?.companyName,
+                          item.raw?.employer?.name
+                        ];
+                        const found = tryVals.find(v => v && typeof v === 'string' && v.trim().length > 0);
+                        const companyName = found ? found.trim() : 'Unknown company';
+                        // Debug: log shapes when company couldn't be determined
+                        if (!found) {
+                          try {
+                            console.log('InterestedPositionsList: missing company for item:', {
+                              id: item.id,
+                              title: item.position?.title ?? item.title,
+                              position: item.position,
+                              raw: item.raw
+                            });
+                          } catch(e) { /* ignore logging errors */ }
+                        }
+                        const positionTitle = item.position?.title ?? item.title ?? 'Position Conversation';
+                        return <ChatButton title={positionTitle} subtitle={companyName} />;
+                      })()}
+                      <button
                       onClick={async ()=> {
                         console.log('🎯 Review Position clicked for item:', item);
                         console.log('📋 Item position data:', item.position);
@@ -141,7 +190,8 @@ export default function InterestedPositionsList({ seeker }){
                     >
                       Review Position
                     </button>
-                  </div>
+                    </div>
+                    </div>
                 );
               })()}
             </div>

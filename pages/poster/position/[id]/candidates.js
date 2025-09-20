@@ -3,11 +3,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { API_CONFIG } from '../../../../config/api';
+import ChatButton from '../../../../components/ChatButton';
 
 export default function PositionCandidates(){
   const router = useRouter();
   const { id } = router.query;
   const [list, setList] = useState(null);
+  const [positionTitle, setPositionTitle] = useState('');
 
   useEffect(()=>{
     if (!id) return;
@@ -18,6 +20,14 @@ export default function PositionCandidates(){
         const res = await fetch(`${base}/api/seekerinterests?positionId=${id}`);
         if (!res.ok) { setList([]); return; }
         const data = await res.json();
+        // try to fetch position title once for the header subtitle
+        try{
+          const pres = await fetch(`${base}/api/positions/${id}`);
+          if (pres.ok){
+            const pjson = await pres.json();
+            setPositionTitle(pjson.title ?? pjson.Title ?? pjson.positionTitle ?? '');
+          }
+        }catch(e){ /* ignore */ }
         if (!cancelled) setList(data || []);
       }catch(e){ if (!cancelled) setList([]); }
     }
@@ -55,6 +65,7 @@ export default function PositionCandidates(){
                 </div>
                 <div className="d-flex align-items-center" style={{gap:12}}>
                   <div>{interested ? <span className="badge bg-success">Interested</span> : <span className="badge bg-secondary">Not interested</span>}</div>
+                  <ChatButton title={name.trim() || 'Candidate Conversation'} subtitle={positionTitle || ''} />
                   <Link href={`/poster/candidate/${seeker.id ?? seeker.Id}?positionId=${id}`} className="btn btn-sm btn-outline-primary">Review</Link>
                 </div>
               </div>
