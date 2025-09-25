@@ -21,7 +21,7 @@ jobs:
       - name: Install dotnet-ef tool
         run: dotnet tool install --global dotnet-ef --version 9.0.8
 
-      - name: Restore and build
+      - name: Restore and build (Release)
         run: dotnet build ./server/FutureOfTheJobSearch.Server.csproj --configuration Release
 
       - name: Apply EF Migrations
@@ -29,7 +29,10 @@ jobs:
           DEFAULT_CONNECTION: ${{ secrets.AZURE_SQL_MIGRATE_CONNECTION }}
         run: |
           cd server
-          dotnet ef database update --no-build -v
+          echo "Listing build output for debugging"
+          if [ -d "bin/Release/net9.0" ]; then ls -la bin/Release/net9.0 || true; fi
+          # Ensure dotnet-ef targets the Release build output (matches the build step)
+          dotnet ef database update --no-build --configuration Release -v
 
       - name: Success notice
         run: echo "EF migrations applied (or were already up-to-date)."
