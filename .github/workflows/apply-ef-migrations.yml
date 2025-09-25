@@ -29,8 +29,10 @@ jobs:
           DEFAULT_CONNECTION: ${{ secrets.AZURE_SQL_MIGRATE_CONNECTION }}
         run: |
           cd server
-          echo "Listing build output for debugging"
-          if [ -d "bin/Release/net9.0" ]; then ls -la bin/Release/net9.0 || true; fi
+          Write-Host "Listing build output for debugging"
+          if (Test-Path 'bin/Release/net9.0') {
+            Get-ChildItem -Force 'bin/Release/net9.0' | Format-Table -AutoSize
+          }
           # Ensure dotnet-ef targets the Release build output (matches the build step)
           dotnet ef database update --no-build --configuration Release -v
 
