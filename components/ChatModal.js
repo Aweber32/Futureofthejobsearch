@@ -87,7 +87,12 @@ export default function ChatModal({ open, onClose, title, subtitle }){
         .chat-text{white-space:pre-wrap}
         .chat-input{padding:12px;box-shadow:0 -6px 12px rgba(0,0,0,0.03);background:linear-gradient(180deg,#ffffff,#fafafa)}
         .chat-input .form-control{border-radius:999px;padding:10px 14px}
+        /* On small screens keep full-height bottom-aligned (like a sheet). On wider screens center the modal */
         @media (max-width:480px){ .chat-modal{height:100%;border-radius:0;margin-bottom:0} }
+        @media (min-width:768px){
+          .chat-modal-overlay{align-items:center}
+          .chat-modal{margin-bottom:0}
+        }
       `}</style>
     </div>
   );

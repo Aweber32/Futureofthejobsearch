@@ -103,6 +103,20 @@ builder.Services.AddAuthentication(options => {
             IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
             ClockSkew = TimeSpan.FromMinutes(1)
         };
+        // Allow JWT token passed in query string for SignalR client connections
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"].FirstOrDefault();
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/hubs/chat")))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 // ensure API requests are not redirected to login by cookie middleware
@@ -128,6 +142,17 @@ builder.Services.ConfigureApplicationCookie(options => {
     };
 });
 
+// SignalR and Azure SignalR (configured via Azure:SignalR:ConnectionString or env AZURE_SIGNALR_CONNECTIONSTRING)
+var azureSignalRConnection = configuration["Azure:SignalR:ConnectionString"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_CONNECTIONSTRING");
+if (!string.IsNullOrEmpty(azureSignalRConnection))
+{
+    builder.Services.AddSignalR().AddAzureSignalR(azureSignalRConnection);
+}
+else
+{
+    builder.Services.AddSignalR();
+}
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -148,5 +173,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
 
 app.Run();

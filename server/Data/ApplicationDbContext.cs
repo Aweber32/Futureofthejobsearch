@@ -16,6 +16,9 @@ namespace FutureOfTheJobSearch.Server.Data
     public DbSet<PositionEducation> PositionEducations { get; set; }
     public DbSet<SeekerInterest> SeekerInterests { get; set; }
     public DbSet<PositionInterest> PositionInterests { get; set; }
+    public DbSet<Conversation> Conversations { get; set; }
+    public DbSet<ConversationParticipant> ConversationParticipants { get; set; }
+    public DbSet<Message> Messages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -94,6 +97,23 @@ namespace FutureOfTheJobSearch.Server.Data
                 .WithMany()
                 .HasForeignKey(pi => pi.SeekerId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Chat schema: Conversations (1:1 only). Enforce uniqueness of conversation participants pair optionally tied to PositionId.
+            builder.Entity<Conversation>(eb => {
+                eb.HasKey(c => c.Id);
+                eb.HasIndex(c => c.LastMessageAt);
+            });
+
+            builder.Entity<ConversationParticipant>(eb => {
+                eb.HasKey(cp => new { cp.ConversationId, cp.UserId });
+                eb.HasOne(cp => cp.Conversation).WithMany(c => c.Participants).HasForeignKey(cp => cp.ConversationId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<Message>(eb => {
+                eb.HasKey(m => m.Id);
+                eb.HasOne(m => m.Conversation).WithMany(c => c.Messages).HasForeignKey(m => m.ConversationId).OnDelete(DeleteBehavior.Cascade);
+                eb.HasIndex(m => new { m.ConversationId, m.CreatedAt });
+            });
         }
     }
 }
