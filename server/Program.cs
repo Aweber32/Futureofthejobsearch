@@ -170,14 +170,10 @@ var azureSignalRConnection = configuration["Azure:SignalR:ConnectionString"] ?? 
 if (!string.IsNullOrEmpty(azureSignalRConnection))
 {
     builder.Services.AddSignalR().AddAzureSignalR(azureSignalRConnection);
-    // Log which SignalR mode is being used so it's visible in startup logs.
-    var usesMsi = azureSignalRConnection.IndexOf("AuthType=azure.msi", StringComparison.OrdinalIgnoreCase) >= 0;
-    Console.WriteLine($"[Info] Azure SignalR configured. Mode={(usesMsi ? "Managed Identity (MSI)" : "AccessKey/ConnectionString")}");
 }
 else
 {
     builder.Services.AddSignalR();
-    Console.WriteLine("[Info] Azure SignalR not configured; using in-process SignalR.");
 }
 
 var app = builder.Build();
@@ -202,14 +198,4 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
 
-try
-{
-    app.Run();
-}
-catch (Exception ex)
-{
-    // Log the startup exception to the console so App Service / stdout logs capture it
-    Console.WriteLine("[Fatal] Host terminated unexpectedly. Exception details:");
-    Console.WriteLine(ex.ToString());
-    throw;
-}
+app.Run();
