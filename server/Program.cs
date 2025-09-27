@@ -35,6 +35,27 @@ if (string.IsNullOrEmpty(conn))
     throw new InvalidOperationException("No DefaultConnection configured. Set 'ConnectionStrings:DefaultConnection' in appsettings.json or the 'DEFAULT_CONNECTION' environment variable to your Azure SQL connection string.");
 }
 
+// If AZURE_SQL_USER/AZURE_SQL_PASSWORD are provided, prefer building a SQL-auth connection
+// from the given connection string so local dev can connect to the existing Azure SQL DB.
+var sqlUser = Environment.GetEnvironmentVariable("AZURE_SQL_USER");
+var sqlPwd = Environment.GetEnvironmentVariable("AZURE_SQL_PASSWORD");
+if (!string.IsNullOrEmpty(sqlUser) && !string.IsNullOrEmpty(sqlPwd))
+{
+    try
+    {
+        var csb = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(conn);
+        if (csb.ContainsKey("Authentication")) csb.Remove("Authentication");
+        csb.UserID = sqlUser;
+        csb.Password = sqlPwd;
+        conn = csb.ConnectionString;
+        Console.WriteLine("[Info] Using AZURE_SQL_USER/AZURE_SQL_PASSWORD for Azure SQL connection.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Warn] Failed to apply AZURE_SQL_USER fallback: {ex.Message}");
+    }
+}
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(conn));
 
@@ -101,6 +122,8 @@ builder.Services.AddAuthentication(options => {
             ValidateAudience = false,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+            // Use the 'sub' claim as the Name claim so SignalR's Context.UserIdentifier is populated
+            NameClaimType = "sub",
             ClockSkew = TimeSpan.FromMinutes(1)
         };
         // Allow JWT token passed in query string for SignalR client connections

@@ -142,7 +142,10 @@ export default function InterestedPositionsList({ seeker }){
                           } catch(e) { /* ignore logging errors */ }
                         }
                         const positionTitle = item.position?.title ?? item.title ?? 'Position Conversation';
-                        return <ChatButton title={positionTitle} subtitle={companyName} />;
+                        // attempt to derive the other user's id (poster/employer user id) and pass position id
+                        const otherUserId = item.position?.employer?.userId || item.position?.employer?.userId || item.raw?.posterUserId || null;
+                        const posId = item.id || item.position?.id || null;
+                        return <ChatButton title={positionTitle} subtitle={companyName} otherUserId={otherUserId} positionId={posId} />;
                       })()}
                       <button
                       onClick={async ()=> {

@@ -1,12 +1,50 @@
 import { useState } from 'react';
 import ChatModal from './ChatModal';
+import API_CONFIG from '../config/api';
 
-export default function ChatButton({ title = 'Conversation', subtitle = '' }){
+export default function ChatButton({ title = 'Conversation', subtitle = '' , otherUserId = null, positionId = null }){
   const [open, setOpen] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function openChat(){
+    // fetch token
+    const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+    if (!token) {
+      // open modal to prompt login (the modal UI will handle missing token)
+      setOpen(true);
+      return;
+    }
+
+    setLoading(true);
+    try{
+      // Create or fetch a 1:1 conversation
+      const res = await fetch(`${API_CONFIG.BASE_URL.replace(/\/$/, '')}/api/conversations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ OtherUserId: otherUserId, PositionId: positionId, Subject: title })
+      });
+      if (res.ok){
+        const json = await res.json();
+        setConversationId(json.id || json.Id || json.id);
+        setOpen(true);
+      } else if (res.status === 401){
+        // unauthenticated - open modal so the UI can show login
+        setOpen(true);
+      } else {
+        // fallback open anyway
+        setOpen(true);
+      }
+    }catch(err){
+      console.warn('Failed to create conversation', err);
+      setOpen(true);
+    }finally{ setLoading(false); }
+  }
+
   return (
     <>
-      <button className="btn btn-sm btn-outline-success" onClick={()=>setOpen(true)}>Chat</button>
-      <ChatModal open={open} onClose={()=>setOpen(false)} title={title} subtitle={subtitle} />
+      <button className="btn btn-sm btn-outline-success" onClick={openChat} disabled={loading}>{loading ? 'Opening…' : 'Chat'}</button>
+      <ChatModal open={open} onClose={()=>setOpen(false)} title={title} subtitle={subtitle} conversationId={conversationId} />
     </>
   );
 }
