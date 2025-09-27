@@ -22,7 +22,7 @@ const LOCAL_API = 'http://localhost:5000';
 
 //const API_BASE_URL = getApiBase();
 
-const API_BASE_URL = LOCAL_API; // hardcode to PROD for now, since runtime injection not working on Azure
+const API_BASE_URL = PROD_API; // hardcode to PROD for now, since runtime injection not working on Azure
 
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,

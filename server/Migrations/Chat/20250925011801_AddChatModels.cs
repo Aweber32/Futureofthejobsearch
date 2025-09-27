@@ -11,26 +11,9 @@ namespace FutureOfTheJobSearch.Server.Migrations.Chat
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "City",
-                table: "Seekers",
-                type: "nvarchar(100)",
-                maxLength: 100,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "ProfessionalSummary",
-                table: "Seekers",
-                type: "nvarchar(2000)",
-                maxLength: 2000,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "State",
-                table: "Seekers",
-                type: "nvarchar(100)",
-                maxLength: 100,
-                nullable: true);
+            // Seekers columns City/ProfessionalSummary/State were added in a prior migration
+            // (AddCityStateProfessionalSummaryToSeeker). They were accidentally included
+            // here when generating the migration. Skip adding them to avoid duplicate column errors.
 
             migrationBuilder.CreateTable(
                 name: "Conversations",
@@ -116,17 +99,7 @@ namespace FutureOfTheJobSearch.Server.Migrations.Chat
             migrationBuilder.DropTable(
                 name: "Conversations");
 
-            migrationBuilder.DropColumn(
-                name: "City",
-                table: "Seekers");
-
-            migrationBuilder.DropColumn(
-                name: "ProfessionalSummary",
-                table: "Seekers");
-
-            migrationBuilder.DropColumn(
-                name: "State",
-                table: "Seekers");
+            // Columns were not added in this migration; nothing to drop for Seekers here.
         }
     }
 }

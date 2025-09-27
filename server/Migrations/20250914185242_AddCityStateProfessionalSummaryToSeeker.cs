@@ -10,42 +10,15 @@ namespace FutureOfTheJobSearch.Server.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "City",
-                table: "Seekers",
-                type: "nvarchar(100)",
-                maxLength: 100,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "ProfessionalSummary",
-                table: "Seekers",
-                type: "nvarchar(2000)",
-                maxLength: 2000,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "State",
-                table: "Seekers",
-                type: "nvarchar(100)",
-                maxLength: 100,
-                nullable: true);
+            // These columns were already added in the initial migration in this branch.
+            // They were included again when the migration was generated. Skip adding
+            // them here to avoid duplicate column errors when applying migrations.
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "City",
-                table: "Seekers");
-
-            migrationBuilder.DropColumn(
-                name: "ProfessionalSummary",
-                table: "Seekers");
-
-            migrationBuilder.DropColumn(
-                name: "State",
-                table: "Seekers");
+            // Nothing to drop in this migration because the columns were not added here.
         }
     }
 }
