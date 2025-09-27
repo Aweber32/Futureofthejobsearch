@@ -202,4 +202,14 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
 
-app.Run();
+try
+{
+    app.Run();
+}
+catch (Exception ex)
+{
+    // Log the startup exception to the console so App Service / stdout logs capture it
+    Console.WriteLine("[Fatal] Host terminated unexpectedly. Exception details:");
+    Console.WriteLine(ex.ToString());
+    throw;
+}
