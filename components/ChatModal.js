@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import * as signalR from '@microsoft/signalr';
+import API_CONFIG from '../config/api';
 
-export default function ChatModal({ open, onClose, title, subtitle }){
-  const [messages, setMessages] = useState([
-    { id: 1, fromMe: false, text: 'Hi — thanks for your interest in this role! How can I help?' },
-    { id: 2, fromMe: true, text: 'Hi — I’d love to learn more about the team and the day-to-day.' }
-  ]);
+export default function ChatModal({ open, onClose, title, subtitle, conversationId }){
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const listRef = useRef(null);
+  const connRef = useRef(null);
 
   useEffect(()=>{
     if (open) {
@@ -17,17 +17,98 @@ export default function ChatModal({ open, onClose, title, subtitle }){
     }
   },[open, messages.length]);
 
+  // Setup SignalR connection when conversationId is present
+  useEffect(()=>{
+    if (!open) return;
+
+    const token = (typeof window !== 'undefined') ? localStorage.getItem('fjs_token') : null;
+
+    // if there's no conversationId, don't try to connect -- keep UI as demo or empty
+    if (!conversationId) return;
+
+    const url = `${API_CONFIG.BASE_URL.replace(/\/$/, '')}/hubs/chat`;
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(url, { accessTokenFactory: () => token || '' })
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Error)
+      .build();
+
+    connRef.current = connection;
+
+    const start = async () => {
+      try {
+        await connection.start();
+        // join the conversation group
+        await connection.invoke('JoinConversation', conversationId);
+
+        // wire up incoming events
+        connection.on('MessageReceived', (msg) => {
+          setMessages(m => [...m, { id: msg.id, fromMe: msg.senderUserId === (localStorage.getItem('fjs_userid') || ''), text: msg.text, createdAt: msg.createdAt }]);
+        });
+
+        connection.on('ReadReceipt', (r) => {
+          // TODO: update participant read state UI if needed
+          // r: { userId, conversationId, lastReadAt }
+          console.debug('ReadReceipt', r);
+        });
+
+        // mark as read on open
+        try { await connection.invoke('MarkRead', conversationId); } catch (e) { console.warn('MarkRead failed', e); }
+
+        // fetch recent messages via REST for initial history
+        try{
+          const res = await fetch(`${API_CONFIG.BASE_URL.replace(/\/$/, '')}/api/conversations/${conversationId}/messages?take=50`, { headers: { Authorization: `Bearer ${token}` } });
+          if (res.ok){
+            const data = await res.json();
+            // API returns newest-first; reverse to show oldest-first
+            setMessages(data.reverse().map(m => ({ id: m.id, fromMe: m.senderUserId === (localStorage.getItem('fjs_userid') || ''), text: m.text, createdAt: m.createdAt })));
+          }
+        }catch(err){ console.warn('failed to fetch messages', err); }
+
+      } catch (err) {
+        console.error('SignalR start failed', err);
+      }
+    };
+
+    start();
+
+    return () => {
+      // mark read and leave group then stop
+      const stop = async () => {
+        try {
+          if (connection.state === signalR.HubConnectionState.Connected) {
+            try { await connection.invoke('MarkRead', conversationId); } catch (e){}
+            try { await connection.invoke('LeaveConversation', conversationId); } catch (e){}
+            await connection.stop();
+          }
+        } catch (e) { console.warn('error stopping connection', e); }
+      };
+      stop();
+      connRef.current = null;
+    };
+  }, [open, conversationId]);
+
   if (!open) return null;
 
-  function send(){
+  async function send(){
     if (!input.trim()) return;
-    const msg = { id: Date.now(), fromMe: true, text: input.trim() };
-    setMessages(m => [...m, msg]);
+    const text = input.trim();
     setInput('');
-    // fake reply for demo
-    setTimeout(()=>{
-      setMessages(m => [...m, { id: Date.now()+1, fromMe: false, text: 'Thanks — I’ll get back to you soon.' }]);
-    }, 800 + Math.random()*800);
+
+    // if connected to SignalR and conversationId exists, invoke hub method
+    const conn = connRef.current;
+    if (conn && conn.state === signalR.HubConnectionState.Connected && conversationId){
+      try{
+        await conn.invoke('SendMessage', conversationId, { text });
+      }catch(err){
+        console.warn('SendMessage failed, falling back to local append', err);
+        setMessages(m => [...m, { id: Date.now(), fromMe: true, text }]);
+      }
+    } else {
+      // fallback - append locally for demo
+      setMessages(m => [...m, { id: Date.now(), fromMe: true, text }]);
+    }
   }
 
   return (
