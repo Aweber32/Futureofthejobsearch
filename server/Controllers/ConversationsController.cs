@@ -13,18 +13,25 @@ namespace FutureOfTheJobSearch.Server.Controllers
     public class ConversationsController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
+        private readonly ILogger<ConversationsController> _logger;
 
-        public ConversationsController(ApplicationDbContext db)
+        public ConversationsController(ApplicationDbContext db, ILogger<ConversationsController> logger)
         {
             _db = db;
+            _logger = logger;
         }
 
         // POST api/conversations
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateConversationRequest req)
         {
+            // Log header presence to debug 401 issues
+            var authHeader = Request.Headers.ContainsKey("Authorization") ? Request.Headers["Authorization"].ToString() : null;
+            _logger.LogInformation("CreateConversation called. Authorization header present: {hasAuth}", !string.IsNullOrEmpty(authHeader));
+
             var userId = User.FindFirst("sub")?.Value ?? User.Identity?.Name;
-            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            _logger.LogInformation("CreateConversation: resolved userId='{userId}'", userId ?? "(null)");
+            if (string.IsNullOrEmpty(userId)) { _logger.LogWarning("CreateConversation unauthorized: no user id in claims"); return Unauthorized(); }
 
             // Enforce 1:1 uniqueness: if conversation already exists between these two users for the same position, return it
             var existing = await _db.Conversations
@@ -58,7 +65,15 @@ namespace FutureOfTheJobSearch.Server.Controllers
             conv.Participants.Add(new ConversationParticipant { Conversation = conv, UserId = req.OtherUserId, Role = null });
 
             _db.Conversations.Add(conv);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving new conversation. userId={userId}", userId);
+                return StatusCode(500, new { ok = false, error = "Error saving conversation" });
+            }
 
             var result = new ConversationDto
             {

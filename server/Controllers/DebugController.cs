@@ -18,6 +18,31 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _logger = logger;
         }
 
+            [HttpGet("token/raw")]
+            public IActionResult InspectRawToken()
+            {
+                try
+                {
+                    var authHeader = Request.Headers.ContainsKey("Authorization") ? Request.Headers["Authorization"].ToString() : null;
+                    _logger.LogInformation("InspectRawToken called. Authorization header present: {hasAuth}", !string.IsNullOrEmpty(authHeader));
+
+                    string? token = null;
+                    if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+                    {
+                        token = authHeader.Substring("Bearer ".Length).Trim();
+                    }
+
+                    // mask token for logs/response
+                    string? masked = token == null ? null : (token.Length > 10 ? token.Substring(0, 6) + "..." + token.Substring(token.Length - 4) : token);
+                    return Ok(new { ok = true, hasAuthorizationHeader = !string.IsNullOrEmpty(authHeader), tokenMasked = masked });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "InspectRawToken failed");
+                    return StatusCode(500, new { ok = false, error = ex.Message });
+                }
+            }
+
         [HttpGet("token")]
         [Authorize]
         public IActionResult InspectToken()

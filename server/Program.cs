@@ -35,6 +35,23 @@ if (string.IsNullOrEmpty(conn))
     throw new InvalidOperationException("No DefaultConnection configured. Set 'ConnectionStrings:DefaultConnection' in appsettings.json or the 'DEFAULT_CONNECTION' environment variable to your Azure SQL connection string.");
 }
 
+// Log some startup diagnostic information (mask secrets)
+try
+{
+    Console.WriteLine("[Startup] Environment: " + builder.Environment.EnvironmentName);
+    Console.WriteLine("[Startup] DefaultConnection present: " + (!string.IsNullOrEmpty(conn)));
+    var maskedConn = conn.Length > 20 ? conn.Substring(0, 20) + "..." : conn;
+    Console.WriteLine("[Startup] DefaultConnection (masked): " + maskedConn);
+    var jwtKeyPresent = !string.IsNullOrEmpty(configuration["Jwt:Key"]) || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("JWT_KEY"));
+    Console.WriteLine("[Startup] Jwt:Key present: " + jwtKeyPresent);
+    var azureSignalRConnection = configuration["Azure:SignalR:ConnectionString"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_CONNECTIONSTRING");
+    Console.WriteLine("[Startup] AZURE_SIGNALR_CONNECTIONSTRING present: " + (!string.IsNullOrEmpty(azureSignalRConnection)));
+}
+catch (Exception ex)
+{
+    Console.WriteLine("[Warn] Failed to write startup diagnostics: " + ex.Message);
+}
+
 // If AZURE_SQL_USER/AZURE_SQL_PASSWORD are provided, prefer building a SQL-auth connection
 // from the given connection string so local dev can connect to the existing Azure SQL DB.
 var sqlUser = Environment.GetEnvironmentVariable("AZURE_SQL_USER");
@@ -169,7 +186,20 @@ builder.Services.ConfigureApplicationCookie(options => {
 var azureSignalRConnection = configuration["Azure:SignalR:ConnectionString"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_CONNECTIONSTRING");
 if (!string.IsNullOrEmpty(azureSignalRConnection))
 {
-    builder.Services.AddSignalR().AddAzureSignalR(azureSignalRConnection);
+    try
+    {
+        // Attempt to use Azure SignalR. If initialization fails (malformed connection string,
+        // Key Vault resolution, permission issues), log and fall back to in-process SignalR.
+        builder.Services.AddSignalR().AddAzureSignalR(azureSignalRConnection);
+        Console.WriteLine("[Info] Azure SignalR configured.");
+    }
+    catch (Exception ex)
+    {
+        // Log the exception to console (App Service log stream) and continue with in-process SignalR
+        Console.WriteLine($"[Error] Azure SignalR initialization failed: {ex.Message}");
+        Console.WriteLine("[Error] Falling back to in-process SignalR. Fix AZURE_SIGNALR_CONNECTIONSTRING to enable Azure SignalR.");
+        builder.Services.AddSignalR();
+    }
 }
 else
 {
