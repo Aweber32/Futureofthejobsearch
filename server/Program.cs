@@ -44,8 +44,8 @@ try
     Console.WriteLine("[Startup] DefaultConnection (masked): " + maskedConn);
     var jwtKeyPresent = !string.IsNullOrEmpty(configuration["Jwt:Key"]) || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("JWT_KEY"));
     Console.WriteLine("[Startup] Jwt:Key present: " + jwtKeyPresent);
-    var azureSignalRConnection = configuration["Azure:SignalR:ConnectionString"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_CONNECTIONSTRING");
-    Console.WriteLine("[Startup] AZURE_SIGNALR_CONNECTIONSTRING present: " + (!string.IsNullOrEmpty(azureSignalRConnection)));
+    var azureSignalRConnectionPresent = !string.IsNullOrEmpty(configuration["Azure:SignalR:ConnectionString"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_CONNECTIONSTRING"));
+    Console.WriteLine("[Startup] AZURE_SIGNALR_CONNECTIONSTRING present: " + azureSignalRConnectionPresent);
 }
 catch (Exception ex)
 {
