@@ -184,20 +184,28 @@ builder.Services.ConfigureApplicationCookie(options => {
 
 // SignalR and Azure SignalR (configured via Azure:SignalR:ConnectionString or env AZURE_SIGNALR_CONNECTIONSTRING)
 var azureSignalRConnection = configuration["Azure:SignalR:ConnectionString"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_CONNECTIONSTRING");
+
+// Add a flag so we know later whether Azure SignalR was successfully configured
+var useAzureSignalR = false;
 if (!string.IsNullOrEmpty(azureSignalRConnection))
 {
     try
     {
-        // Attempt to use Azure SignalR. If initialization fails (malformed connection string,
-        // Key Vault resolution, permission issues), log and fall back to in-process SignalR.
-        builder.Services.AddSignalR().AddAzureSignalR(azureSignalRConnection);
+        // Configure Azure SignalR using the options overload (safer and clearer)
+        builder.Services.AddSignalR();
+        builder.Services.AddAzureSignalR(options =>
+        {
+            options.ConnectionString = azureSignalRConnection;
+        });
+        useAzureSignalR = true;
         Console.WriteLine("[Info] Azure SignalR configured.");
     }
     catch (Exception ex)
     {
-        // Log the exception to console (App Service log stream) and continue with in-process SignalR
+        // Log and fall back to in-process SignalR
         Console.WriteLine($"[Error] Azure SignalR initialization failed: {ex.Message}");
         Console.WriteLine("[Error] Falling back to in-process SignalR. Fix AZURE_SIGNALR_CONNECTIONSTRING to enable Azure SignalR.");
+        // Ensure SignalR is still registered
         builder.Services.AddSignalR();
     }
 }
@@ -225,7 +233,27 @@ if (!app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
-app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
+// Map SignalR hub using Azure SignalR pipeline when configured, otherwise use in-process mapping
+if (useAzureSignalR)
+{
+    try
+    {
+        // Use the Azure SignalR middleware to map hubs
+        app.UseAzureSignalR(routes =>
+        {
+            routes.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Warn] Failed to call UseAzureSignalR: {ex.Message}");
+        Console.WriteLine("[Warn] Falling back to in-process MapHub.");
+        app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
+    }
+}
+else
+{
+    app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
+}
 
 app.Run();
