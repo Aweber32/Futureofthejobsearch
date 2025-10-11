@@ -4,6 +4,7 @@ using FutureOfTheJobSearch.Server.Data;
 using FutureOfTheJobSearch.Server.DTOs;
 using FutureOfTheJobSearch.Server.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -29,7 +30,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             var authHeader = Request.Headers.ContainsKey("Authorization") ? Request.Headers["Authorization"].ToString() : null;
             _logger.LogInformation("CreateConversation called. Authorization header present: {hasAuth}", !string.IsNullOrEmpty(authHeader));
 
-            var userId = User.FindFirst("sub")?.Value ?? User.Identity?.Name;
+            var userId = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.Identity?.Name;
             _logger.LogInformation("CreateConversation: resolved userId='{userId}'", userId ?? "(null)");
             if (string.IsNullOrEmpty(userId)) { _logger.LogWarning("CreateConversation unauthorized: no user id in claims"); return Unauthorized(); }
 
