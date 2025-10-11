@@ -133,8 +133,7 @@ var jwtKey = configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT
 var jwtIssuer = configuration["Jwt:Issuer"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "futureofthejobsearch";
 if (string.IsNullOrEmpty(jwtKey))
 {
-    // development fallback key (do NOT use in production)
-    jwtKey = "dev-secret-change-this-please-set-JWT_KEY";
+    throw new InvalidOperationException("JWT signing key is not configured. Set 'Jwt:Key' or 'JWT_KEY'.");
 }
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 
