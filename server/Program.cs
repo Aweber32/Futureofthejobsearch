@@ -12,6 +12,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using FutureOfTheJobSearch.Server.Models;
 using System.Text.Json.Serialization;
+using Microsoft.Azure.SignalR; // added for Azure SignalR extensions
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -191,9 +192,9 @@ if (!string.IsNullOrEmpty(azureSignalRConnection))
 {
     try
     {
-        // Configure Azure SignalR using the options overload (safer and clearer)
-        builder.Services.AddSignalR();
-        builder.Services.AddAzureSignalR(options =>
+        // Correct: get the ISignalRServerBuilder from AddSignalR(), then call AddAzureSignalR(...) on it.
+        var signalRBuilder = builder.Services.AddSignalR();
+        signalRBuilder.AddAzureSignalR(options =>
         {
             options.ConnectionString = azureSignalRConnection;
         });
