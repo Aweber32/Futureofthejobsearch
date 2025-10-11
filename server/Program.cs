@@ -163,6 +163,27 @@ builder.Services.AddAuthentication(options => {
                     context.Token = accessToken;
                 }
                 return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("JwtAuth");
+                logger?.LogWarning(context.Exception, "JWT authentication failed. Path={Path}", context.Request.Path);
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                if (!string.IsNullOrEmpty(context.Error) || !string.IsNullOrEmpty(context.ErrorDescription))
+                {
+                    var logger = context.HttpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("JwtAuth");
+                    logger?.LogInformation("JWT challenge triggered. Error={Error}, Description={Description}, Path={Path}", context.Error, context.ErrorDescription, context.Request.Path);
+                }
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("JwtAuth");
+                logger?.LogDebug("JWT token validated for subject {Subject}", context.Principal?.FindFirst("sub")?.Value ?? context.Principal?.Identity?.Name);
+                return Task.CompletedTask;
             }
         };
     });
