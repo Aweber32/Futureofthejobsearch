@@ -13,8 +13,14 @@ using System.Text;
 using FutureOfTheJobSearch.Server.Models;
 using System.Text.Json.Serialization;
 using Microsoft.Azure.SignalR; // added for Azure SignalR extensions
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Ensure logging providers are configured early so startup errors appear in Log Stream / docker logs
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 // Configuration
 var configuration = builder.Configuration;
@@ -186,6 +192,57 @@ builder.Services.ConfigureApplicationCookie(options => {
 // SignalR and Azure SignalR (configured via Azure:SignalR:ConnectionString or env AZURE_SIGNALR_CONNECTIONSTRING)
 var azureSignalRConnection = configuration["Azure:SignalR:ConnectionString"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_CONNECTIONSTRING");
 
+// Diagnostics: detect whether the configured value looks like a full connection string (contains AccessKey),
+// an endpoint-only value (endpoint but no key), or is missing (likely relying on Managed Identity).
+var azureSignalREndpoint = configuration["Azure:SignalR:Endpoint"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_ENDPOINT");
+var azureSignalRKind = "none";
+if (!string.IsNullOrEmpty(azureSignalRConnection))
+{
+    // quick heuristic checks
+    if (azureSignalRConnection.IndexOf("AccessKey=", StringComparison.OrdinalIgnoreCase) >= 0
+        || azureSignalRConnection.IndexOf("accesskey=", StringComparison.OrdinalIgnoreCase) >= 0)
+    {
+        azureSignalRKind = "connection-string-with-accesskey";
+    }
+    else if (azureSignalRConnection.IndexOf("Endpoint=", StringComparison.OrdinalIgnoreCase) >= 0)
+    {
+        azureSignalRKind = "endpoint-only-in-connection-string";
+    }
+    else
+    {
+        // Could be endpoint-only value or other form; mark as unknown
+        azureSignalRKind = "unknown-format";
+    }
+}
+else if (!string.IsNullOrEmpty(azureSignalREndpoint))
+{
+    azureSignalRKind = "endpoint-only-env";
+}
+
+// Masking helper for logs (do not reveal keys)
+string Mask(string s)
+{
+    if (string.IsNullOrEmpty(s)) return "(none)";
+    if (s.Length <= 32) return new string('*', s.Length);
+    return s.Substring(0, 16) + "..." + s.Substring(s.Length - 8);
+}
+
+// Log what we found (masked) so platform log-stream or CI shows intent without exposing secrets
+Console.WriteLine("[Startup] Azure SignalR configuration kind: " + azureSignalRKind);
+Console.WriteLine("[Startup] AZURE_SIGNALR_CONNECTIONSTRING (masked): " + Mask(azureSignalRConnection));
+Console.WriteLine("[Startup] AZURE_SIGNALR_ENDPOINT (masked): " + Mask(azureSignalREndpoint));
+
+// Guidance note for operators in logs
+if (azureSignalRKind == "endpoint-only-in-connection-string" || azureSignalRKind == "endpoint-only-env" || azureSignalRKind == "unknown-format")
+{
+    Console.WriteLine("[Startup] Note: SignalR config appears endpoint-only / AAD-managed. Ensure Managed Identity is enabled for the App Service/VM and that the SDK/package version supports AAD auth for Azure SignalR.");
+    Console.WriteLine("[Startup] Note: If you expect to use AccessKey-based auth, set AZURE_SIGNALR_CONNECTIONSTRING to the full connection string (Endpoint=...;AccessKey=...;).");
+}
+else if (azureSignalRKind == "connection-string-with-accesskey")
+{
+    Console.WriteLine("[Startup] Note: Using AccessKey-based Azure SignalR connection (recommended for testing). Do NOT check keys into source control.");
+}
+
 // Add a flag so we know later whether Azure SignalR was successfully configured
 var useAzureSignalR = false;
 if (!string.IsNullOrEmpty(azureSignalRConnection))
@@ -199,16 +256,23 @@ if (!string.IsNullOrEmpty(azureSignalRConnection))
             options.ConnectionString = azureSignalRConnection;
         });
         useAzureSignalR = true;
-        Console.WriteLine("[Info] Azure SignalR configured.");
+        Console.WriteLine("[Info] Azure SignalR configured (AddAzureSignalR called).");
     }
     catch (Exception ex)
     {
         // Log and fall back to in-process SignalR
         Console.WriteLine($"[Error] Azure SignalR initialization failed: {ex.Message}");
-        Console.WriteLine("[Error] Falling back to in-process SignalR. Fix AZURE_SIGNALR_CONNECTIONSTRING to enable Azure SignalR.");
+        Console.WriteLine("[Error] Falling back to in-process SignalR. Fix AZURE_SIGNALR_CONNECTIONSTRING or enable Managed Identity properly to enable Azure SignalR.");
         // Ensure SignalR is still registered
         builder.Services.AddSignalR();
     }
+}
+else if (!string.IsNullOrEmpty(azureSignalREndpoint))
+{
+    // Endpoint-only detected. We do NOT move keys into code.
+    // If you want AAD/Managed Identity auth here, implement the Management SDK + DefaultAzureCredential flow explicitly.
+    Console.WriteLine("[Info] Endpoint-only detected; not calling AddAzureSignalR with connection string. To use AAD/Managed Identity, implement the Management SDK with DefaultAzureCredential.");
+    builder.Services.AddSignalR();
 }
 else
 {
@@ -216,6 +280,11 @@ else
 }
 
 var app = builder.Build();
+
+// small diagnostic so log stream shows whether Azure SignalR was configured
+var logger = app.Services.GetService<ILoggerFactory>()?.CreateLogger("Startup");
+logger?.LogInformation("useAzureSignalR = {useAzureSignalR}", useAzureSignalR);
+Console.WriteLine("[Startup] useAzureSignalR = " + useAzureSignalR);
 
 if (app.Environment.IsDevelopment())
 {
@@ -233,6 +302,10 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Add this so attribute-routed API controllers (e.g. /api/seekers/login) are reachable
+app.MapControllers();
+Console.WriteLine("[Startup] Mapped controllers");
 
 // Map SignalR hub using Azure SignalR pipeline when configured, otherwise use in-process mapping
 if (useAzureSignalR)
