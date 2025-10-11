@@ -14,6 +14,7 @@ using FutureOfTheJobSearch.Server.Models;
 using System.Text.Json.Serialization;
 using Microsoft.Azure.SignalR; // added for Azure SignalR extensions
 using Microsoft.Extensions.Logging;
+using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -189,16 +190,20 @@ builder.Services.ConfigureApplicationCookie(options => {
     };
 });
 
-// SignalR and Azure SignalR (configured via Azure:SignalR:ConnectionString or env AZURE_SIGNALR_CONNECTIONSTRING)
+// SignalR and Azure SignalR configuration (reads AZURE_SIGNALR_CONNECTIONSTRING or AZURE_SIGNALR_ENDPOINT)
 var azureSignalRConnection = configuration["Azure:SignalR:ConnectionString"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_CONNECTIONSTRING");
-
-// Diagnostics: detect whether the configured value looks like a full connection string (contains AccessKey),
-// an endpoint-only value (endpoint but no key), or is missing (likely relying on Managed Identity).
 var azureSignalREndpoint = configuration["Azure:SignalR:Endpoint"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_ENDPOINT");
+
+// Helper to detect connection-string form (do not expose secrets)
+string Mask(string? s) {
+    if (string.IsNullOrEmpty(s)) return "(none)";
+    if (s.Length <= 32) return new string('*', s.Length);
+    return s.Substring(0, 16) + "..." + s.Substring(s.Length - 8);
+}
+
 var azureSignalRKind = "none";
 if (!string.IsNullOrEmpty(azureSignalRConnection))
 {
-    // quick heuristic checks
     if (azureSignalRConnection.IndexOf("AccessKey=", StringComparison.OrdinalIgnoreCase) >= 0
         || azureSignalRConnection.IndexOf("accesskey=", StringComparison.OrdinalIgnoreCase) >= 0)
     {
@@ -210,7 +215,6 @@ if (!string.IsNullOrEmpty(azureSignalRConnection))
     }
     else
     {
-        // Could be endpoint-only value or other form; mark as unknown
         azureSignalRKind = "unknown-format";
     }
 }
@@ -219,64 +223,104 @@ else if (!string.IsNullOrEmpty(azureSignalREndpoint))
     azureSignalRKind = "endpoint-only-env";
 }
 
-// Masking helper for logs (do not reveal keys)
-string Mask(string s)
-{
-    if (string.IsNullOrEmpty(s)) return "(none)";
-    if (s.Length <= 32) return new string('*', s.Length);
-    return s.Substring(0, 16) + "..." + s.Substring(s.Length - 8);
-}
-
-// Log what we found (masked) so platform log-stream or CI shows intent without exposing secrets
-Console.WriteLine("[Startup] Azure SignalR configuration kind: " + azureSignalRKind);
+Console.WriteLine("[Startup] Azure SignalR config kind: " + azureSignalRKind);
 Console.WriteLine("[Startup] AZURE_SIGNALR_CONNECTIONSTRING (masked): " + Mask(azureSignalRConnection));
 Console.WriteLine("[Startup] AZURE_SIGNALR_ENDPOINT (masked): " + Mask(azureSignalREndpoint));
 
-// Guidance note for operators in logs
-if (azureSignalRKind == "endpoint-only-in-connection-string" || azureSignalRKind == "endpoint-only-env" || azureSignalRKind == "unknown-format")
+// Helper to extract Endpoint URL from either "Endpoint=...;..." connection string or AZURE_SIGNALR_ENDPOINT value
+string? ExtractEndpointUrl(string? connOrEndpoint)
 {
-    Console.WriteLine("[Startup] Note: SignalR config appears endpoint-only / AAD-managed. Ensure Managed Identity is enabled for the App Service/VM and that the SDK/package version supports AAD auth for Azure SignalR.");
-    Console.WriteLine("[Startup] Note: If you expect to use AccessKey-based auth, set AZURE_SIGNALR_CONNECTIONSTRING to the full connection string (Endpoint=...;AccessKey=...;).");
-}
-else if (azureSignalRKind == "connection-string-with-accesskey")
-{
-    Console.WriteLine("[Startup] Note: Using AccessKey-based Azure SignalR connection (recommended for testing). Do NOT check keys into source control.");
+	// Accept either raw endpoint URL or a semi-colon key=value string containing "Endpoint="
+	if (string.IsNullOrEmpty(connOrEndpoint)) return null;
+	// If the string already looks like a URL, return it
+	if (connOrEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || connOrEndpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+	{
+		// Some envs store: "Endpoint=https://...;AuthType=azure.msi;..."
+		// In that case, the string may still contain "Endpoint=" prefix; handle below.
+	}
+	// Try to parse "Endpoint=..." style
+    var parts = connOrEndpoint.Split(';', StringSplitOptions.RemoveEmptyEntries);
+	foreach (var p in parts)
+	{
+		var kv = p.Split('=', 2);
+		if (kv.Length == 2 && kv[0].Trim().Equals("Endpoint", StringComparison.OrdinalIgnoreCase))
+		{
+			return kv[1].Trim().TrimEnd('/');
+		}
+	}
+	// If no key/value form, but the string contains "https://", attempt to locate it
+	var httpsIndex = connOrEndpoint.IndexOf("https://", StringComparison.OrdinalIgnoreCase);
+	if (httpsIndex >= 0)
+	{
+		var end = connOrEndpoint.IndexOf(';', httpsIndex);
+		return end > httpsIndex ? connOrEndpoint.Substring(httpsIndex, end - httpsIndex).TrimEnd('/') : connOrEndpoint.Substring(httpsIndex).TrimEnd('/');
+	}
+	// Last resort, return the original string (may be a plain endpoint)
+	return connOrEndpoint;
 }
 
-// Add a flag so we know later whether Azure SignalR was successfully configured
+// Determine form of SignalR configuration (masked diagnostics already printed above)
+// Build ServiceManager with Managed Identity when endpoint-only is provided (Management SDK v1.8.0)
+var signalRBuilder = builder.Services.AddSignalR();
 var useAzureSignalR = false;
-if (!string.IsNullOrEmpty(azureSignalRConnection))
+
+if (azureSignalRKind == "connection-string-with-accesskey")
 {
-    try
-    {
-        // Correct: get the ISignalRServerBuilder from AddSignalR(), then call AddAzureSignalR(...) on it.
-        var signalRBuilder = builder.Services.AddSignalR();
-        signalRBuilder.AddAzureSignalR(options =>
-        {
-            options.ConnectionString = azureSignalRConnection;
-        });
-        useAzureSignalR = true;
-        Console.WriteLine("[Info] Azure SignalR configured (AddAzureSignalR called).");
-    }
-    catch (Exception ex)
-    {
-        // Log and fall back to in-process SignalR
-        Console.WriteLine($"[Error] Azure SignalR initialization failed: {ex.Message}");
-        Console.WriteLine("[Error] Falling back to in-process SignalR. Fix AZURE_SIGNALR_CONNECTIONSTRING or enable Managed Identity properly to enable Azure SignalR.");
-        // Ensure SignalR is still registered
-        builder.Services.AddSignalR();
-    }
+	// Access-key path: use AddAzureSignalR with connection string (safe & tested)
+	try
+	{
+		signalRBuilder.AddAzureSignalR(options =>
+		{
+			options.ConnectionString = azureSignalRConnection;
+		});
+		useAzureSignalR = true;
+		Console.WriteLine("[Info] AddAzureSignalR called (access-key path).");
+	}
+	catch (Exception ex)
+	{
+		Console.WriteLine("[Warn] AddAzureSignalR failed: " + ex.Message);
+		// fallback to in-process SignalR (signalRBuilder already added)
+	}
 }
-else if (!string.IsNullOrEmpty(azureSignalREndpoint))
+else if (azureSignalRKind == "endpoint-only-env" || azureSignalRKind == "endpoint-only-in-connection-string")
 {
-    // Endpoint-only detected. We do NOT move keys into code.
-    // If you want AAD/Managed Identity auth here, implement the Management SDK + DefaultAzureCredential flow explicitly.
-    Console.WriteLine("[Info] Endpoint-only detected; not calling AddAzureSignalR with connection string. To use AAD/Managed Identity, implement the Management SDK with DefaultAzureCredential.");
-    builder.Services.AddSignalR();
+	// Endpoint-only / Managed Identity path using Management SDK v1.8.0
+	try
+	{
+		var endpointSource = !string.IsNullOrEmpty(azureSignalREndpoint) ? azureSignalREndpoint : azureSignalRConnection;
+		var endpointUrl = ExtractEndpointUrl(endpointSource);
+		if (string.IsNullOrEmpty(endpointUrl))
+		{
+			Console.WriteLine("[Warn] Azure SignalR endpoint could not be parsed for Managed Identity path.");
+		}
+        else
+        {
+            // Use system-assigned managed identity credential
+            var credential = new DefaultAzureCredential();
+            Console.WriteLine("[Info] Using system-assigned managed identity for Azure SignalR.");
+
+            signalRBuilder.AddAzureSignalR(options =>
+            {
+                options.Endpoints = new[]
+                {
+                    new ServiceEndpoint(new Uri(endpointUrl), credential)
+                };
+            });
+            useAzureSignalR = true;
+            Console.WriteLine("[Info] Azure SignalR endpoint registered with managed identity credential.");
+        }
+	}
+	catch (Exception ex)
+	{
+		Console.WriteLine("[Error] Failed to configure Azure SignalR with Managed Identity: " + ex.Message);
+		Console.WriteLine("[Error] Falling back to in-process SignalR. Ensure Managed Identity is enabled and SignalR role assignments are in place.");
+		// fallback: in-process SignalR already registered
+	}
 }
 else
 {
-    builder.Services.AddSignalR();
+	// No Azure SignalR config or unknown format: remain in-process
+	Console.WriteLine("[Info] No usable Azure SignalR configuration found - using in-process SignalR.");
 }
 
 var app = builder.Build();
@@ -293,13 +337,38 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Add routing so endpoint metadata is available to auth middleware
+app.UseRouting();
+
+// CORS must run after UseRouting when using endpoint routing
 app.UseCors("AllowLocalhost");
+
 // In Development we avoid automatic HTTPS redirection to prevent preflight CORS requests
 // from being redirected (redirect responses typically don't include CORS headers).
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+// Diagnostic middleware: log (masked) Authorization header and identity for API requests
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        var authHdr = context.Request.Headers["Authorization"].FirstOrDefault();
+        string Mask(string? s)
+        {
+            if (string.IsNullOrEmpty(s)) return "(none)";
+            if (s.Length <= 32) return new string('*', s.Length);
+            return s.Substring(0, 8) + "..." + s.Substring(s.Length - 8);
+        }
+        Console.WriteLine($"[Request] {context.Request.Method} {context.Request.Path} Authorization: {Mask(authHdr)}");
+        var user = context.User?.Identity;
+        Console.WriteLine($"[Request] User.Identity IsAuthenticated={user?.IsAuthenticated}, Name={user?.Name}");
+    }
+    await next();
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -310,24 +379,25 @@ Console.WriteLine("[Startup] Mapped controllers");
 // Map SignalR hub using Azure SignalR pipeline when configured, otherwise use in-process mapping
 if (useAzureSignalR)
 {
-    try
-    {
-        // Use the Azure SignalR middleware to map hubs
-        app.UseAzureSignalR(routes =>
-        {
-            routes.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
-        });
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[Warn] Failed to call UseAzureSignalR: {ex.Message}");
-        Console.WriteLine("[Warn] Falling back to in-process MapHub.");
-        app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
-    }
+	try
+	{
+		app.UseAzureSignalR(routes =>
+		{
+			routes.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
+		});
+		Console.WriteLine("[Info] App configured to use Azure SignalR runtime.");
+	}
+	catch (Exception ex)
+	{
+		Console.WriteLine("[Warn] UseAzureSignalR failed at runtime: " + ex.Message);
+		app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
+		Console.WriteLine("[Info] Fallback to in-process MapHub for /hubs/chat");
+	}
 }
 else
 {
-    app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
+	app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
+	Console.WriteLine("[Info] In-process SignalR hub mapped at /hubs/chat");
 }
 
 app.Run();

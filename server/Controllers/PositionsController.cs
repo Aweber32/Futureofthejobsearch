@@ -35,21 +35,45 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 var emp = await _db.Employers.FirstOrDefaultAsync(e => e.Id == employerId);
                 if (emp == null) return Unauthorized(new { error = "Employer not found" });
 
+                var requiredFields = new Dictionary<string, string?>
+                {
+                    [nameof(req.Title)] = req.Title,
+                    [nameof(req.Category)] = req.Category,
+                    [nameof(req.Description)] = req.Description,
+                    [nameof(req.EmploymentType)] = req.EmploymentType,
+                    [nameof(req.WorkSetting)] = req.WorkSetting,
+                    [nameof(req.TravelRequirements)] = req.TravelRequirements,
+                    [nameof(req.SalaryType)] = req.SalaryType
+                };
+
+                var missingFields = requiredFields
+                    .Where(kvp => string.IsNullOrWhiteSpace(kvp.Value))
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+
+                if (missingFields.Count > 0)
+                {
+                    return BadRequest(new { error = "Missing required fields", fields = missingFields });
+                }
+
                 var pos = new Position
                 {
                     EmployerId = employerId,
-                    Title = req.Title,
-                    Category = req.Category,
-                    Description = req.Description,
-                    EmploymentType = req.EmploymentType,
-                    WorkSetting = req.WorkSetting,
-                    TravelRequirements = req.TravelRequirements,
-                    SalaryType = req.SalaryType,
+                    Title = req.Title!,
+                    Category = req.Category!,
+                    Description = req.Description!,
+                    EmploymentType = req.EmploymentType!,
+                    WorkSetting = req.WorkSetting!,
+                    TravelRequirements = req.TravelRequirements!,
+                    SalaryType = req.SalaryType!,
                     SalaryValue = req.SalaryValue,
                     SalaryMin = req.SalaryMin,
                     SalaryMax = req.SalaryMax,
                     PosterVideoUrl = req.PosterVideoUrl,
-                    IsOpen = req.IsOpen ?? true
+                    IsOpen = req.IsOpen ?? true,
+                    Educations = new List<PositionEducation>(),
+                    Experiences = new List<PositionExperience>(),
+                    SkillsList = new List<PositionSkill>()
                 };
 
                 // map nested lists to normalized child entities
