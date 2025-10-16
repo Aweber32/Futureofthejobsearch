@@ -7,6 +7,29 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
   const [input, setInput] = useState('');
   const listRef = useRef(null);
   const connRef = useRef(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const currentUserRef = useRef(null);
+
+  useEffect(() => {
+    currentUserRef.current = currentUserId;
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('fjs_token');
+    if (!token) { setCurrentUserId(null); return; }
+    try {
+      const parts = token.split('.');
+      if (parts.length < 2) { setCurrentUserId(null); return; }
+      const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(normalized.length + (4 - (normalized.length % 4 || 4)) % 4, '=');
+      const payload = JSON.parse(atob(padded));
+      setCurrentUserId(payload?.sub || payload?.nameid || null);
+    } catch (err) {
+      console.warn('Failed to decode JWT payload for user id', err);
+      setCurrentUserId(null);
+    }
+  }, [open]);
 
   useEffect(()=>{
     if (open) {
@@ -38,20 +61,17 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
 
     const start = async () => {
       try {
-        await connection.start();
-        // join the conversation group
-        await connection.invoke('JoinConversation', conversationId);
-
-        // wire up incoming events
         connection.on('MessageReceived', (msg) => {
-          setMessages(m => [...m, { id: msg.id, fromMe: msg.senderUserId === (localStorage.getItem('fjs_userid') || ''), text: msg.text, createdAt: msg.createdAt }]);
+          const uid = currentUserRef.current || '';
+          setMessages(m => [...m, { id: msg.id, fromMe: uid && msg.senderUserId === uid, text: msg.text, createdAt: msg.createdAt }]);
         });
 
         connection.on('ReadReceipt', (r) => {
-          // TODO: update participant read state UI if needed
-          // r: { userId, conversationId, lastReadAt }
           console.debug('ReadReceipt', r);
         });
+
+        await connection.start();
+        await connection.invoke('JoinConversation', conversationId);
 
         // mark as read on open
         try { await connection.invoke('MarkRead', conversationId); } catch (e) { console.warn('MarkRead failed', e); }
@@ -61,8 +81,8 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
           const res = await fetch(`${API_CONFIG.BASE_URL.replace(/\/$/, '')}/api/conversations/${conversationId}/messages?take=50`, { headers: { Authorization: `Bearer ${token}` } });
           if (res.ok){
             const data = await res.json();
-            // API returns newest-first; reverse to show oldest-first
-            setMessages(data.reverse().map(m => ({ id: m.id, fromMe: m.senderUserId === (localStorage.getItem('fjs_userid') || ''), text: m.text, createdAt: m.createdAt })));
+            const uid = currentUserRef.current || '';
+            setMessages(data.reverse().map(m => ({ id: m.id, fromMe: uid && m.senderUserId === uid, text: m.text, createdAt: m.createdAt })));
           }
         }catch(err){ console.warn('failed to fetch messages', err); }
 
