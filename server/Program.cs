@@ -218,6 +218,32 @@ builder.Services.ConfigureApplicationCookie(options => {
 var azureSignalRConnection = configuration["Azure:SignalR:ConnectionString"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_CONNECTIONSTRING");
 var azureSignalREndpoint = configuration["Azure:SignalR:Endpoint"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_ENDPOINT");
 
+// If an explicit managed-identity endpoint is provided, ignore any connection string to prevent accidental AccessKey requirement
+if (!string.IsNullOrEmpty(azureSignalREndpoint))
+{
+    azureSignalRConnection = null;
+}
+
+// Some Azure UX surfaces store the endpoint inside the connection string without an access key
+if (!string.IsNullOrEmpty(azureSignalRConnection))
+{
+    var containsAccessKey = azureSignalRConnection.IndexOf("AccessKey=", StringComparison.OrdinalIgnoreCase) >= 0;
+    var containsManagedIdentityHints = azureSignalRConnection.IndexOf("AuthType=azure.msi", StringComparison.OrdinalIgnoreCase) >= 0;
+
+    if (!containsAccessKey)
+    {
+        // Treat connection strings without keys as endpoint-only so we always use managed identity
+        azureSignalREndpoint ??= azureSignalRConnection;
+        azureSignalRConnection = null;
+    }
+    else if (containsManagedIdentityHints)
+    {
+        // Defensive: if both AccessKey and AuthType hints exist, prefer managed identity path
+        azureSignalREndpoint ??= azureSignalRConnection;
+        azureSignalRConnection = null;
+    }
+}
+
 // Helper to detect connection-string form (do not expose secrets)
 string Mask(string? s) {
     if (string.IsNullOrEmpty(s)) return "(none)";
