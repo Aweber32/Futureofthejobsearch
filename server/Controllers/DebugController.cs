@@ -135,6 +135,59 @@ namespace FutureOfTheJobSearch.Server.Controllers
             }
         }
 
+        [HttpGet("signalr")]
+        public IActionResult SignalRInfo()
+        {
+            try
+            {
+                var conn = _config["Azure:SignalR:ConnectionString"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_CONNECTIONSTRING");
+                var endpoint = _config["Azure:SignalR:Endpoint"] ?? Environment.GetEnvironmentVariable("AZURE_SIGNALR_ENDPOINT");
+
+                string Mask(string? value)
+                {
+                    if (string.IsNullOrEmpty(value)) return string.Empty;
+                    if (value.Length <= 12) return new string('*', value.Length);
+                    return value.Substring(0, 6) + "..." + value.Substring(value.Length - 4);
+                }
+
+                var configured = !string.IsNullOrEmpty(conn) || !string.IsNullOrEmpty(endpoint);
+                string kind = "none";
+                if (!string.IsNullOrEmpty(conn))
+                {
+                    if (conn.IndexOf("AccessKey=", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        kind = "connection-string-with-accesskey";
+                    }
+                    else if (conn.IndexOf("Endpoint=", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        kind = "endpoint-only-connection";
+                    }
+                    else
+                    {
+                        kind = "connection-string-unknown";
+                    }
+                }
+                else if (!string.IsNullOrEmpty(endpoint))
+                {
+                    kind = "endpoint-only-env";
+                }
+
+                return Ok(new
+                {
+                    ok = true,
+                    configured,
+                    kind,
+                    connectionMasked = Mask(conn),
+                    endpointMasked = Mask(endpoint)
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SignalRInfo failed");
+                return StatusCode(500, new { ok = false, error = ex.Message });
+            }
+        }
+
         [HttpGet("conversations/sample")]
         public async Task<IActionResult> SampleConversations()
         {
