@@ -91,7 +91,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
         [HttpGet]
         public async Task<IActionResult> List()
         {
-            var userId = User.FindFirst("sub")?.Value ?? User.Identity?.Name;
+            var userId = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.Identity?.Name;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var convs = await _db.Conversations
@@ -120,7 +120,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
         public async Task<IActionResult> GetMessages(string id, [FromQuery] long? before, [FromQuery] int take = 50)
         {
             if (!Guid.TryParse(id, out var convId)) return BadRequest("Invalid id");
-            var userId = User.FindFirst("sub")?.Value ?? User.Identity?.Name;
+            var userId = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.Identity?.Name;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var isParticipant = await _db.ConversationParticipants.AnyAsync(cp => cp.ConversationId == convId && cp.UserId == userId);
