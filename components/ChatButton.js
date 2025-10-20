@@ -22,7 +22,8 @@ export default function ChatButton({ title = 'Conversation', subtitle = '' , oth
       const res = await fetch(`${API_CONFIG.BASE_URL.replace(/\/$/, '')}/api/conversations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ OtherUserId: otherUserId, PositionId: positionId, Subject: title })
+        // Use camelCase keys to align with default ASP.NET Core JSON binding
+        body: JSON.stringify({ otherUserId: otherUserId, positionId: positionId, subject: title })
       });
       if (res.ok){
         const json = await res.json();
@@ -32,6 +33,13 @@ export default function ChatButton({ title = 'Conversation', subtitle = '' , oth
         // unauthenticated - open modal so the UI can show login
         setOpen(true);
       } else {
+        // Log details to help diagnose 4xx/5xx responses (e.g., model binding 400s)
+        try {
+          const text = await res.text();
+          console.warn('ChatButton: POST /api/conversations failed', { status: res.status, body: text, payload: { otherUserId, positionId, subject: title } });
+        } catch(e) {
+          console.warn('ChatButton: POST /api/conversations failed', { status: res.status, payload: { otherUserId, positionId, subject: title } });
+        }
         // fallback open anyway
         setOpen(true);
       }

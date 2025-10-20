@@ -15,6 +15,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Azure.SignalR; // added for Azure SignalR extensions
 using Microsoft.Extensions.Logging;
 using Azure.Identity;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +38,21 @@ builder.Services.AddControllers()
         opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         // keep default behaviour for property naming and depth
     });
+// Ensure bad model binding returns useful details in 400 responses (helps diagnose client payload issues)
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        // Project model state errors into a compact structure
+        var errors = context.ModelState
+            .Where(kvp => kvp.Value?.Errors?.Count > 0)
+            .ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value!.Errors.Select(e => string.IsNullOrEmpty(e.ErrorMessage) ? e.Exception?.Message : e.ErrorMessage)
+            );
+        return new BadRequestObjectResult(new { error = "Invalid request payload", modelState = errors });
+    };
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -426,28 +442,11 @@ app.UseAuthorization();
 app.MapControllers();
 Console.WriteLine("[Startup] Mapped controllers");
 
-// Map SignalR hub using Azure SignalR pipeline when configured, otherwise use in-process mapping
-if (useAzureSignalR)
-{
-	try
-	{
-		app.UseAzureSignalR(routes =>
-		{
-			routes.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
-		});
-		Console.WriteLine("[Info] App configured to use Azure SignalR runtime.");
-	}
-	catch (Exception ex)
-	{
-		Console.WriteLine("[Warn] UseAzureSignalR failed at runtime: " + ex.Message);
-		app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
-		Console.WriteLine("[Info] Fallback to in-process MapHub for /hubs/chat");
-	}
-}
-else
-{
-	app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
-	Console.WriteLine("[Info] In-process SignalR hub mapped at /hubs/chat");
-}
+// Map SignalR hub. When AddAzureSignalR is configured, the routing is offloaded to Azure SignalR automatically.
+app.MapHub<FutureOfTheJobSearch.Server.Hubs.ChatHub>("/hubs/chat");
+Console.WriteLine(useAzureSignalR
+    ? "[Info] Hub mapped at /hubs/chat (Azure SignalR runtime configured)."
+    : "[Info] Hub mapped at /hubs/chat (in-process SignalR)."
+);
 
 app.Run();

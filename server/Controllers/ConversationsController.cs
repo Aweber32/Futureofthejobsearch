@@ -34,6 +34,20 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _logger.LogInformation("CreateConversation: resolved userId='{userId}'", userId ?? "(null)");
             if (string.IsNullOrEmpty(userId)) { _logger.LogWarning("CreateConversation unauthorized: no user id in claims"); return Unauthorized(); }
 
+            // Basic validation
+            if (req == null)
+            {
+                return BadRequest(new { error = "Request body is required" });
+            }
+            if (string.IsNullOrWhiteSpace(req.OtherUserId))
+            {
+                return BadRequest(new { error = "otherUserId is required" });
+            }
+            if (req.OtherUserId == userId)
+            {
+                return BadRequest(new { error = "Cannot create a conversation with yourself" });
+            }
+
             // Enforce 1:1 uniqueness: if conversation already exists between these two users for the same position, return it
             var existing = await _db.Conversations
                 .Include(c => c.Participants)
