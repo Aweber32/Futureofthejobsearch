@@ -57,6 +57,8 @@ export default function PositionCandidates(){
             const seeker = r.seeker ?? r.Seeker ?? {};
             const name = (seeker.firstName ?? seeker.FirstName ?? seeker.name ?? seeker.Name ?? '') + ' ' + (seeker.lastName ?? seeker.LastName ?? '');
             const interested = !!r.interested ?? !!r.Interested;
+             const seekerUserId = seeker.userId ?? seeker.UserId ?? null;
+             const posId = parseInt(id, 10);
             return (
               <div key={r.id ?? r.Id} className="list-group-item d-flex justify-content-between align-items-center">
                 <div>
@@ -65,7 +67,7 @@ export default function PositionCandidates(){
                 </div>
                 <div className="d-flex align-items-center" style={{gap:12}}>
                   <div>{interested ? <span className="badge bg-success">Interested</span> : <span className="badge bg-secondary">Not interested</span>}</div>
-                  <ChatButton title={name.trim() || 'Candidate Conversation'} subtitle={positionTitle || ''} />
+                   <ChatButton title={name.trim() || 'Candidate Conversation'} subtitle={positionTitle || ''} otherUserId={seekerUserId} positionId={posId} />
                   <Link href={`/poster/candidate/${seeker.id ?? seeker.Id}?positionId=${id}`} className="btn btn-sm btn-outline-primary">Review</Link>
                 </div>
               </div>
