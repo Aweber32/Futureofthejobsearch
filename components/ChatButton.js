@@ -2,7 +2,7 @@ import { useState } from 'react';
 import ChatModal from './ChatModal';
 import API_CONFIG from '../config/api';
 
-export default function ChatButton({ title = 'Conversation', subtitle = '' , otherUserId = null, positionId = null }){
+export default function ChatButton({ title = 'Conversation', subtitle = '' , otherUserId = null, positionId = null, unreadCount = 0 }){
   const [open, setOpen] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -51,7 +51,14 @@ export default function ChatButton({ title = 'Conversation', subtitle = '' , oth
 
   return (
     <>
-      <button className="btn btn-sm btn-outline-success" onClick={openChat} disabled={loading}>{loading ? 'Opening…' : 'Chat'}</button>
+      <button className="btn btn-sm btn-outline-success position-relative" onClick={openChat} disabled={loading}>
+        {loading ? 'Opening…' : 'Chat'}
+        {unreadCount > 0 && (
+          <span className="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+            <span className="visually-hidden">Unread messages</span>
+          </span>
+        )}
+      </button>
       <ChatModal open={open} onClose={()=>setOpen(false)} title={title} subtitle={subtitle} conversationId={conversationId} />
     </>
   );

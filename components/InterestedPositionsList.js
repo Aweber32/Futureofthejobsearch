@@ -145,7 +145,7 @@ export default function InterestedPositionsList({ seeker }){
                         // attempt to derive the other user's id (poster/employer user id) and pass position id
                         const otherUserId = item.position?.employer?.userId || item.position?.employer?.userId || item.raw?.posterUserId || null;
                         const posId = item.id || item.position?.id || null;
-                        return <ChatButton title={positionTitle} subtitle={companyName} otherUserId={otherUserId} positionId={posId} />;
+                        return <ChatButton title={positionTitle} subtitle={companyName} otherUserId={otherUserId} positionId={posId} unreadCount={item.unreadCount || 0} />;
                       })()}
                       <button
                       onClick={async ()=> {

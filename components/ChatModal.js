@@ -4,6 +4,7 @@ import API_CONFIG from '../config/api';
 
 export default function ChatModal({ open, onClose, title, subtitle, conversationId }){
   const [messages, setMessages] = useState([]);
+  const [lastReadAt, setLastReadAt] = useState({}); // { userId: lastReadAt }
   const [input, setInput] = useState('');
   const listRef = useRef(null);
   const connRef = useRef(null);
@@ -61,13 +62,15 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
 
     const start = async () => {
       try {
+
         connection.on('MessageReceived', (msg) => {
           const uid = currentUserRef.current || '';
-          setMessages(m => [...m, { id: msg.id, fromMe: uid && msg.senderUserId === uid, text: msg.text, createdAt: msg.createdAt }]);
+          setMessages(m => [...m, { id: msg.id, fromMe: uid && msg.senderUserId === uid, text: msg.text, createdAt: msg.createdAt, senderUserId: msg.senderUserId }]);
         });
 
         connection.on('ReadReceipt', (r) => {
-          console.debug('ReadReceipt', r);
+          // r: { userId, conversationId, lastReadAt }
+          setLastReadAt(prev => ({ ...prev, [r.userId]: r.lastReadAt }));
         });
 
         await connection.start();
@@ -82,7 +85,7 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
           if (res.ok){
             const data = await res.json();
             const uid = currentUserRef.current || '';
-            setMessages(data.reverse().map(m => ({ id: m.id, fromMe: uid && m.senderUserId === uid, text: m.text, createdAt: m.createdAt })));
+            setMessages(data.reverse().map(m => ({ id: m.id, fromMe: uid && m.senderUserId === uid, text: m.text, createdAt: m.createdAt, senderUserId: m.senderUserId }))); 
           }
         }catch(err){ console.warn('failed to fetch messages', err); }
 
@@ -152,11 +155,30 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
         </div>
 
         <div className="chat-list" ref={listRef}>
-          {messages.map(m => (
-            <div key={m.id} className={`chat-bubble ${m.fromMe ? 'me' : 'them'}`}>
-              <div className="chat-text">{m.text}</div>
-            </div>
-          ))}
+          {messages.map((m, idx) => {
+            // Read receipt logic: show checkmarks for sent/read
+            let readStatus = null;
+            if (m.fromMe) {
+              // Find the other participant's lastReadAt
+              const others = Object.entries(lastReadAt).filter(([uid]) => uid !== currentUserId);
+              let isRead = false;
+              if (others.length > 0) {
+                // If any other participant has lastReadAt >= this message
+                isRead = others.some(([uid, lra]) => lra && new Date(lra) >= new Date(m.createdAt));
+              }
+              readStatus = (
+                <span className="read-status ms-2" style={{fontSize:'0.9em',color:isRead?'#0b84ff':'#bbb'}}>
+                  {isRead ? '✓✓ Read' : '✓ Delivered'}
+                </span>
+              );
+            }
+            return (
+              <div key={m.id} className={`chat-bubble ${m.fromMe ? 'me' : 'them'}`}> 
+                <div className="chat-text">{m.text}</div>
+                {readStatus}
+              </div>
+            );
+          })}
         </div>
 
         <div className="chat-input d-flex align-items-center">
