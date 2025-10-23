@@ -28,7 +28,8 @@ namespace FutureOfTheJobSearch.Server.Controllers
             var list = await _db.SeekerInterests
                 .Where(si => si.PositionId == positionId)
                 .Include(si => si.Seeker)
-                .OrderByDescending(si => si.ReviewedAt)
+                    .OrderBy(si => si.Rank.HasValue ? si.Rank.Value : int.MaxValue)
+                    .ThenByDescending(si => si.ReviewedAt)
                 .ToListAsync();
 
             return Ok(list);
@@ -110,6 +111,55 @@ namespace FutureOfTheJobSearch.Server.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Patch SeekerInterest failed");
+                return StatusCode(500, new { error = "Server error" });
+            }
+        }
+
+        // POST api/seekerinterests/updateranks
+        // body: { positionId, rankings: [{seekerInterestId, rank}] }
+        [HttpPost("updateranks")]
+        [Authorize]
+        public async Task<IActionResult> UpdateRanks([FromBody] DTOs.UpdateRanksRequest req)
+        {
+            try
+            {
+                if (req == null || req.PositionId <= 0 || req.Rankings == null)
+                    return BadRequest(new { error = "positionId and rankings required" });
+
+                var employerClaim = User.Claims.FirstOrDefault(c => c.Type == "employerId");
+                if (employerClaim == null || string.IsNullOrEmpty(employerClaim.Value))
+                    return Unauthorized(new { error = "No employer associated with this account" });
+                if (!int.TryParse(employerClaim.Value, out var employerId))
+                    return Unauthorized(new { error = "Invalid employer id" });
+
+                // Verify all seeker interests belong to this employer and position
+                var ids = req.Rankings.Select(r => r.SeekerInterestId).ToList();
+                var interests = await _db.SeekerInterests
+                    .Where(si => ids.Contains(si.Id) && si.EmployerId == employerId && si.PositionId == req.PositionId)
+                    .ToListAsync();
+
+                if (interests.Count != ids.Count)
+                    return BadRequest(new { error = "Some seeker interests not found or unauthorized" });
+
+                // Update ranks
+                foreach (var rankData in req.Rankings)
+                {
+                    var interest = interests.FirstOrDefault(i => i.Id == rankData.SeekerInterestId);
+                    if (interest != null)
+                    {
+                        interest.Rank = rankData.Rank;
+                    }
+                }
+
+                await _db.SaveChangesAsync();
+                _logger.LogInformation("Updated ranks for {Count} candidates in position {PositionId} by employer {EmployerId}",
+                    req.Rankings.Count, req.PositionId, employerId);
+
+                return Ok(new { success = true, updated = req.Rankings.Count });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "UpdateRanks failed");
                 return StatusCode(500, new { error = "Server error" });
             }
         }

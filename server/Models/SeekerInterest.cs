@@ -22,5 +22,9 @@ namespace FutureOfTheJobSearch.Server.Models
         public bool Interested { get; set; }
 
         public DateTime ReviewedAt { get; set; } = DateTime.UtcNow;
+
+            // Rank for ordering candidates (lower number = higher priority)
+            // Null means unranked
+            public int? Rank { get; set; }
     }
 }
