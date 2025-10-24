@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ChatModal from './ChatModal';
 import API_CONFIG from '../config/api';
 
