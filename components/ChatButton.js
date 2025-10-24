@@ -7,11 +7,8 @@ export default function ChatButton({ title = 'Conversation', subtitle = '' , oth
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Safe debug log without hooks
+  // Determine if we should show the unread dot
   const hasUnread = !!unreadCount && unreadCount > 0;
-  if (typeof window !== 'undefined') {
-    try { console.debug('[ChatButton] hasUnread:', hasUnread, 'unreadCount:', unreadCount, 'title:', title, 'positionId:', positionId); } catch {}
-  }
 
   async function openChat(){
     // fetch token

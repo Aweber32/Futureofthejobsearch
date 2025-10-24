@@ -70,12 +70,7 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
 
         connection.on('ReadReceipt', (r) => {
           // r: { userId, conversationId, lastReadAt }
-            console.log('[SignalR] ReadReceipt event received:', r);
-            setLastReadAt(prev => {
-              const updated = { ...prev, [r.userId]: r.lastReadAt };
-              console.log('[SignalR] Updated lastReadAt state:', updated);
-              return updated;
-            });
+          setLastReadAt(prev => ({ ...prev, [r.userId]: r.lastReadAt }));
         });
 
         await connection.start();
@@ -94,7 +89,6 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
               if (p.userId && p.lastReadAt) map[p.userId] = p.lastReadAt;
             });
             setLastReadAt(map);
-            console.log('[SignalR] Hydrated lastReadAt from participants:', map);
           }
         } catch (e) {
           console.warn('Failed to fetch participants for read receipts', e);
@@ -187,15 +181,12 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
               if (others.length > 0) {
                 // If any other participant has lastReadAt >= this message
                 isRead = others.some(([uid, lra]) => {
-                    if (!lra) return false;
-                    const lraDate = new Date(lra);
-                    const msgDate = new Date(m.createdAt);
-                    const result = lraDate >= msgDate;
-                    console.log('[ChatModal] Comparing:', { uid, lra, msgCreated: m.createdAt, lraDate: lraDate.toISOString(), msgDate: msgDate.toISOString(), result });
-                    return result;
-                  });
+                  if (!lra) return false;
+                  const lraDate = new Date(lra);
+                  const msgDate = new Date(m.createdAt);
+                  return lraDate >= msgDate;
+                });
               }
-              console.log('[ChatModal] Message', m.id, 'isRead:', isRead, 'others:', others, 'me:', me, 'lastReadAt keys:', Object.keys(lastReadAt || {}));
               readStatus = (
                 <span className="read-status ms-2" style={{fontSize:'0.9em',color:isRead?'#0b84ff':'#bbb'}}>
                   {isRead ? '✓✓ Read' : '✓ Delivered'}

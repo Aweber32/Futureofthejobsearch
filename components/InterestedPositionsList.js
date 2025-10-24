@@ -34,15 +34,10 @@ export default function InterestedPositionsList({ seeker }){
           // otherwise fetch basic position data
           try{
             const pres = await fetch(`${API}/api/positions/${i.positionId ?? i.positionID ?? i.PositionId}`, { headers: { Authorization: `Bearer ${authToken}` } });
-            if (pres.ok) {
-              const pjson = await pres.json();
-              console.log('✅ Fetched position data from API:', pjson);
-              console.log('🏢 API position employer:', pjson.employer);
-              console.log('📚 API position educations:', pjson.educations);
-              console.log('📚 API position experiences:', pjson.experiences);
-              console.log('📚 API position skillsList:', pjson.skillsList);
-              return { id: pjson.id ?? pjson.Id, title: pjson.title ?? pjson.Title ?? pjson.jobTitle ?? pjson.positionTitle, raw: i, position: pjson };
-            }
+              if (pres.ok) {
+                const pjson = await pres.json();
+                return { id: pjson.id ?? pjson.Id, title: pjson.title ?? pjson.Title ?? pjson.jobTitle ?? pjson.positionTitle, raw: i, position: pjson };
+              }
           }catch{}
           return { id: i.positionId ?? i.PositionId ?? i.positionID, title: i.positionTitle ?? 'Position', raw: i };
         }));
@@ -155,16 +150,7 @@ export default function InterestedPositionsList({ seeker }){
                         const found = tryVals.find(v => v && typeof v === 'string' && v.trim().length > 0);
                         const companyName = found ? found.trim() : 'Unknown company';
                         // Debug: log shapes when company couldn't be determined
-                        if (!found) {
-                          try {
-                            console.log('InterestedPositionsList: missing company for item:', {
-                              id: item.id,
-                              title: item.position?.title ?? item.title,
-                              position: item.position,
-                              raw: item.raw
-                            });
-                          } catch(e) { /* ignore logging errors */ }
-                        }
+                        // silently fallback to Unknown company when data is incomplete
                         const positionTitle = item.position?.title ?? item.title ?? 'Position Conversation';
                         // attempt to derive the other user's id (poster/employer user id) and pass position id
                         const otherUserId = item.position?.employer?.userId || item.position?.employer?.userId || item.raw?.posterUserId || null;
@@ -173,23 +159,16 @@ export default function InterestedPositionsList({ seeker }){
                       })()}
                       <button
                       onClick={async ()=> {
-                        console.log('🎯 Review Position clicked for item:', item);
-                        console.log('📋 Item position data:', item.position);
-                        console.log('🏢 Item position employer:', item.position?.employer);
-                        console.log('📚 Item position educations:', item.position?.educations);
-                        console.log('📚 Item position experiences:', item.position?.experiences);
-                        console.log('📚 Item position skillsList:', item.position?.skillsList);
+                        // open the review modal with enriched position details
 
                         let positionToShow = item.position;
 
                         // If position data exists but is missing key information, try to re-fetch
                         if (positionToShow && (!positionToShow.employer || !positionToShow.educations || !positionToShow.experiences || !positionToShow.skillsList)) {
-                          console.log('🔄 Re-fetching position data because key information is missing');
                           try {
                             const pres = await fetch(`${API}/api/positions/${item.id}`, { headers: { Authorization: `Bearer ${token}` } });
                             if (pres.ok) {
                               const freshData = await pres.json();
-                              console.log('✅ Re-fetched position data:', freshData);
                               positionToShow = freshData;
                             }
                           } catch (error) {
