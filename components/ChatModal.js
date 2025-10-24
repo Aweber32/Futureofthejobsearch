@@ -180,12 +180,13 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
             // Read receipt logic: show checkmarks for sent/read
             let readStatus = null;
             if (m.fromMe) {
-              // Find the other participant's lastReadAt
-              const others = Object.entries(lastReadAt).filter(([uid]) => uid !== currentUserId);
+              // Find the other participant's lastReadAt (case-insensitive userId compare)
+              const me = (currentUserId ?? '').toString().toLowerCase();
+              const others = Object.entries(lastReadAt).filter(([uid]) => (uid ?? '').toString().toLowerCase() !== me);
               let isRead = false;
               if (others.length > 0) {
                 // If any other participant has lastReadAt >= this message
-                  isRead = others.some(([uid, lra]) => {
+                isRead = others.some(([uid, lra]) => {
                     if (!lra) return false;
                     const lraDate = new Date(lra);
                     const msgDate = new Date(m.createdAt);
@@ -194,7 +195,7 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
                     return result;
                   });
               }
-                console.log('[ChatModal] Message', m.id, 'isRead:', isRead, 'others:', others, 'lastReadAt state:', lastReadAt);
+              console.log('[ChatModal] Message', m.id, 'isRead:', isRead, 'others:', others, 'me:', me, 'lastReadAt keys:', Object.keys(lastReadAt || {}));
               readStatus = (
                 <span className="read-status ms-2" style={{fontSize:'0.9em',color:isRead?'#0b84ff':'#bbb'}}>
                   {isRead ? '✓✓ Read' : '✓ Delivered'}
