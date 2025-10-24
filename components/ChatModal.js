@@ -80,6 +80,22 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
         // mark as read on open
         try { await connection.invoke('MarkRead', conversationId); } catch (e) { console.warn('MarkRead failed', e); }
 
+        // fetch participants to hydrate lastReadAt for historical read receipts
+        try {
+          const pres = await fetch(`${API_CONFIG.BASE_URL.replace(/\/$/, '')}/api/conversations/${conversationId}/participants`, { headers: { Authorization: `Bearer ${token}` } });
+          if (pres.ok) {
+            const parts = await pres.json();
+            const map = {};
+            (parts || []).forEach(p => {
+              if (p.userId && p.lastReadAt) map[p.userId] = p.lastReadAt;
+            });
+            setLastReadAt(map);
+            console.log('[SignalR] Hydrated lastReadAt from participants:', map);
+          }
+        } catch (e) {
+          console.warn('Failed to fetch participants for read receipts', e);
+        }
+
         // fetch recent messages via REST for initial history
         try{
           const res = await fetch(`${API_CONFIG.BASE_URL.replace(/\/$/, '')}/api/conversations/${conversationId}/messages?take=50`, { headers: { Authorization: `Bearer ${token}` } });

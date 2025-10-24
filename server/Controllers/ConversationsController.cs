@@ -129,6 +129,25 @@ namespace FutureOfTheJobSearch.Server.Controllers
             return Ok(dtos);
         }
 
+        // GET api/conversations/{id}/participants
+        [HttpGet("{id}/participants")]
+        public async Task<IActionResult> GetParticipants(string id)
+        {
+            if (!Guid.TryParse(id, out var convId)) return BadRequest("Invalid id");
+            var userId = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.Identity?.Name;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var isParticipant = await _db.ConversationParticipants.AnyAsync(cp => cp.ConversationId == convId && cp.UserId == userId);
+            if (!isParticipant) return Forbid();
+
+            var participants = await _db.ConversationParticipants
+                .Where(cp => cp.ConversationId == convId)
+                .Select(cp => new { userId = cp.UserId, lastReadAt = cp.LastReadAt })
+                .ToListAsync();
+
+            return Ok(participants);
+        }
+
         // GET api/conversations/{id}/messages?before={ticks}&take=50
         [HttpGet("{id}/messages")]
         public async Task<IActionResult> GetMessages(string id, [FromQuery] long? before, [FromQuery] int take = 50)
