@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import ChatModal from './ChatModal';
 import API_CONFIG from '../config/api';
 
@@ -6,10 +6,12 @@ export default function ChatButton({ title = 'Conversation', subtitle = '' , oth
   const [open, setOpen] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(false);
-  
-    useEffect(() => {
-      console.log('[ChatButton] unreadCount prop:', unreadCount, 'title:', title, 'positionId:', positionId);
-    }, [unreadCount, title, positionId]);
+
+  // Safe debug log without hooks
+  const hasUnread = !!unreadCount && unreadCount > 0;
+  if (typeof window !== 'undefined') {
+    try { console.debug('[ChatButton] hasUnread:', hasUnread, 'unreadCount:', unreadCount, 'title:', title, 'positionId:', positionId); } catch {}
+  }
 
   async function openChat(){
     // fetch token
@@ -57,7 +59,7 @@ export default function ChatButton({ title = 'Conversation', subtitle = '' , oth
     <>
       <button className="btn btn-sm btn-outline-success position-relative" onClick={openChat} disabled={loading}>
         {loading ? 'Opening…' : 'Chat'}
-        {unreadCount > 0 && (
+        {hasUnread && (
           <span className="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
             <span className="visually-hidden">Unread messages</span>
           </span>
