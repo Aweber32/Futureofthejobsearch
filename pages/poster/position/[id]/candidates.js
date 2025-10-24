@@ -14,6 +14,7 @@ export default function PositionCandidates(){
   const [loading, setLoading] = useState(true);
   const [draggedItem, setDraggedItem] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [convUnreadMap, setConvUnreadMap] = useState({});
   const saveTimeoutRef = useRef(null);
 
   useEffect(()=>{
@@ -46,6 +47,32 @@ export default function PositionCandidates(){
           const notInterested = (data || []).filter(r => !(r.interested || r.Interested));
           setInterestedList(interested);
           setNotInterestedList(notInterested);
+
+          // Fetch conversations once to compute unread counts for ChatButtons
+          try {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+            if (token) {
+              const cres = await fetch(`${base}/api/conversations`, { headers: { Authorization: `Bearer ${token}` } });
+              if (cres.ok) {
+                const convs = await cres.json();
+                // Build a map keyed by `${positionId}|${otherUserId}`
+                const map = {};
+                (convs || []).forEach(c => {
+                  const keyBase = `${c.positionId ?? c.PositionId ?? ''}|`;
+                  const parts = c.participantUserIds || c.ParticipantUserIds || [];
+                  parts.forEach(uid => {
+                    const key = keyBase + uid;
+                    // Store highest unread (binary at the moment) per key
+                    map[key] = Math.max(map[key] || 0, c.unreadCount || c.UnreadCount || 0);
+                  });
+                });
+                setConvUnreadMap(map);
+              }
+            }
+          } catch (e) {
+            // ignore conv fetch errors to avoid blocking page
+          }
+
           setLoading(false);
         }
       }catch(e){ 
@@ -186,6 +213,7 @@ export default function PositionCandidates(){
             subtitle={positionTitle || ''} 
             otherUserId={seekerUserId} 
             positionId={posId} 
+            unreadCount={convUnreadMap[`${posId}|${seekerUserId}`] || 0}
           />
           <Link 
             href={`/poster/candidate/${seeker.id ?? seeker.Id}?positionId=${id}`} 

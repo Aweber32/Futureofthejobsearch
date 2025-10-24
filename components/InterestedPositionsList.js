@@ -80,7 +80,31 @@ export default function InterestedPositionsList({ seeker }){
           return it;
         }));
 
-        setItems(enriched);
+        // Fetch conversations once and attach unreadCount to items
+        let enrichedWithUnread = enriched;
+        try{
+          const cres = await fetch(`${API}/api/conversations`, { headers: { Authorization: `Bearer ${authToken}` } });
+          if (cres.ok){
+            const convs = await cres.json();
+            const map = {};
+            (convs || []).forEach(c => {
+              const posId = c.positionId ?? c.PositionId ?? '';
+              const parts = c.participantUserIds || c.ParticipantUserIds || [];
+              parts.forEach(uid => {
+                const key = `${posId}|${uid}`;
+                map[key] = Math.max(map[key] || 0, c.unreadCount || c.UnreadCount || 0);
+              });
+            });
+            enrichedWithUnread = enriched.map(it => {
+              const otherUserId = it.position?.employer?.userId || it.position?.employer?.UserId || it.raw?.posterUserId || null;
+              const pid = it.id || it.position?.id || it.position?.Id || null;
+              const unread = (pid && otherUserId) ? (map[`${pid}|${otherUserId}`] || 0) : 0;
+              return { ...it, unreadCount: unread };
+            });
+          }
+        }catch{ /* ignore */ }
+
+        setItems(enrichedWithUnread);
       }catch(err){ setError(err?.message || 'Failed to load'); }
       finally{ setLoading(false); }
     })();
