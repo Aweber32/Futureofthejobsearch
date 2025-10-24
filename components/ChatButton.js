@@ -6,6 +6,10 @@ export default function ChatButton({ title = 'Conversation', subtitle = '' , oth
   const [open, setOpen] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(false);
+  
+    useEffect(() => {
+      console.log('[ChatButton] unreadCount prop:', unreadCount, 'title:', title, 'positionId:', positionId);
+    }, [unreadCount, title, positionId]);
 
   async function openChat(){
     // fetch token

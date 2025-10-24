@@ -70,6 +70,7 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
 
         connection.on('ReadReceipt', (r) => {
           // r: { userId, conversationId, lastReadAt }
+            console.log('[SignalR] ReadReceipt event received:', r);
           setLastReadAt(prev => ({ ...prev, [r.userId]: r.lastReadAt }));
         });
 
@@ -166,6 +167,7 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
                 // If any other participant has lastReadAt >= this message
                 isRead = others.some(([uid, lra]) => lra && new Date(lra) >= new Date(m.createdAt));
               }
+                console.log('[ChatModal] Message', m, 'isRead:', isRead, 'others:', others);
               readStatus = (
                 <span className="read-status ms-2" style={{fontSize:'0.9em',color:isRead?'#0b84ff':'#bbb'}}>
                   {isRead ? '✓✓ Read' : '✓ Delivered'}
