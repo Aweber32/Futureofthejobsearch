@@ -71,7 +71,11 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
         connection.on('ReadReceipt', (r) => {
           // r: { userId, conversationId, lastReadAt }
             console.log('[SignalR] ReadReceipt event received:', r);
-          setLastReadAt(prev => ({ ...prev, [r.userId]: r.lastReadAt }));
+            setLastReadAt(prev => {
+              const updated = { ...prev, [r.userId]: r.lastReadAt };
+              console.log('[SignalR] Updated lastReadAt state:', updated);
+              return updated;
+            });
         });
 
         await connection.start();
@@ -181,9 +185,16 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
               let isRead = false;
               if (others.length > 0) {
                 // If any other participant has lastReadAt >= this message
-                isRead = others.some(([uid, lra]) => lra && new Date(lra) >= new Date(m.createdAt));
+                  isRead = others.some(([uid, lra]) => {
+                    if (!lra) return false;
+                    const lraDate = new Date(lra);
+                    const msgDate = new Date(m.createdAt);
+                    const result = lraDate >= msgDate;
+                    console.log('[ChatModal] Comparing:', { uid, lra, msgCreated: m.createdAt, lraDate: lraDate.toISOString(), msgDate: msgDate.toISOString(), result });
+                    return result;
+                  });
               }
-                console.log('[ChatModal] Message', m, 'isRead:', isRead, 'others:', others);
+                console.log('[ChatModal] Message', m.id, 'isRead:', isRead, 'others:', others, 'lastReadAt state:', lastReadAt);
               readStatus = (
                 <span className="read-status ms-2" style={{fontSize:'0.9em',color:isRead?'#0b84ff':'#bbb'}}>
                   {isRead ? '✓✓ Read' : '✓ Delivered'}
