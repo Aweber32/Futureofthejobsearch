@@ -19,6 +19,22 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// DbContext - connection string must come from appsettings or environment (use Azure DefaultConnection)
+var conn = builder.Configuration.GetConnectionString("DefaultConnection") ?? Environment.GetEnvironmentVariable("DEFAULT_CONNECTION");
+builder.Services.AddDbContext<FutureOfTheJobSearch.Server.Data.ApplicationDbContext>(options =>
+    options.UseSqlServer(conn));
+
+// Run SAS stripping job if requested
+if (args.Contains("--strip-sas"))
+{
+    using var scope = builder.Services.BuildServiceProvider().CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<FutureOfTheJobSearch.Server.Data.ApplicationDbContext>();
+    var job = new FutureOfTheJobSearch.Server.Jobs.StripSasFromBlobUrlsJob(db);
+    var updated = job.RunAsync().GetAwaiter().GetResult();
+    Console.WriteLine($"[SAS Strip Job] Updated {updated} blob URLs.");
+    return;
+}
+
 // Ensure logging providers are configured early so startup errors appear in Log Stream / docker logs
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -57,7 +73,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // DbContext - connection string must come from appsettings or environment (use Azure DefaultConnection)
-var conn = configuration.GetConnectionString("DefaultConnection") ?? Environment.GetEnvironmentVariable("DEFAULT_CONNECTION");
+// var conn already defined above for SAS job
 if (string.IsNullOrEmpty(conn))
 {
     throw new InvalidOperationException("No DefaultConnection configured. Set 'ConnectionStrings:DefaultConnection' in appsettings.json or the 'DEFAULT_CONNECTION' environment variable to your Azure SQL connection string.");

@@ -19,6 +19,80 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _logger = logger;
         }
 
+        // Mint a fresh read SAS for an existing blob URL. Useful when a previously stored SAS expired.
+        // GET api/uploads/sign?url={encodedBlobUrl}&minutes=60
+        [HttpGet("sign")]
+        public IActionResult Sign([FromQuery] string url, [FromQuery] int minutes = 60)
+        {
+            if (string.IsNullOrEmpty(url)) return BadRequest(new { error = "No URL provided" });
+
+            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
+            if (string.IsNullOrEmpty(conn)) return StatusCode(500, new { error = "Blob storage not configured" });
+
+            try
+            {
+                var uri = new Uri(url);
+                // Strip any existing query (possibly expired SAS)
+                var path = uri.AbsolutePath.TrimStart('/');
+                if (path.Contains('?')) path = path.Split('?')[0];
+                var partsPath = path.Split('/', 2, StringSplitOptions.RemoveEmptyEntries);
+                if (partsPath.Length < 2) return BadRequest(new { error = "URL must include container and blob path" });
+                var containerName = partsPath[0];
+                var blobName = partsPath[1];
+
+                // Parse account info from connection string
+                string acctName = string.Empty, acctKey = string.Empty, connSas = string.Empty;
+                foreach (var p in conn.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var kv = p.Split('=', 2);
+                    if (kv.Length != 2) continue;
+                    var k = kv[0].Trim();
+                    var v = kv[1].Trim();
+                    if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
+                    if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
+                    if (k.Equals("SharedAccessSignature", StringComparison.OrdinalIgnoreCase)) connSas = v.TrimStart('?');
+                }
+
+                // If we have an account key, generate a short-lived read SAS
+                if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
+                {
+                    var endpoint = new Uri($"https://{acctName}.blob.core.windows.net");
+                    var blobUri = new Uri(endpoint, $"/{containerName}/{blobName}");
+
+                    var credential = new StorageSharedKeyCredential(acctName, acctKey);
+                    var sasBuilder = new BlobSasBuilder
+                    {
+                        BlobContainerName = containerName,
+                        BlobName = blobName,
+                        Resource = "b",
+                        StartsOn = DateTimeOffset.UtcNow.AddMinutes(-5),
+                        ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(Math.Clamp(minutes, 1, 1440))
+                    };
+                    sasBuilder.SetPermissions(BlobSasPermissions.Read);
+                    var sasToken = sasBuilder.ToSasQueryParameters(credential).ToString();
+                    var signed = $"{blobUri}?{sasToken}";
+                    return Ok(new { url = signed });
+                }
+
+                // Otherwise, if the connection string itself has a SAS, append it
+                if (!string.IsNullOrEmpty(connSas))
+                {
+                    // Prefer the host from the incoming URL to support CDN/custom domains; otherwise use accountName
+                    var baseUri = new Uri($"{uri.Scheme}://{uri.Host}");
+                    var blobUri = new Uri(baseUri, $"/{containerName}/{blobName}");
+                    var signed = $"{blobUri}?{connSas}";
+                    return Ok(new { url = signed });
+                }
+
+                return StatusCode(500, new { error = "Unable to generate SAS with current configuration" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to sign blob URL");
+                return StatusCode(500, new { error = "Failed to sign URL", detail = ex.Message });
+            }
+        }
+
         public class DeleteFileRequest
         {
             public string Url { get; set; } = string.Empty;
