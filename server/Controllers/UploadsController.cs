@@ -63,9 +63,10 @@ namespace FutureOfTheJobSearch.Server.Controllers
             string resultUrl = blob.Uri.ToString();
             try
             {
-                // parse account name/key from connection string
+                // parse account name/key or SharedAccessSignature from connection string
                 var acctName = string.Empty;
                 var acctKey = string.Empty;
+                var connSas = string.Empty;
                 var parts = conn.Split(';', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var p in parts)
                 {
@@ -75,10 +76,12 @@ namespace FutureOfTheJobSearch.Server.Controllers
                     var v = kv[1].Trim();
                     if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
                     if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
+                    if (k.Equals("SharedAccessSignature", StringComparison.OrdinalIgnoreCase)) connSas = v.TrimStart('?');
                 }
 
                 if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
                 {
+                    // Generate a short-lived read SAS using the account key
                     var credential = new StorageSharedKeyCredential(acctName, acctKey);
                     var sasBuilder = new BlobSasBuilder
                     {
@@ -91,10 +94,15 @@ namespace FutureOfTheJobSearch.Server.Controllers
                     var sasToken = sasBuilder.ToSasQueryParameters(credential).ToString();
                     resultUrl = blob.Uri + "?" + sasToken;
                 }
+                else if (!string.IsNullOrEmpty(connSas))
+                {
+                    // Fall back: append the same connection-string SAS so the URL is readable if container is private
+                    resultUrl = blob.Uri + "?" + connSas;
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to create SAS token for blob; returning direct URI which may not be publicly accessible");
+                _logger.LogWarning(ex, "Failed to attach SAS to blob URL; returning direct URI which may not be publicly accessible");
             }
 
             return Ok(new { url = resultUrl });
@@ -167,13 +175,14 @@ namespace FutureOfTheJobSearch.Server.Controllers
             string resultUrl = blob.Uri.ToString();
             try
             {
-                var acctName = string.Empty; var acctKey = string.Empty;
+                var acctName = string.Empty; var acctKey = string.Empty; var connSas = string.Empty;
                 var parts = conn.Split(';', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var p in parts)
                 {
                     var kv = p.Split('=', 2); if (kv.Length != 2) continue; var k = kv[0].Trim(); var v = kv[1].Trim();
                     if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
                     if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
+                    if (k.Equals("SharedAccessSignature", StringComparison.OrdinalIgnoreCase)) connSas = v.TrimStart('?');
                 }
                 if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
                 {
@@ -182,6 +191,10 @@ namespace FutureOfTheJobSearch.Server.Controllers
                     sasBuilder.SetPermissions(BlobSasPermissions.Read);
                     var sasToken = sasBuilder.ToSasQueryParameters(credential).ToString();
                     resultUrl = blob.Uri + "?" + sasToken;
+                }
+                else if (!string.IsNullOrEmpty(connSas))
+                {
+                    resultUrl = blob.Uri + "?" + connSas;
                 }
             }
             catch (Exception) { /* fallback to direct URI */ }
