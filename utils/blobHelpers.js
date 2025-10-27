@@ -22,8 +22,8 @@ export async function signBlobUrl(pathOrUrl, token, minutes = 60) {
     // Always use the full API URL from config (frontend and backend are separate App Services)
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     
-    // Construct a full blob URL from the path-only reference
-    const fullBlobUrl = `https://futureofthejobsearch.blob.core.windows.net/${pathOrUrl}`;
+    // Construct a full blob URL from the path-only reference (using correct storage account name)
+    const fullBlobUrl = `https://qafutureofthejobsearch.blob.core.windows.net/${pathOrUrl}`;
     const encodedUrl = encodeURIComponent(fullBlobUrl);
     
     // Remove any trailing slashes and ensure clean URL construction
