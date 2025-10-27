@@ -19,8 +19,15 @@ export async function signBlobUrl(pathOrUrl, token, minutes = 60) {
 
   // Otherwise, sign the path-only reference
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const encodedUrl = encodeURIComponent(`https://futureofthejobsearch.blob.core.windows.net/${pathOrUrl}`);
+    // Use the same API base URL logic as the rest of the app
+    const apiUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+      ? '' // Use relative URL when deployed (same origin)
+      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000');
+    
+    // Construct a full blob URL from the path-only reference
+    const fullBlobUrl = `https://futureofthejobsearch.blob.core.windows.net/${pathOrUrl}`;
+    const encodedUrl = encodeURIComponent(fullBlobUrl);
+    
     const res = await fetch(`${apiUrl}/api/uploads/sign?url=${encodedUrl}&minutes=${minutes}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     });

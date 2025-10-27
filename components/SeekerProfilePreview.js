@@ -2,13 +2,13 @@ import React from 'react';
 import { useSignedBlobUrl } from '../utils/blobHelpers';
 
 const SeekerProfilePreview = ({ seeker, onInterested, onNotInterested }) => {
-  if (!seeker) return null;
-
-  // Sign blob URLs
+  // Sign blob URLs (hooks must be called unconditionally)
   const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
-  const { signedUrl: headshotUrl } = useSignedBlobUrl(seeker.headshotUrl, token);
-  const { signedUrl: videoUrl } = useSignedBlobUrl(seeker.videoUrl, token);
-  const { signedUrl: resumeUrl } = useSignedBlobUrl(seeker.resumeUrl, token);
+  const { signedUrl: headshotUrl } = useSignedBlobUrl(seeker?.headshotUrl, token);
+  const { signedUrl: videoUrl } = useSignedBlobUrl(seeker?.videoUrl, token);
+  const { signedUrl: resumeUrl } = useSignedBlobUrl(seeker?.resumeUrl, token);
+
+  if (!seeker) return null;
 
   // Parse data similar to PreviewProfile
   const experience = seeker.experienceJson ? JSON.parse(seeker.experienceJson) : [];

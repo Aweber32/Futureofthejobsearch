@@ -7,6 +7,15 @@ export default function PositionSwiper({ initialPositions }){
   const [loading, setLoading] = useState(!initialPositions);
   const [showFullDescription, setShowFullDescription] = useState(false);
 
+  const top = stack && stack.length ? stack[0] : null;
+  
+  // Sign blob URLs (hooks must be called unconditionally)
+  const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  const companyLogoRaw = top?.employer?.logoUrl ?? top?.employer?.LogoUrl ?? null;
+  const { signedUrl: companyLogo } = useSignedBlobUrl(companyLogoRaw, token);
+  const posterVideoRaw = top?.posterVideoUrl ?? top?.PosterVideoUrl ?? null;
+  const { signedUrl: posterVideo } = useSignedBlobUrl(posterVideoRaw, token);
+
   useEffect(()=>{
     if (initialPositions && initialPositions.length>0) return;
     let cancelled = false;
@@ -61,15 +70,6 @@ export default function PositionSwiper({ initialPositions }){
     }catch(e){ }
     removeTop();
   }
-
-  const top = stack && stack.length ? stack[0] : null;
-  
-  // Sign blob URLs
-  const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
-  const companyLogoRaw = top?.employer?.logoUrl ?? top?.employer?.LogoUrl ?? null;
-  const { signedUrl: companyLogo } = useSignedBlobUrl(companyLogoRaw, token);
-  const posterVideoRaw = top?.posterVideoUrl ?? top?.PosterVideoUrl ?? null;
-  const { signedUrl: posterVideo } = useSignedBlobUrl(posterVideoRaw, token);
 
   if (loading) return <div className="text-center">Loading positions…</div>
   if (!top) return <div className="alert alert-secondary">No more positions</div>
