@@ -14,7 +14,12 @@ import {
   UserPlus,
   DollarSign,
   Star,
-  ChevronDown
+  ChevronDown,
+  Eye,
+  Fingerprint,
+  BarChart3,
+  Activity,
+  MousePointerClick
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -131,7 +136,7 @@ export default function Home(){
         </motion.div>
       </motion.section>
 
-      {/* How It Works */}
+      {/* How It Works - Three Tenants */}
       <motion.section 
         className="py-5 mb-5"
         initial="initial"
@@ -145,65 +150,48 @@ export default function Home(){
         </motion.div>
 
         <div className="row">
-          <div className="col-lg-6 mb-5">
-            <motion.div variants={fadeInUp}>
-              <h3 className="h4 mb-4 text-center">
-                <Users className="me-2 text-primary" />
-                For Job Seekers
-              </h3>
-              <div className="row">
-                {[
-                  { icon: UserPlus, title: "Create Profile", desc: "Build your professional profile in minutes" },
-                  { icon: Heart, title: "Filter & Match", desc: "Quickly filter through curated job opportunities" },
-                  { icon: Target, title: "Quick Feedback", desc: "Get speedy updates on employer interest" }
-                ].map((step, i) => (
-                  <div key={i} className="col-12 mb-3">
-                    <div className="d-flex align-items-start">
-                      <div className="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
-                        <step.icon className="text-primary" size={24} />
-                      </div>
-                      <div>
-                        <h5 className="mb-2">{step.title}</h5>
-                        <p className="text-muted mb-0">{step.desc}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          {/* Simplicity */}
+          <div className="col-lg-4 mb-4">
+            <motion.div className="text-center h-100" variants={fadeInUp}>
+              <div className="bg-primary bg-opacity-10 rounded-circle p-4 d-inline-flex mb-4">
+                <Zap className="text-primary" size={48} />
               </div>
+              <h3 className="h4 mb-3">Simplicity</h3>
+              <p className="text-muted">
+                We use AI to connect your profile with the right roles — no endless scrolling, no guesswork.
+              </p>
             </motion.div>
           </div>
 
-          <div className="col-lg-6 mb-5">
-            <motion.div variants={fadeInUp}>
-              <h3 className="h4 mb-4 text-center">
-                <Building className="me-2 text-success" />
-                For Employers
-              </h3>
-              <div className="row">
-                {[
-                  { icon: Briefcase, title: "Post Jobs", desc: "Create compelling job postings with ease" },
-                  { icon: Target, title: "Smart Matching", desc: "AI matches you with qualified candidates" },
-                  { icon: CheckCircle, title: "Hire Faster", desc: "Seamlessly connect with top candidates to move forward" }
-                ].map((step, i) => (
-                  <div key={i} className="col-12 mb-3">
-                    <div className="d-flex align-items-start">
-                      <div className="bg-success bg-opacity-10 rounded-circle p-3 me-3">
-                        <step.icon className="text-success" size={24} />
-                      </div>
-                      <div>
-                        <h5 className="mb-2">{step.title}</h5>
-                        <p className="text-muted mb-0">{step.desc}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          {/* Transparency */}
+          <div className="col-lg-4 mb-4">
+            <motion.div className="text-center h-100" variants={fadeInUp}>
+              <div className="bg-success bg-opacity-10 rounded-circle p-4 d-inline-flex mb-4">
+                <Eye className="text-success" size={48} />
               </div>
+              <h3 className="h4 mb-3">Transparency</h3>
+              <p className="text-muted">
+                You'll get quick notification when an employer views your profile with their decision — and we show the salary range up front, always.
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Individualism */}
+          <div className="col-lg-4 mb-4">
+            <motion.div className="text-center h-100" variants={fadeInUp}>
+              <div className="bg-warning bg-opacity-10 rounded-circle p-4 d-inline-flex mb-4">
+                <Fingerprint className="text-warning" size={48} />
+              </div>
+              <h3 className="h4 mb-3">Individualism</h3>
+              <p className="text-muted">
+                Your video-profile tells your story. Choose how you present yourself. Be found for you, not a generic role.
+              </p>
             </motion.div>
           </div>
         </div>
       </motion.section>
 
-      {/* Pricing Section */}
+      {/* Analytics Dashboard Preview */}
       <motion.section 
         className="py-5 mb-5"
         initial="initial"
@@ -212,70 +200,202 @@ export default function Home(){
         variants={staggerContainer}
       >
         <motion.div className="text-center mb-5" variants={fadeInUp}>
-          <h2 className="display-6 mb-3">Simple Pricing</h2>
-          <p className="text-muted">Choose the plan that fits your needs</p>
+          <h2 className="display-6 mb-3">Market Insights</h2>
+          <p className="text-muted">Discover what jobs, skills, and salaries are most prevalent in the market</p>
         </motion.div>
 
         <motion.div className="row" variants={staggerContainer}>
-          {[
-            { 
-              name: "Starter", 
-              price: "$29", 
-              period: "/month", 
-              features: ["5 job posts", "Basic matching", "Email support"],
-              highlighted: false 
-            },
-            { 
-              name: "Growth", 
-              price: "$99", 
-              period: "/month", 
-              features: ["25 job posts", "Advanced matching", "Priority support", "Analytics"],
-              highlighted: true 
-            },
-            { 
-              name: "Scale", 
-              price: "$199", 
-              period: "/month", 
-              features: ["Unlimited posts", "AI-powered insights", "Dedicated manager", "Custom branding"],
-              highlighted: false 
-            }
-          ].map((plan, i) => (
-            <div key={i} className="col-lg-4 mb-4">
-              <motion.div 
-                className={`card h-100 ${plan.highlighted ? 'border-primary shadow-lg' : ''}`}
-                variants={fadeInUp}
-                whileHover={{ scale: 1.02 }}
-              >
-                {plan.highlighted && (
-                  <div className="badge bg-primary position-absolute top-0 start-50 translate-middle px-3 py-2">
-                    Most Popular
+          {/* Top Metrics Cards */}
+          <div className="col-md-4 mb-4">
+            <motion.div 
+              className="card h-100 border-0 shadow-sm"
+              variants={fadeInUp}
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <p className="text-muted mb-1">Active Job Postings</p>
+                    <h3 className="mb-0">1,247</h3>
                   </div>
-                )}
-                <div className="card-body text-center p-4">
-                  <h4 className="card-title">{plan.name}</h4>
-                  <div className="mb-4">
-                    <span className="display-6 fw-bold">{plan.price}</span>
-                    <span className="text-muted">{plan.period}</span>
+                  <div className="bg-primary bg-opacity-10 rounded-circle p-3">
+                    <Briefcase className="text-primary" size={24} />
                   </div>
-                  <ul className="list-unstyled mb-4">
-                    {plan.features.map((feature, j) => (
-                      <li key={j} className="mb-2">
-                        <CheckCircle className="text-success me-2" size={16} />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <motion.button 
-                    className={`btn w-100 ${plan.highlighted ? 'btn-primary' : 'btn-outline-primary'}`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    Get Started
-                  </motion.button>
                 </div>
-              </motion.div>
-            </div>
-          ))}
+                <div className="d-flex align-items-center text-success">
+                  <TrendingUp size={16} className="me-1" />
+                  <small>+18% from last month</small>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          <div className="col-md-4 mb-4">
+            <motion.div 
+              className="card h-100 border-0 shadow-sm"
+              variants={fadeInUp}
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <p className="text-muted mb-1">Top Skill Demand</p>
+                    <h3 className="mb-0">JavaScript</h3>
+                  </div>
+                  <div className="bg-success bg-opacity-10 rounded-circle p-3">
+                    <Target className="text-success" size={24} />
+                  </div>
+                </div>
+                <div className="d-flex align-items-center text-success">
+                  <TrendingUp size={16} className="me-1" />
+                  <small>Most requested skill</small>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          <div className="col-md-4 mb-4">
+            <motion.div 
+              className="card h-100 border-0 shadow-sm"
+              variants={fadeInUp}
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <p className="text-muted mb-1">Avg. Salary Range</p>
+                    <h3 className="mb-0">$85K</h3>
+                  </div>
+                  <div className="bg-warning bg-opacity-10 rounded-circle p-3">
+                    <DollarSign className="text-warning" size={24} />
+                  </div>
+                </div>
+                <div className="d-flex align-items-center text-success">
+                  <TrendingUp size={16} className="me-1" />
+                  <small>+5.3% from last year</small>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Main Chart Area */}
+          <div className="col-12 mb-4">
+            <motion.div 
+              className="card border-0 shadow-sm"
+              variants={fadeInUp}
+            >
+              <div className="card-body p-4">
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h5 className="mb-0">Job Market Growth</h5>
+                  <div className="d-flex gap-3">
+                    <div className="d-flex align-items-center">
+                      <div className="bg-primary rounded me-2" style={{width: '12px', height: '12px'}}></div>
+                      <small className="text-muted">New Postings</small>
+                    </div>
+                    <div className="d-flex align-items-center">
+                      <div className="bg-success rounded me-2" style={{width: '12px', height: '12px'}}></div>
+                      <small className="text-muted">Salary Trends</small>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Simulated Chart */}
+                <div className="position-relative" style={{height: '250px'}}>
+                  <div className="d-flex align-items-end justify-content-between h-100 gap-2">
+                    {[45, 52, 48, 65, 70, 68, 75, 82, 78, 85, 90, 88].map((height, i) => (
+                      <div key={i} className="d-flex flex-column align-items-center flex-grow-1">
+                        <div className="w-100 position-relative" style={{height: '100%'}}>
+                          <motion.div 
+                            className="bg-primary bg-opacity-75 rounded-top position-absolute bottom-0 w-100"
+                            initial={{ height: 0 }}
+                            whileInView={{ height: `${height}%` }}
+                            transition={{ duration: 0.5, delay: i * 0.05 }}
+                          ></motion.div>
+                        </div>
+                        <small className="text-muted mt-2">
+                          {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i]}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Top Performing Items */}
+          <div className="col-md-6 mb-4">
+            <motion.div 
+              className="card border-0 shadow-sm h-100"
+              variants={fadeInUp}
+            >
+              <div className="card-body">
+                <h5 className="mb-4">Most In-Demand Jobs</h5>
+                <div className="d-flex flex-column gap-3">
+                  {[
+                    { title: "Senior Software Engineer", count: 243, salary: "$120K" },
+                    { title: "Product Manager", count: 187, salary: "$110K" },
+                    { title: "Data Scientist", count: 156, salary: "$115K" }
+                  ].map((job, i) => (
+                    <div key={i} className="d-flex justify-content-between align-items-center pb-3 border-bottom">
+                      <div>
+                        <p className="mb-1 fw-semibold">{job.title}</p>
+                        <small className="text-muted">{job.count} open positions</small>
+                      </div>
+                      <div className="text-end">
+                        <div className="badge bg-success">{job.salary}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          <div className="col-md-6 mb-4">
+            <motion.div 
+              className="card border-0 shadow-sm h-100"
+              variants={fadeInUp}
+            >
+              <div className="card-body">
+                <h5 className="mb-4">Top Skills in Demand</h5>
+                <div className="d-flex flex-column gap-3">
+                  {[
+                    { name: "JavaScript", count: 542, growth: "+15%" },
+                    { name: "Python", count: 498, growth: "+22%" },
+                    { name: "React", count: 431, growth: "+18%" }
+                  ].map((skill, i) => (
+                    <div key={i} className="d-flex justify-content-between align-items-center pb-3 border-bottom">
+                      <div className="d-flex align-items-center">
+                        <div className="bg-primary rounded-circle me-3" style={{width: '40px', height: '40px'}}></div>
+                        <div>
+                          <p className="mb-1 fw-semibold">{skill.name}</p>
+                          <small className="text-muted">{skill.count} job postings</small>
+                        </div>
+                      </div>
+                      <div className="text-end">
+                        <div className="badge bg-success">{skill.growth}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        <motion.div className="text-center mt-4" variants={fadeInUp}>
+          <p className="text-muted mb-3">Get comprehensive market data to make informed career and hiring decisions</p>
+          <Link href="/analytics">
+            <motion.button 
+              className="btn btn-primary btn-lg"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <BarChart3 className="me-2" size={20} />
+              View Full Dashboard
+            </motion.button>
+          </Link>
         </motion.div>
       </motion.section>
 
