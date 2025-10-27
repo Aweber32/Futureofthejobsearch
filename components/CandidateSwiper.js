@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API_CONFIG } from '../config/api'
+import { useSignedBlobUrl } from '../utils/blobHelpers'
 
 export default function CandidateSwiper({ initialCandidates }){
   const [stack, setStack] = useState(initialCandidates || []);
@@ -101,6 +102,29 @@ export default function CandidateSwiper({ initialCandidates }){
 
   const top = stack && stack.length ? stack[0] : null;
 
+  // Normalize path-only values that are missing the container segment (legacy data)
+  const ensureContainer = (val, kind) => {
+    if (!val || typeof val !== 'string') return val;
+    if (val.startsWith('http://') || val.startsWith('https://')) return val;
+    if (val.includes('/')) return val; // already has container/blob
+    const lower = val.toLowerCase();
+    if (kind === 'headshot') return `qaseekerheadshot/${val}`;
+    if (kind === 'video') return `qaseekervideo/${val}`;
+    if (kind === 'resume') return `qaresumes/${val}`;
+    // Guess by extension as last resort
+    if (/(\.jpg|\.jpeg|\.png|\.gif)$/i.test(lower)) return `qaseekerheadshot/${val}`;
+    if (/(\.mp4|\.mov|\.webm)$/i.test(lower)) return `qaseekervideo/${val}`;
+    if (/(\.pdf|\.doc|\.docx)$/i.test(lower)) return `qaresumes/${val}`;
+    return val;
+  };
+
+  // Sign blob URLs for assets shown in the swiper (headshot/video)
+  const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  const rawHeadshot = ensureContainer(top?.headshotUrl, 'headshot');
+  const rawVideo = ensureContainer(top?.videoUrl, 'video');
+  const { signedUrl: signedHeadshot } = useSignedBlobUrl(rawHeadshot, token);
+  const { signedUrl: signedVideo } = useSignedBlobUrl(rawVideo, token);
+
   if (loading) return <div className="text-center">Loading candidates…</div>
   if (!top) return <div className="alert alert-secondary">No more candidates</div>
 
@@ -181,9 +205,9 @@ export default function CandidateSwiper({ initialCandidates }){
                 overflow: 'hidden',
                 position: 'relative'
               }}>
-                {top.headshotUrl ? (
+                {signedHeadshot ? (
                   <img
-                    src={top.headshotUrl}
+                    src={signedHeadshot}
                     alt={`${top.firstName} ${top.lastName}`}
                     style={{
                       width: '100%',
@@ -342,7 +366,7 @@ export default function CandidateSwiper({ initialCandidates }){
           )}
 
           {/* Video Section */}
-          {top.videoUrl && (
+          {signedVideo && (
             <div style={{ marginBottom: '24px' }}>
               <h4 style={{ color: '#333', marginBottom: '16px', borderBottom: '2px solid #667eea', paddingBottom: '8px' }}>
                 Video Introduction
@@ -366,7 +390,7 @@ export default function CandidateSwiper({ initialCandidates }){
                     borderRadius: '8px'
                   }}
                 >
-                  <source src={top.videoUrl} type="video/mp4" />
+                  <source src={signedVideo} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
               </div>

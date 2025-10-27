@@ -2,11 +2,26 @@ import React from 'react';
 import { useSignedBlobUrl } from '../utils/blobHelpers';
 
 const SeekerProfilePreview = ({ seeker, onInterested, onNotInterested }) => {
+  // Normalize legacy values missing container
+  const ensureContainer = (val, kind) => {
+    if (!val || typeof val !== 'string') return val;
+    if (val.startsWith('http://') || val.startsWith('https://')) return val;
+    if (val.includes('/')) return val;
+    const lower = val.toLowerCase();
+    if (kind === 'headshot') return `qaseekerheadshot/${val}`;
+    if (kind === 'video') return `qaseekervideo/${val}`;
+    if (kind === 'resume') return `qaresumes/${val}`;
+    if (/(\.jpg|\.jpeg|\.png|\.gif)$/i.test(lower)) return `qaseekerheadshot/${val}`;
+    if (/(\.mp4|\.mov|\.webm)$/i.test(lower)) return `qaseekervideo/${val}`;
+    if (/(\.pdf|\.doc|\.docx)$/i.test(lower)) return `qaresumes/${val}`;
+    return val;
+  };
+
   // Sign blob URLs (hooks must be called unconditionally)
   const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
-  const { signedUrl: headshotUrl } = useSignedBlobUrl(seeker?.headshotUrl, token);
-  const { signedUrl: videoUrl } = useSignedBlobUrl(seeker?.videoUrl, token);
-  const { signedUrl: resumeUrl } = useSignedBlobUrl(seeker?.resumeUrl, token);
+  const { signedUrl: headshotUrl } = useSignedBlobUrl(ensureContainer(seeker?.headshotUrl, 'headshot'), token);
+  const { signedUrl: videoUrl } = useSignedBlobUrl(ensureContainer(seeker?.videoUrl, 'video'), token);
+  const { signedUrl: resumeUrl } = useSignedBlobUrl(ensureContainer(seeker?.resumeUrl, 'resume'), token);
 
   if (!seeker) return null;
 

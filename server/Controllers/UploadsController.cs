@@ -149,53 +149,9 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 await blob.UploadAsync(stream, overwrite: true);
             }
 
-            // Return a temporary SAS URL so blobs can be read even when public access is disabled
-            string resultUrl = blob.Uri.ToString();
-            try
-            {
-                // parse account name/key or SharedAccessSignature from connection string
-                var acctName = string.Empty;
-                var acctKey = string.Empty;
-                var connSas = string.Empty;
-                var parts = conn.Split(';', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var p in parts)
-                {
-                    var kv = p.Split('=', 2);
-                    if (kv.Length != 2) continue;
-                    var k = kv[0].Trim();
-                    var v = kv[1].Trim();
-                    if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
-                    if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
-                    if (k.Equals("SharedAccessSignature", StringComparison.OrdinalIgnoreCase)) connSas = v.TrimStart('?');
-                }
-
-                if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
-                {
-                    // Generate a short-lived read SAS using the account key
-                    var credential = new StorageSharedKeyCredential(acctName, acctKey);
-                    var sasBuilder = new BlobSasBuilder
-                    {
-                        BlobContainerName = containerName,
-                        BlobName = blobName,
-                        Resource = "b",
-                        ExpiresOn = DateTimeOffset.UtcNow.AddDays(7)
-                    };
-                    sasBuilder.SetPermissions(BlobSasPermissions.Read);
-                    var sasToken = sasBuilder.ToSasQueryParameters(credential).ToString();
-                    resultUrl = blob.Uri + "?" + sasToken;
-                }
-                else if (!string.IsNullOrEmpty(connSas))
-                {
-                    // Fall back: append the same connection-string SAS so the URL is readable if container is private
-                    resultUrl = blob.Uri + "?" + connSas;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to attach SAS to blob URL; returning direct URI which may not be publicly accessible");
-            }
-
-            return Ok(new { url = resultUrl });
+                // Return path-only reference (container/blob) for dynamic SAS signing
+                var pathOnly = $"{containerName}/{blobName}";
+                return Ok(new { url = pathOnly });
         }
 
         [HttpPost("resume")]
@@ -262,34 +218,9 @@ namespace FutureOfTheJobSearch.Server.Controllers
             var blob = container.GetBlobClient(blobName);
             using (var stream = file.OpenReadStream()) { await blob.UploadAsync(stream, overwrite: true); }
 
-            string resultUrl = blob.Uri.ToString();
-            try
-            {
-                var acctName = string.Empty; var acctKey = string.Empty; var connSas = string.Empty;
-                var parts = conn.Split(';', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var p in parts)
-                {
-                    var kv = p.Split('=', 2); if (kv.Length != 2) continue; var k = kv[0].Trim(); var v = kv[1].Trim();
-                    if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
-                    if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
-                    if (k.Equals("SharedAccessSignature", StringComparison.OrdinalIgnoreCase)) connSas = v.TrimStart('?');
-                }
-                if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
-                {
-                    var credential = new StorageSharedKeyCredential(acctName, acctKey);
-                    var sasBuilder = new BlobSasBuilder { BlobContainerName = containerName, BlobName = blobName, Resource = "b", ExpiresOn = DateTimeOffset.UtcNow.AddDays(7) };
-                    sasBuilder.SetPermissions(BlobSasPermissions.Read);
-                    var sasToken = sasBuilder.ToSasQueryParameters(credential).ToString();
-                    resultUrl = blob.Uri + "?" + sasToken;
-                }
-                else if (!string.IsNullOrEmpty(connSas))
-                {
-                    resultUrl = blob.Uri + "?" + connSas;
-                }
-            }
-            catch (Exception) { /* fallback to direct URI */ }
-
-            return Ok(new { url = resultUrl });
+                // Return path-only reference (container/blob) for dynamic SAS signing
+                var pathOnly = $"{containerName}/{blobName}";
+                return Ok(new { url = pathOnly });
         }
 
         private async Task<IActionResult> DeleteFromBlob(string url, string containerName)
