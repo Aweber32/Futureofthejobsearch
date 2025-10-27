@@ -2,7 +2,7 @@
 
 This folder contains an ASP.NET Core Web API using Identity + EF Core and SQL Server.  
 
-Quick start (local):
+Quick start (local): 
 
 - Ensure .NET 7 SDK is installed.
 - From `server/` set a connection string in environment or `appsettings.json`.
