@@ -12,9 +12,18 @@ export default function PositionSwiper({ initialPositions }){
   // Sign blob URLs (hooks must be called unconditionally)
   const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
   const companyLogoRaw = top?.employer?.logoUrl ?? top?.employer?.LogoUrl ?? null;
-  const { signedUrl: companyLogo } = useSignedBlobUrl(companyLogoRaw, token);
+  const { signedUrl: companyLogo, loading: logoLoading } = useSignedBlobUrl(companyLogoRaw, token);
   const posterVideoRaw = top?.posterVideoUrl ?? top?.PosterVideoUrl ?? null;
-  const { signedUrl: posterVideo } = useSignedBlobUrl(posterVideoRaw, token);
+  const { signedUrl: posterVideo, loading: videoLoading } = useSignedBlobUrl(posterVideoRaw, token);
+  
+  console.log('[PositionSwiper] Blob URLs:', { 
+    companyLogoRaw, 
+    companyLogo, 
+    logoLoading,
+    posterVideoRaw, 
+    posterVideo,
+    videoLoading
+  });
 
   useEffect(()=>{
     if (initialPositions && initialPositions.length>0) return;

@@ -28,17 +28,24 @@ export async function signBlobUrl(pathOrUrl, token, minutes = 60) {
     const fullBlobUrl = `https://futureofthejobsearch.blob.core.windows.net/${pathOrUrl}`;
     const encodedUrl = encodeURIComponent(fullBlobUrl);
     
+    console.log('[Blob Helper] Signing URL:', { pathOrUrl, fullBlobUrl, apiUrl, signEndpoint: `${apiUrl}/api/uploads/sign` });
+    
     const res = await fetch(`${apiUrl}/api/uploads/sign?url=${encodedUrl}&minutes=${minutes}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
+    
+    console.log('[Blob Helper] Sign response:', { status: res.status, ok: res.ok });
+    
     if (!res.ok) {
-      console.error('Failed to sign blob URL:', await res.text());
+      const errText = await res.text();
+      console.error('[Blob Helper] Failed to sign blob URL:', errText);
       return null;
     }
     const data = await res.json();
+    console.log('[Blob Helper] Signed URL:', data.url);
     return data.url;
   } catch (err) {
-    console.error('Error signing blob URL:', err);
+    console.error('[Blob Helper] Error signing blob URL:', err);
     return null;
   }
 }
@@ -51,7 +58,10 @@ export function useSignedBlobUrl(pathOrUrl, token) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('[useSignedBlobUrl] Hook called with:', { pathOrUrl, hasToken: !!token });
+    
     if (!pathOrUrl) {
+      console.log('[useSignedBlobUrl] No path/URL provided, returning null');
       setSignedUrl(null);
       setLoading(false);
       return;
@@ -59,14 +69,17 @@ export function useSignedBlobUrl(pathOrUrl, token) {
 
     // If already a full URL, use as-is
     if (!isPathOnlyBlob(pathOrUrl)) {
+      console.log('[useSignedBlobUrl] Already a full URL, using as-is:', pathOrUrl);
       setSignedUrl(pathOrUrl);
       setLoading(false);
       return;
     }
 
     // Otherwise, sign it
+    console.log('[useSignedBlobUrl] Path-only reference detected, signing:', pathOrUrl);
     setLoading(true);
     signBlobUrl(pathOrUrl, token).then(url => {
+      console.log('[useSignedBlobUrl] Got signed URL:', url);
       setSignedUrl(url);
       setLoading(false);
     });
