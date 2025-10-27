@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API_CONFIG } from '../config/api'
+import { useSignedBlobUrl } from '../utils/blobHelpers'
 
 export default function PositionSwiper({ initialPositions }){
   const [stack, setStack] = useState(initialPositions || []);
@@ -62,6 +63,13 @@ export default function PositionSwiper({ initialPositions }){
   }
 
   const top = stack && stack.length ? stack[0] : null;
+  
+  // Sign blob URLs
+  const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  const companyLogoRaw = top?.employer?.logoUrl ?? top?.employer?.LogoUrl ?? null;
+  const { signedUrl: companyLogo } = useSignedBlobUrl(companyLogoRaw, token);
+  const posterVideoRaw = top?.posterVideoUrl ?? top?.PosterVideoUrl ?? null;
+  const { signedUrl: posterVideo } = useSignedBlobUrl(posterVideoRaw, token);
 
   if (loading) return <div className="text-center">Loading positions…</div>
   if (!top) return <div className="alert alert-secondary">No more positions</div>
@@ -69,7 +77,6 @@ export default function PositionSwiper({ initialPositions }){
   // Extract position data with correct API structure
   const title = top.title ?? top.Title ?? top.jobTitle ?? 'Position';
   const companyName = top.employer?.companyName ?? top.employer?.CompanyName ?? 'Company not specified';
-  const companyLogo = top.employer?.logoUrl ?? top.employer?.LogoUrl ?? null;
   const companyDescription = top.employer?.companyDescription ?? top.employer?.CompanyDescription ?? 'A great company to work for.';
   const companyWebsite = top.employer?.companyWebsite ?? top.employer?.CompanyWebsite ?? 'https://example.com';
   const companySize = top.employer?.companySize ?? top.employer?.CompanySize ?? null;
@@ -256,7 +263,7 @@ export default function PositionSwiper({ initialPositions }){
           </div>
 
           {/* Video Section */}
-          {top.posterVideoUrl && (
+          {posterVideo && (
             <div className="p-4 bg-white">
               <h5 className="fw-bold mb-3 text-dark">
                 <i className="fas fa-video me-2 text-danger"></i>
@@ -268,7 +275,7 @@ export default function PositionSwiper({ initialPositions }){
                   className="w-100 h-100"
                   style={{ objectFit: 'contain' }}
                 >
-                  <source src={top.posterVideoUrl} type="video/mp4" />
+                  <source src={posterVideo} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
               </div>

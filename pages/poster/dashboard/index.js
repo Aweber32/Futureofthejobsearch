@@ -5,6 +5,7 @@ import Layout from '../../../components/Layout';
 import CompanyCard from '../../../components/CompanyCard';
 import PositionList from '../../../components/PositionList';
 import { API_CONFIG } from '../../../config/api';
+import { signBlobUrl } from '../../../utils/blobHelpers';
 
 const API = API_CONFIG.BASE_URL;
 
@@ -27,18 +28,9 @@ export default function Dashboard(){
         if (!data.employer) { setCompany(null); setPositions([]); return; }
         const emp = data.employer;
         let logo = emp.logoUrl;
-        // If we have a logo path/url stored, request an on-demand SAS URL
+        // Sign the logo URL if it's a path-only reference
         if (logo) {
-          try {
-            const res = await fetch(`${API}/api/employers/${emp.id}/logo-sas`, { headers: { Authorization: `Bearer ${token}` } });
-            if (res.ok){
-              const body = await res.json();
-              if (body?.url) logo = body.url;
-            }
-          } catch (e) {
-            // ignore and fall back to stored logo
-            console.warn('Failed to fetch logo SAS', e);
-          }
+          logo = await signBlobUrl(logo, token);
         }
 
         setCompany({ name: emp.companyName, logo, description: emp.companyDescription });

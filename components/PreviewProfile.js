@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useSignedBlobUrl } from '../utils/blobHelpers';
 
 const PreviewProfile = ({ seeker, show, onHide }) => {
+  // Sign blob URLs
+  const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  const { signedUrl: headshotUrl } = useSignedBlobUrl(seeker?.headshotUrl, token);
+  const { signedUrl: videoUrl } = useSignedBlobUrl(seeker?.videoUrl, token);
+  const { signedUrl: resumeUrl } = useSignedBlobUrl(seeker?.resumeUrl, token);
+
   useEffect(() => {
     if (show) {
       document.body.style.overflow = 'hidden';
@@ -84,9 +91,9 @@ const PreviewProfile = ({ seeker, show, onHide }) => {
                         overflow: 'hidden',
                         position: 'relative'
                       }}>
-                        {seeker.headshotUrl ? (
+                        {headshotUrl ? (
                           <img
-                            src={seeker.headshotUrl}
+                            src={headshotUrl}
                             alt={`${seeker.firstName} ${seeker.lastName}`}
                             style={{
                               width: '100%',
@@ -245,7 +252,7 @@ const PreviewProfile = ({ seeker, show, onHide }) => {
                   )}
 
                   {/* Video Section */}
-                  {seeker.videoUrl && (
+                  {videoUrl && (
                     <div style={{ marginBottom: '24px' }}>
                       <h4 style={{ color: '#333', marginBottom: '16px', borderBottom: '2px solid #667eea', paddingBottom: '8px' }}>
                         Video Introduction
@@ -269,7 +276,7 @@ const PreviewProfile = ({ seeker, show, onHide }) => {
                             borderRadius: '8px'
                           }}
                         >
-                          <source src={seeker.videoUrl} type="video/mp4" />
+                          <source src={videoUrl} type="video/mp4" />
                           Your browser does not support the video tag.
                         </video>
                       </div>

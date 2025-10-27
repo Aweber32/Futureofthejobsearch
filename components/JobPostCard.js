@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useSignedBlobUrl } from '../utils/blobHelpers';
 
 const JobPostCard = ({ position, show, onHide }) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
+
+  // Sign blob URLs
+  const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  const { signedUrl: posterVideo } = useSignedBlobUrl(position?.posterVideoUrl, token);
 
   console.log('JobPostCard render:', { position, show, onHide });
   console.log('🔍 Company size in position:', position.companySize);
@@ -238,7 +243,7 @@ const JobPostCard = ({ position, show, onHide }) => {
                 </div>
 
                 {/* Video Section */}
-                {position.posterVideoUrl && (
+                {posterVideo && (
                   <div className="p-4 bg-white">
                     <h5 className="fw-bold mb-3 text-dark">
                       <i className="fas fa-video me-2 text-danger"></i>
@@ -250,7 +255,7 @@ const JobPostCard = ({ position, show, onHide }) => {
                         className="w-100 h-100"
                         style={{ objectFit: 'contain' }}
                       >
-                        <source src={position.posterVideoUrl} type="video/mp4" />
+                        <source src={posterVideo} type="video/mp4" />
                         Your browser does not support the video tag.
                       </video>
                     </div>

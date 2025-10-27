@@ -1,7 +1,14 @@
 import React from 'react';
+import { useSignedBlobUrl } from '../utils/blobHelpers';
 
 const SeekerProfilePreview = ({ seeker, onInterested, onNotInterested }) => {
   if (!seeker) return null;
+
+  // Sign blob URLs
+  const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  const { signedUrl: headshotUrl } = useSignedBlobUrl(seeker.headshotUrl, token);
+  const { signedUrl: videoUrl } = useSignedBlobUrl(seeker.videoUrl, token);
+  const { signedUrl: resumeUrl } = useSignedBlobUrl(seeker.resumeUrl, token);
 
   // Parse data similar to PreviewProfile
   const experience = seeker.experienceJson ? JSON.parse(seeker.experienceJson) : [];
@@ -39,14 +46,14 @@ const SeekerProfilePreview = ({ seeker, onInterested, onNotInterested }) => {
               width: '80px',
               height: '80px',
               borderRadius: '50%',
-              background: seeker.headshotUrl ? `url(${seeker.headshotUrl})` : '#ccc',
+              background: headshotUrl ? `url(${headshotUrl})` : '#ccc',
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               margin: '0 auto',
               border: '3px solid white',
               boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
             }}>
-              {!seeker.headshotUrl && (
+              {!headshotUrl && (
                 <div style={{
                   width: '100%',
                   height: '100%',
@@ -83,7 +90,7 @@ const SeekerProfilePreview = ({ seeker, onInterested, onNotInterested }) => {
       <div style={{ padding: '20px' }}>
 
         {/* Video Section */}
-        {seeker.videoUrl && (
+        {videoUrl && (
           <div style={{ marginBottom: '20px' }}>
             <h5 style={{ color: '#333', marginBottom: '12px', borderBottom: '2px solid #667eea', paddingBottom: '4px' }}>
               Video Introduction
@@ -107,7 +114,7 @@ const SeekerProfilePreview = ({ seeker, onInterested, onNotInterested }) => {
                   borderRadius: '8px'
                 }}
               >
-                <source src={seeker.videoUrl} type="video/mp4" />
+                <source src={videoUrl} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>
@@ -181,10 +188,10 @@ const SeekerProfilePreview = ({ seeker, onInterested, onNotInterested }) => {
         )}
 
         {/* Resume Link */}
-        {seeker.resumeUrl && (
+        {resumeUrl && (
           <div style={{ marginBottom: '20px', textAlign: 'center' }}>
             <a
-              href={seeker.resumeUrl}
+              href={resumeUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-outline-primary btn-sm"

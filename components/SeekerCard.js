@@ -1,10 +1,17 @@
+import { useSignedBlobUrl } from '../utils/blobHelpers';
+
 export default function SeekerCard({ seeker = {} }){
   const firstName = seeker?.firstName ?? seeker?.FirstName ?? seeker?.user?.firstName ?? seeker?.user?.name ?? '';
   const lastName = seeker?.lastName ?? seeker?.LastName ?? '';
   const name = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : 'Job Seeker';
   const summary = seeker?.headline ?? '';
-  const resume = seeker?.resumeUrl ?? seeker?.ResumeUrl ?? '';
-  const video = seeker?.videoUrl ?? seeker?.VideoUrl ?? '';
+  const resumeRaw = seeker?.resumeUrl ?? seeker?.ResumeUrl ?? '';
+  const videoRaw = seeker?.videoUrl ?? seeker?.VideoUrl ?? '';
+  
+  // Sign blob URLs
+  const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  const { signedUrl: resume } = useSignedBlobUrl(resumeRaw, token);
+  const { signedUrl: video } = useSignedBlobUrl(videoRaw, token);
 
   return (
     <div className="d-flex align-items-center">
