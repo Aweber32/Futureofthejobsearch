@@ -42,6 +42,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
                 // Parse account info from connection string
                 string acctName = string.Empty, acctKey = string.Empty, connSas = string.Empty;
+                string blobEndpoint = string.Empty;
                 foreach (var p in conn.Split(';', StringSplitOptions.RemoveEmptyEntries))
                 {
                     var kv = p.Split('=', 2);
@@ -51,6 +52,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
                     if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
                     if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
                     if (k.Equals("SharedAccessSignature", StringComparison.OrdinalIgnoreCase)) connSas = v.TrimStart('?');
+                    if (k.Equals("BlobEndpoint", StringComparison.OrdinalIgnoreCase)) blobEndpoint = v;
                 }
 
                 // If we have an account key, generate a short-lived read SAS
@@ -77,8 +79,22 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 // Otherwise, if the connection string itself has a SAS, append it
                 if (!string.IsNullOrEmpty(connSas))
                 {
-                    // Prefer the host from the incoming URL to support CDN/custom domains; otherwise use accountName
-                    var baseUri = new Uri($"{uri.Scheme}://{uri.Host}");
+                    // Use the BlobEndpoint from connection string to ensure correct storage account name
+                    Uri baseUri;
+                    if (!string.IsNullOrEmpty(blobEndpoint))
+                    {
+                        baseUri = new Uri(blobEndpoint.TrimEnd('/'));
+                    }
+                    else if (!string.IsNullOrEmpty(acctName))
+                    {
+                        baseUri = new Uri($"https://{acctName}.blob.core.windows.net");
+                    }
+                    else
+                    {
+                        // Fallback to incoming URL host (not ideal, but maintains backward compatibility)
+                        baseUri = new Uri($"{uri.Scheme}://{uri.Host}");
+                    }
+                    
                     var blobUri = new Uri(baseUri, $"/{containerName}/{blobName}");
                     var signed = $"{blobUri}?{connSas}";
                     return Ok(new { url = signed });
