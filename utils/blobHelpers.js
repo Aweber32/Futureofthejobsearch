@@ -28,9 +28,13 @@ export async function signBlobUrl(pathOrUrl, token, minutes = 60) {
     const fullBlobUrl = `https://futureofthejobsearch.blob.core.windows.net/${pathOrUrl}`;
     const encodedUrl = encodeURIComponent(fullBlobUrl);
     
-    console.log('[Blob Helper] Signing URL:', { pathOrUrl, fullBlobUrl, apiUrl, signEndpoint: `${apiUrl}/api/uploads/sign` });
+    // Remove any trailing slashes and ensure clean URL construction
+    const cleanApiUrl = apiUrl.replace(/\/+$/, '');
+    const signEndpoint = `${cleanApiUrl}/api/uploads/sign`;
     
-    const res = await fetch(`${apiUrl}/api/uploads/sign?url=${encodedUrl}&minutes=${minutes}`, {
+    console.log('[Blob Helper] Signing URL:', { pathOrUrl, fullBlobUrl, apiUrl, signEndpoint });
+    
+    const res = await fetch(`${signEndpoint}?url=${encodedUrl}&minutes=${minutes}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
     
