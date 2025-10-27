@@ -55,6 +55,9 @@ jobs:
         file: Dockerfile.frontend
         push: true
         tags: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        build-args: |
+          NEXT_PUBLIC_API_URL=${{ env.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_API_BASE=${{ env.NEXT_PUBLIC_API_BASE }}
 
     - name: Update App Service to use new image
       run: |
