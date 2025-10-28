@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { API_CONFIG } from '../config/api'
 import { useSignedBlobUrl } from '../utils/blobHelpers'
 
@@ -6,6 +7,7 @@ export default function PositionSwiper({ initialPositions }){
   const [stack, setStack] = useState(initialPositions || []);
   const [loading, setLoading] = useState(!initialPositions);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [exitDirection, setExitDirection] = useState(null); // 'left' | 'right' | null
 
   const top = stack && stack.length ? stack[0] : null;
   
@@ -46,6 +48,50 @@ export default function PositionSwiper({ initialPositions }){
 
   function removeTop(){ setStack(s => s.slice(1)); }
 
+  // Animation variants for smooth enter/center/exit transitions
+  const swipeVariants = {
+    enter: { x: 0, y: 12, scale: 0.98, opacity: 0.9 },
+    center: { x: 0, y: 0, scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 380, damping: 30, mass: 0.9 } },
+    exitRight: { x: 520, rotate: 6, opacity: 0, transition: { type: 'spring', stiffness: 260, damping: 22, mass: 0.85 } },
+    exitLeft: { x: -520, rotate: -6, opacity: 0, transition: { type: 'spring', stiffness: 260, damping: 22, mass: 0.85 } }
+  };
+
+  function handleInterested(){
+    if (!top || exitDirection) return;
+    setExitDirection('right');
+    // Fire network update optimistically
+    markInterested(top);
+    // Remove the card on next frame so exit animation can read latest state
+    requestAnimationFrame(() => removeTop());
+    // Reset exit direction after animation window
+    setTimeout(() => setExitDirection(null), 500);
+  }
+
+  function handleNotInterested(){
+    if (!top || exitDirection) return;
+    setExitDirection('left');
+    // Fire network update optimistically
+    markNotInterested(top);
+    // Remove the card on next frame so exit animation can read latest state
+    requestAnimationFrame(() => removeTop());
+    // Reset exit direction after animation window
+    setTimeout(() => setExitDirection(null), 500);
+  }
+
+  // Keyboard shortcuts for quick actions, ignore while typing or animating
+  useEffect(() => {
+    function onKey(e){
+      if (exitDirection) return;
+      const t = e.target;
+      const isTyping = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+      if (isTyping) return;
+      if (e.key === 'ArrowRight') handleInterested();
+      if (e.key === 'ArrowLeft') handleNotInterested();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [exitDirection, top]);
+
   async function markInterested(position){
     try{
       let positionId = position.id ?? position.Id ?? position.positionId ?? position.PositionId;
@@ -54,13 +100,17 @@ export default function PositionSwiper({ initialPositions }){
       const base = API_CONFIG.BASE_URL;
       const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
       const existingId = position._interest?.id ?? position._interest?.Id ?? null;
-      if (existingId){
-        await fetch(`${base}/api/positioninterests/${existingId}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ interested: true }) });
-      } else {
-        await fetch(`${base}/api/positioninterests`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ positionId, interested: true }) });
-      }
+      // Optimistic: fire-and-forget network request
+      (async () => {
+        try{
+          if (existingId){
+            await fetch(`${base}/api/positioninterests/${existingId}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ interested: true }) });
+          } else {
+            await fetch(`${base}/api/positioninterests`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ positionId, interested: true }) });
+          }
+        }catch(_){}
+      })();
     }catch(e){ /* non-blocking */ }
-    removeTop();
   }
 
   async function markNotInterested(position){
@@ -71,13 +121,17 @@ export default function PositionSwiper({ initialPositions }){
       const base = API_CONFIG.BASE_URL;
       const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
       const existingId = position._interest?.id ?? position._interest?.Id ?? null;
-      if (existingId){
-        await fetch(`${base}/api/positioninterests/${existingId}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ interested: false }) });
-      } else {
-        await fetch(`${base}/api/positioninterests`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ positionId, interested: false }) });
-      }
+      // Optimistic: fire-and-forget network request
+      (async () => {
+        try{
+          if (existingId){
+            await fetch(`${base}/api/positioninterests/${existingId}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ interested: false }) });
+          } else {
+            await fetch(`${base}/api/positioninterests`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ positionId, interested: false }) });
+          }
+        }catch(_){}
+      })();
     }catch(e){ }
-    removeTop();
   }
 
   if (loading) return <div className="text-center">Loading positions…</div>
@@ -129,9 +183,24 @@ export default function PositionSwiper({ initialPositions }){
 
   const description = top.description ?? top.Description ?? 'No description provided.';
 
+  // Unique key for the current top card to drive enter/exit animations
+  const topKey = (top?.id ?? top?.Id ?? top?.positionId ?? top?.PositionId ?? `idx-${stack.length}`) + '';
+
   return (
     <div className="position-swiper">
-      <div className="card border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', maxWidth: '800px', margin: '0 auto' }}>
+      {/* Action bar will now render below the card (sticky within content) */}
+
+      <AnimatePresence mode="wait" initial={false}>
+      {top && (
+        <motion.div
+          key={topKey}
+          className="card border-0 shadow-lg"
+          style={{ borderRadius: '20px', overflow: 'hidden', maxWidth: '800px', margin: '0 auto' }}
+          variants={swipeVariants}
+          initial="enter"
+          animate="center"
+          exit={exitDirection === 'right' ? 'exitRight' : exitDirection === 'left' ? 'exitLeft' : undefined}
+        >
         {/* Top Section - Bumble Style Gradient Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
           <div className="row align-items-center">
@@ -175,8 +244,8 @@ export default function PositionSwiper({ initialPositions }){
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="modal-body p-0" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+  {/* Main Content */}
+  <div className="modal-body p-0">
           {/* Two Column Layout */}
           <div className="row g-0">
             {/* Left Column - Job Description */}
@@ -326,26 +395,35 @@ export default function PositionSwiper({ initialPositions }){
           </div>
         </div>
 
-        {/* Action Buttons Footer */}
-        <div className="bg-white border-top p-3">
-          <div className="d-flex flex-column flex-sm-row justify-content-between gap-2">
-            <button 
-              className="btn btn-outline-danger flex-fill" 
-              onClick={()=>markNotInterested(top)}
-              style={{minHeight: '44px'}}
-            >
-              Not Interested
-            </button>
-            <button 
-              className="btn btn-success flex-fill" 
-              onClick={()=>markInterested(top)}
-              style={{minHeight: '44px'}}
-            >
-              I'm Interested
-            </button>
-          </div>
+        {/* Footer removed: actions moved to sticky bar below */}
+        </motion.div>
+      )}
+      </AnimatePresence>
+  {/* Sticky in-flow action bar: below card, above footer */}
+  {top && (
+    <div className="bg-white border rounded-3 shadow-sm mx-auto mt-3" style={{ maxWidth: '800px', position: 'sticky', bottom: '16px', zIndex: 100 }}>
+      <div className="px-3 py-2">
+        <div className="d-flex gap-2">
+          <button 
+            className="btn btn-outline-danger flex-fill"
+            onClick={handleNotInterested}
+            disabled={!!exitDirection}
+            style={{ minHeight: '44px' }}
+          >
+            Not Interested
+          </button>
+          <button 
+            className="btn btn-primary flex-fill"
+            onClick={handleInterested}
+            disabled={!!exitDirection}
+            style={{ minHeight: '44px' }}
+          >
+            I'm Interested
+          </button>
         </div>
       </div>
+    </div>
+  )}
       <div className="text-muted small mt-2">{stack.length} position(s) left</div>
     </div>
   )
