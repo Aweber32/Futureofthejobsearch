@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
+import SkillAutocomplete from '../../components/SkillAutocomplete';
 import PreviewProfile from '../../components/PreviewProfile';
 import { API_CONFIG } from '../../config/api';
 
@@ -698,7 +699,12 @@ export default function EditProfile(){
         <div className="mb-3">
           <label className="form-label">Skills (min 3, max 8)</label>
           <div className="d-flex gap-2 mb-2">
-            <input className="form-control" value={skillInput} onChange={e=>setSkillInput(e.target.value)} placeholder="Add skill and press Add" />
+              <SkillAutocomplete 
+                value={skillInput} 
+                onChange={e=>setSkillInput(e.target.value)} 
+                onAdd={addSkill}
+                placeholder="Type to search skills..."
+              />
             <button type="button" className="btn btn-outline-secondary" onClick={addSkill}>Add</button>
           </div>
           <div>{skills.map(s=> <span key={s} className="badge bg-secondary me-1">{s} <button type="button" className="btn btn-sm btn-link text-white" onClick={()=>removeSkill(s)}>x</button></span>)}</div>

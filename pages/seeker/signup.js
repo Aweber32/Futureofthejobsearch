@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
+import SkillAutocomplete from '../../components/SkillAutocomplete';
 import Select from 'react-select';
 import { State, City } from 'country-state-city';
 import { API_CONFIG } from '../../config/api';
@@ -573,7 +574,12 @@ export default function SeekerSignup(){
             <div className="mb-3">
               <label className="form-label">Skills (min 3, max 8)</label>
               <div className="d-flex gap-2 mb-2">
-                <input className="form-control" value={skillInput} onChange={e=>setSkillInput(e.target.value)} placeholder="Add skill and press Add" />
+                  <SkillAutocomplete 
+                    value={skillInput} 
+                    onChange={e=>setSkillInput(e.target.value)} 
+                    onAdd={addSkill}
+                    placeholder="Type to search skills..."
+                  />
                 <button type="button" className="btn btn-outline-secondary" onClick={addSkill}>Add</button>
               </div>
               <div>
