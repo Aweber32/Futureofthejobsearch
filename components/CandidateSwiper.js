@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { API_CONFIG } from '../config/api'
 import { useSignedBlobUrl } from '../utils/blobHelpers'
 
 export default function CandidateSwiper({ initialCandidates }){
   const [stack, setStack] = useState(initialCandidates || []);
   const [loading, setLoading] = useState(!initialCandidates);
+  const [exitDirection, setExitDirection] = useState(null); // 'left' | 'right' | null
 
   useEffect(()=>{
     if (initialCandidates && initialCandidates.length>0) return;
@@ -38,6 +40,59 @@ export default function CandidateSwiper({ initialCandidates }){
     setStack(s => s.slice(1));
   }
 
+  // Animation variants for smooth enter/center/exit transitions
+  const swipeVariants = {
+    enter: { x: 0, y: 12, scale: 0.98, opacity: 0.9 },
+    center: { x: 0, y: 0, scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 380, damping: 30, mass: 0.9 } },
+    exitRight: { x: 520, rotate: 6, opacity: 0, transition: { type: 'spring', stiffness: 260, damping: 22, mass: 0.85 } },
+    exitLeft: { x: -520, rotate: -6, opacity: 0, transition: { type: 'spring', stiffness: 260, damping: 22, mass: 0.85 } }
+  };
+
+  function handleInterested(){
+    if (!top || exitDirection) return;
+    setExitDirection('right');
+    // Fire network update optimistically
+    markInterested(top);
+    // Remove the card on next frame so exit animation can read latest state
+    requestAnimationFrame(() => {
+      removeTop();
+      // Scroll to top for next candidate
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    // Reset exit direction after animation window
+    setTimeout(() => setExitDirection(null), 500);
+  }
+
+  function handleNotInterested(){
+    if (!top || exitDirection) return;
+    setExitDirection('left');
+    // Fire network update optimistically
+    markNotInterested(top);
+    // Remove the card on next frame so exit animation can read latest state
+    requestAnimationFrame(() => {
+      removeTop();
+      // Scroll to top for next candidate
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    // Reset exit direction after animation window
+    setTimeout(() => setExitDirection(null), 500);
+  }
+
+  // Keyboard shortcuts for quick actions, ignore while typing or animating
+  useEffect(() => {
+    function onKey(e){
+      if (exitDirection) return;
+      const t = e.target;
+      const isTyping = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+      if (isTyping) return;
+      if (e.key === 'ArrowRight') handleInterested();
+      if (e.key === 'ArrowLeft') handleNotInterested();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exitDirection]);
+
   async function markInterested(candidate){
     try{
       let seekerId = candidate.id ?? candidate.Id ?? candidate.seekerId ?? candidate.SeekerId;
@@ -58,15 +113,19 @@ export default function CandidateSwiper({ initialCandidates }){
       const base = API_CONFIG.BASE_URL;
       const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
       const existingId = candidate._interest?.id ?? candidate._interest?.Id ?? null;
-      if (existingId){
-        await fetch(`${base}/api/seekerinterests/${existingId}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ interested: true }) });
-      } else {
-        await fetch(`${base}/api/seekerinterests`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ seekerId, positionId, interested: true }) });
-      }
+      // Optimistic: fire-and-forget network request
+      (async () => {
+        try{
+          if (existingId){
+            await fetch(`${base}/api/seekerinterests/${existingId}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ interested: true }) });
+          } else {
+            await fetch(`${base}/api/seekerinterests`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ seekerId, positionId, interested: true }) });
+          }
+        }catch(_){}
+      })();
     }catch(e){
       // swallow errors -- we're intentionally non-blocking in the swiper
     }
-    removeTop();
   }
 
   async function markNotInterested(candidate){
@@ -89,15 +148,19 @@ export default function CandidateSwiper({ initialCandidates }){
       const base = API_CONFIG.BASE_URL;
       const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
       const existingId = candidate._interest?.id ?? candidate._interest?.Id ?? null;
-      if (existingId){
-        await fetch(`${base}/api/seekerinterests/${existingId}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ interested: false }) });
-      } else {
-        await fetch(`${base}/api/seekerinterests`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ seekerId, positionId, interested: false }) });
-      }
+      // Optimistic: fire-and-forget network request
+      (async () => {
+        try{
+          if (existingId){
+            await fetch(`${base}/api/seekerinterests/${existingId}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ interested: false }) });
+          } else {
+            await fetch(`${base}/api/seekerinterests`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ seekerId, positionId, interested: false }) });
+          }
+        }catch(_){}
+      })();
     }catch(e){
       // swallow errors -- keep swiper flow uninterrupted
     }
-    removeTop();
   }
 
   const top = stack && stack.length ? stack[0] : null;
@@ -176,16 +239,29 @@ export default function CandidateSwiper({ initialCandidates }){
     return start && end ? `${start} - ${end}` : start || end;
   };
 
+  // Unique key for the current top card to drive enter/exit animations
+  const topKey = (top?.id ?? top?.Id ?? top?.seekerId ?? top?.SeekerId ?? `idx-${stack.length}`) + '';
+
   return (
     <div className="candidate-swiper">
-      <div className="profile-preview-card" style={{
-        background: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-        overflow: 'hidden',
-        maxWidth: '800px',
-        margin: '0 auto'
-      }}>
+      <AnimatePresence mode="wait" initial={false}>
+      {top && (
+        <motion.div
+          key={topKey}
+          className="profile-preview-card" 
+          style={{
+            background: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
+            maxWidth: '800px',
+            margin: '0 auto'
+          }}
+          variants={swipeVariants}
+          initial="enter"
+          animate="center"
+          exit={exitDirection === 'right' ? 'exitRight' : exitDirection === 'left' ? 'exitLeft' : undefined}
+        >
 
         {/* Top Section - Header (Exact copy from PreviewProfile) */}
         <div className="profile-header" style={{
@@ -457,45 +533,37 @@ export default function CandidateSwiper({ initialCandidates }){
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div style={{
-            borderTop: '1px solid #e9ecef',
-            paddingTop: '24px',
-            marginTop: '24px'
-          }}>
-            <div className="row">
-              <div className="col-6 text-center">
-                <button
-                  className="btn btn-outline-danger btn-lg w-100"
-                  onClick={() => markNotInterested(top)}
-                  style={{
-                    padding: '12px 24px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    borderRadius: '8px'
-                  }}
-                >
-                  👎 Not Interested
-                </button>
-              </div>
-              <div className="col-6 text-center">
-                <button
-                  className="btn btn-success btn-lg w-100"
-                  onClick={() => markInterested(top)}
-                  style={{
-                    padding: '12px 24px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    borderRadius: '8px'
-                  }}
-                >
-                  👍 Interested
-                </button>
-              </div>
+          {/* Action Buttons - removed from here, moved to sticky bar */}
+        </div>
+      </motion.div>
+      )}
+      </AnimatePresence>
+
+      {/* Sticky in-flow action bar: below card, above footer */}
+      {top && (
+        <div className="bg-white border rounded-3 shadow-sm mx-auto mt-3" style={{ maxWidth: '800px', position: 'sticky', bottom: '16px', zIndex: 100 }}>
+          <div className="px-3 py-2">
+            <div className="d-flex gap-2">
+              <button 
+                className="btn btn-outline-danger flex-fill"
+                onClick={handleNotInterested}
+                disabled={!!exitDirection}
+                style={{ minHeight: '44px' }}
+              >
+                Not Interested
+              </button>
+              <button 
+                className="btn btn-primary flex-fill"
+                onClick={handleInterested}
+                disabled={!!exitDirection}
+                style={{ minHeight: '44px' }}
+              >
+                I'm Interested
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="text-center mt-3">
         <small className="text-muted">{stack.length} candidate(s) left</small>

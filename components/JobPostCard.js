@@ -89,10 +89,24 @@ const JobPostCard = ({ position, show, onHide }) => {
 
   return (
     <>
-      {/* Bootstrap Modal */}
+      {/* Bootstrap Modal - Full screen scrollable */}
       {show && (
-        <div className="modal fade show d-block" tabIndex="-1" role="dialog">
-          <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div 
+          className="modal fade show d-block" 
+          tabIndex="-1" 
+          role="dialog"
+          style={{
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch'
+          }}
+          onClick={(e) => {
+            // Close when clicking backdrop
+            if (e.target.classList.contains('modal')) {
+              onHide();
+            }
+          }}
+        >
+          <div className="modal-dialog modal-lg my-5" role="document">
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden' }}>
               {/* Close Button */}
               <button
@@ -147,7 +161,7 @@ const JobPostCard = ({ position, show, onHide }) => {
               </div>
 
               {/* Main Content */}
-              <div className="modal-body p-0" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              <div className="modal-body p-0">
                 {/* Two Column Layout */}
                 <div className="row g-0">
                   {/* Left Column - Job Description */}

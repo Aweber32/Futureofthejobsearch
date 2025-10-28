@@ -62,7 +62,11 @@ export default function PositionSwiper({ initialPositions }){
     // Fire network update optimistically
     markInterested(top);
     // Remove the card on next frame so exit animation can read latest state
-    requestAnimationFrame(() => removeTop());
+    requestAnimationFrame(() => {
+      removeTop();
+      // Scroll to top for next position
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
     // Reset exit direction after animation window
     setTimeout(() => setExitDirection(null), 500);
   }
@@ -73,7 +77,11 @@ export default function PositionSwiper({ initialPositions }){
     // Fire network update optimistically
     markNotInterested(top);
     // Remove the card on next frame so exit animation can read latest state
-    requestAnimationFrame(() => removeTop());
+    requestAnimationFrame(() => {
+      removeTop();
+      // Scroll to top for next position
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
     // Reset exit direction after animation window
     setTimeout(() => setExitDirection(null), 500);
   }
