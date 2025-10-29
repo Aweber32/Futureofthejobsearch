@@ -61,7 +61,23 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
                 await emailService.SendAsync(to, subject, body);
 
-                return Ok(new { ok = true, provider, to });
+                string Mask(string? value)
+                {
+                    if (string.IsNullOrEmpty(value)) return string.Empty;
+                    if (value.Length <= 8) return new string('*', value.Length);
+                    return value.Substring(0, 6) + "..." + value.Substring(value.Length - 4);
+                }
+
+                var acsEndpoint = _config["Acs:Endpoint"] ?? Environment.GetEnvironmentVariable("ACS_EMAIL_ENDPOINT") ?? string.Empty;
+                var acsFrom = _config["Acs:From"] ?? _config["Smtp:From"] ?? string.Empty;
+                var smtpHost = _config["Smtp:Host"] ?? Environment.GetEnvironmentVariable("SMTP_HOST") ?? string.Empty;
+                var smtpFrom = _config["Smtp:From"] ?? Environment.GetEnvironmentVariable("SMTP_FROM") ?? string.Empty;
+
+                var details = env.IsProduction()
+                    ? new { acsEndpoint = Mask(acsEndpoint), acsFrom = Mask(acsFrom), smtpHost = Mask(smtpHost), smtpFrom = Mask(smtpFrom) }
+                    : new { acsEndpoint, acsFrom, smtpHost, smtpFrom };
+
+                return Ok(new { ok = true, provider, to, details });
             }
             catch (Exception ex)
             {
