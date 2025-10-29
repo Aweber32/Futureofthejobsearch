@@ -181,7 +181,9 @@ export default function SeekerDashboard(){
             <ul className="dropdown-menu shadow-sm" aria-labelledby="accountDropdown" style={{borderRadius: '8px'}}>
               <li><span className="dropdown-item-text text-muted small">{email}</span></li>
               <li><hr className="dropdown-divider" /></li>
+              <li><Link href="/seeker/analytics" className="dropdown-item">My Analytics</Link></li>
               <li><Link href="/seeker/edit-profile" className="dropdown-item">Edit Profile</Link></li>
+              <li><Link href="/seeker/settings" className="dropdown-item">Settings</Link></li>
               <li><button className="dropdown-item text-danger" onClick={logout}>Logout</button></li>
             </ul>
           </div>

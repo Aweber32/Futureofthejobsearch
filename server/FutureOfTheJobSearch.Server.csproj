@@ -20,5 +20,6 @@
     <PackageReference Include="Microsoft.Azure.SignalR.Management" Version="1.29.0" />
     <PackageReference Include="Azure.Identity" Version="1.11.4" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+    <PackageReference Include="Azure.Communication.Email" Version="1.0.0" />
   </ItemGroup>
 </Project>

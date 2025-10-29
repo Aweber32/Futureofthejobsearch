@@ -306,7 +306,22 @@ export default function InterestedPositionsList({ seeker }){
           </div>
         </motion.div>
       ))}
-      {activePosition && <PositionReviewModal position={activePosition} onClose={()=>setActivePosition(null)} />}
+      {activePosition && (
+        <PositionReviewModal 
+          position={activePosition} 
+          onClose={()=>setActivePosition(null)}
+          onNotInterested={(pos)=>{
+            const pid = pos?.id ?? pos?.Id ?? pos?.positionId ?? pos?.PositionId;
+            if (pid != null) {
+              setItems(curr => curr.filter(it => {
+                const itId = it.id ?? it.Id ?? it.positionId ?? it.PositionId;
+                return String(itId) !== String(pid);
+              }));
+            }
+            setActivePosition(null);
+          }}
+        />
+      )}
     </div>
   );
 }

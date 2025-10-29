@@ -16,6 +16,7 @@ using Microsoft.Azure.SignalR; // added for Azure SignalR extensions
 using Microsoft.Extensions.Logging;
 using Azure.Identity;
 using Microsoft.AspNetCore.Mvc;
+using FutureOfTheJobSearch.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -71,6 +72,9 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Email service registration
+builder.Services.AddTransient<IEmailService, EmailService>();
 
 // DbContext - connection string must come from appsettings or environment (use Azure DefaultConnection)
 // var conn already defined above for SAS job

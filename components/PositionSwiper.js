@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { API_CONFIG } from '../config/api'
 import { useSignedBlobUrl } from '../utils/blobHelpers'
 
-export default function PositionSwiper({ initialPositions }){
+export default function PositionSwiper({ initialPositions, onInterested, onNotInterested }){
   const [stack, setStack] = useState(initialPositions || []);
   const [loading, setLoading] = useState(!initialPositions);
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -61,6 +61,8 @@ export default function PositionSwiper({ initialPositions }){
     setExitDirection('right');
     // Fire network update optimistically
     markInterested(top);
+    // Notify parent immediately
+    try { if (typeof onInterested === 'function') onInterested(top); } catch(_){}
     // Remove the card on next frame so exit animation can read latest state
     requestAnimationFrame(() => {
       removeTop();
@@ -76,6 +78,8 @@ export default function PositionSwiper({ initialPositions }){
     setExitDirection('left');
     // Fire network update optimistically
     markNotInterested(top);
+    // Notify parent immediately
+    try { if (typeof onNotInterested === 'function') onNotInterested(top); } catch(_){}
     // Remove the card on next frame so exit animation can read latest state
     requestAnimationFrame(() => {
       removeTop();
@@ -155,14 +159,38 @@ export default function PositionSwiper({ initialPositions }){
   const state = top.employer?.state ?? top.employer?.State ?? 'State';
 
   // Extract requirements data from nested objects
-  const educationArr = Array.isArray(top.educations) ? 
-                      top.educations.map(edu => edu.education ?? edu.Education ?? edu).filter(Boolean) : [];
-  
-  const experiencesArr = Array.isArray(top.experiences) ? 
-                         top.experiences.map(exp => exp.experience ?? exp.Experience ?? exp).filter(Boolean) : [];
-  
-  const skillsArr = Array.isArray(top.skillsList) ? 
-                    top.skillsList.map(skill => skill.skill ?? skill.Skill ?? skill).filter(Boolean) : [];
+  // Normalize requirements arrays from multiple possible shapes/keys
+  const rawEducations = Array.isArray(top.educations)
+    ? top.educations
+    : Array.isArray(top.educationLevels)
+      ? top.educationLevels
+      : Array.isArray(top.education)
+        ? top.education
+        : [];
+
+  const rawExperiences = Array.isArray(top.experiences)
+    ? top.experiences
+    : Array.isArray(top.experience)
+      ? top.experience
+      : [];
+
+  const rawSkills = Array.isArray(top.skillsList)
+    ? top.skillsList
+    : Array.isArray(top.skills)
+      ? top.skills
+      : [];
+
+  const educationArr = rawEducations
+    .map(edu => (edu?.education ?? edu?.Education ?? edu))
+    .filter(Boolean);
+
+  const experiencesArr = rawExperiences
+    .map(exp => (exp?.experience ?? exp?.Experience ?? exp))
+    .filter(Boolean);
+
+  const skillsArr = rawSkills
+    .map(skill => (skill?.skill ?? skill?.Skill ?? skill))
+    .filter(Boolean);
 
   // Helper functions
   const formatCompanySize = (size) => {
@@ -178,11 +206,23 @@ export default function PositionSwiper({ initialPositions }){
   };
 
   const formatSalary = () => {
-    if (top.salaryType === 'None' || !top.salaryMin) return 'Salary not specified';
-    const min = new Intl.NumberFormat('en-US').format(top.salaryMin);
-    const max = top.salaryMax ? ` - $${new Intl.NumberFormat('en-US').format(top.salaryMax)}` : '';
-    const period = top.salaryType?.toLowerCase() ?? '';
-    return `$${min}${max} ${period}`;
+    const type = top.salaryType ?? top.SalaryType ?? 'None';
+    const val = top.salaryValue ?? top.SalaryValue;
+    const minVal = top.salaryMin ?? top.SalaryMin;
+    const maxVal = top.salaryMax ?? top.SalaryMax;
+
+    // Fixed salary
+    if (val && type && type !== 'None') {
+      const v = new Intl.NumberFormat('en-US').format(Number(val));
+      return `$${v} ${type.toLowerCase()}`;
+    }
+    // Range
+    if (minVal && type && type !== 'None') {
+      const min = new Intl.NumberFormat('en-US').format(Number(minVal));
+      const max = maxVal ? ` - $${new Intl.NumberFormat('en-US').format(Number(maxVal))}` : '';
+      return `$${min}${max} ${type.toLowerCase()}`;
+    }
+    return 'Salary not specified';
   };
 
   const shouldShowMore = (text) => {
@@ -287,12 +327,12 @@ export default function PositionSwiper({ initialPositions }){
             {/* Right Column - Requirements */}
             <div className="col-md-5 p-4 bg-light">
               {/* Education Requirements */}
-              {educationArr.length > 0 && (
-                <div className="mb-4">
-                  <h6 className="fw-bold mb-3 text-dark">
-                    <i className="fas fa-graduation-cap me-2 text-success"></i>
-                    Education Requirements
-                  </h6>
+              <div className="mb-4">
+                <h6 className="fw-bold mb-3 text-dark">
+                  <i className="fas fa-graduation-cap me-2 text-success"></i>
+                  Education Requirements
+                </h6>
+                {educationArr.length > 0 ? (
                   <div className="d-flex flex-wrap gap-2">
                     {educationArr.map((edu, index) => (
                       <span key={index} className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2">
@@ -300,16 +340,18 @@ export default function PositionSwiper({ initialPositions }){
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-muted mb-0">Not specified</p>
+                )}
+              </div>
 
               {/* Experience Requirements */}
-              {experiencesArr.length > 0 && (
-                <div className="mb-4">
-                  <h6 className="fw-bold mb-3 text-dark">
-                    <i className="fas fa-briefcase me-2 text-info"></i>
-                    Experience Requirements
-                  </h6>
+              <div className="mb-4">
+                <h6 className="fw-bold mb-3 text-dark">
+                  <i className="fas fa-briefcase me-2 text-info"></i>
+                  Experience Requirements
+                </h6>
+                {experiencesArr.length > 0 ? (
                   <div className="d-flex flex-wrap gap-2">
                     {experiencesArr.map((exp, index) => (
                       <span key={index} className="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2">
@@ -317,16 +359,18 @@ export default function PositionSwiper({ initialPositions }){
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-muted mb-0">Not specified</p>
+                )}
+              </div>
 
               {/* Skills */}
-              {skillsArr.length > 0 && (
-                <div className="mb-4">
-                  <h6 className="fw-bold mb-3 text-dark">
-                    <i className="fas fa-star me-2 text-warning"></i>
-                    Skills
-                  </h6>
+              <div className="mb-4">
+                <h6 className="fw-bold mb-3 text-dark">
+                  <i className="fas fa-star me-2 text-warning"></i>
+                  Skills
+                </h6>
+                {skillsArr.length > 0 ? (
                   <div className="d-flex flex-wrap gap-2">
                     {skillsArr.map((skill, index) => (
                       <span key={index} className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-2">
@@ -334,8 +378,10 @@ export default function PositionSwiper({ initialPositions }){
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-muted mb-0">Not specified</p>
+                )}
+              </div>
 
               {/* Salary */}
               <div className="mb-4">
@@ -382,7 +428,7 @@ export default function PositionSwiper({ initialPositions }){
                 <div className="text-center">
                   <i className="fas fa-plane fa-2x text-info mb-2"></i>
                   <h6 className="fw-bold text-dark mb-1">Travel Requirements</h6>
-                  <p className="text-muted mb-0">{top.travel ?? 'None'}</p>
+                  <p className="text-muted mb-0">{top.travelRequirements ?? top.TravelRequirements ?? 'None'}</p>
                 </div>
               </div>
               <div className="col-md-3">

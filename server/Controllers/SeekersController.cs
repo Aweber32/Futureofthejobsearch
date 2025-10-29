@@ -243,6 +243,85 @@ namespace FutureOfTheJobSearch.Server.Controllers
             return Ok(new { message = "Seeker deleted" });
         }
 
+        // Change account email (Identity user). Requires current password for safety.
+        [HttpPost("change-email")]
+        [Authorize]
+        public async Task<IActionResult> ChangeEmail([FromBody] ChangeEmailRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.NewEmail) || string.IsNullOrWhiteSpace(req.Password))
+                return BadRequest(new { error = "Missing email or password" });
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Unauthorized(new { error = "Unauthorized" });
+
+            // Validate password
+            var valid = await _userManager.CheckPasswordAsync(user, req.Password);
+            if (!valid) return Unauthorized(new { error = "Invalid password" });
+
+            // Check if email already in use
+            var existing = await _userManager.FindByEmailAsync(req.NewEmail);
+            if (existing != null && existing.Id != user.Id)
+                return BadRequest(new { error = "Email already in use" });
+
+            user.Email = req.NewEmail;
+            user.UserName = req.NewEmail; // keep username aligned with email
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded) return BadRequest(new { error = "Failed to update email", details = result.Errors });
+
+            return Ok(new { message = "Email updated", email = user.Email });
+        }
+
+    // Change account password (authenticated)
+        [HttpPost("change-password")]
+        [Authorize]
+        [ApiExplorerSettings(IgnoreApi = true)] // Hidden: we're standardizing on email-based password reset
+        public IActionResult ChangePassword([FromBody] ChangePasswordRequest req)
+        {
+            // Direct password change has been disabled to ensure a single, audited flow via email reset links.
+            // This endpoint is intentionally returning 404 to discourage usage by clients.
+            return NotFound(new { error = "Direct password change is disabled. Use the email password reset flow." });
+        }
+
+        // Request password reset email (unauthenticated flow)
+        [HttpPost("password-reset-request")]
+        [AllowAnonymous]
+        public async Task<IActionResult> PasswordResetRequest([FromServices] FutureOfTheJobSearch.Server.Services.IEmailService emailService, [FromBody] PasswordResetRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Email)) return BadRequest(new { error = "Email is required" });
+            var user = await _userManager.FindByEmailAsync(req.Email);
+            if (user == null)
+            {
+                // Do not reveal that the user does not exist
+                return Ok(new { message = "If an account exists, a reset link has been sent." });
+            }
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            // Frontend URL to handle reset
+            var frontendBase = _config["FrontendBaseUrl"] ?? Environment.GetEnvironmentVariable("FRONTEND_BASE_URL") ?? "http://localhost:3000";
+            var resetUrl = $"{frontendBase.TrimEnd('/')}/seeker/reset-password?uid={Uri.EscapeDataString(user.Id)}&token={Uri.EscapeDataString(token)}";
+
+            var subject = "Reset your ELEV8R password";
+            var body = $@"<p>We received a request to reset your password.</p>
+                          <p><a href='{resetUrl}'>Click here to reset your password</a>. This link will expire after a short period.</p>
+                          <p>If you did not request this, you can safely ignore this email.</p>";
+            await emailService.SendAsync(user.Email!, subject, body);
+            return Ok(new { message = "If an account exists, a reset link has been sent." });
+        }
+
+        // Confirm password reset (unauthenticated flow)
+        [HttpPost("password-reset-confirm")]
+        [AllowAnonymous]
+        public async Task<IActionResult> PasswordResetConfirm([FromBody] PasswordResetConfirmRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.UserId) || string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.NewPassword))
+                return BadRequest(new { error = "Missing fields" });
+            var user = await _userManager.FindByIdAsync(req.UserId);
+            if (user == null) return BadRequest(new { error = "Invalid user" });
+            var result = await _userManager.ResetPasswordAsync(user, req.Token, req.NewPassword);
+            if (!result.Succeeded) return BadRequest(new { error = "Failed to reset password", details = result.Errors });
+            return Ok(new { message = "Password reset successful" });
+        }
+
     // Normalize various education level strings to canonical set used by the app
     private static string NormalizeEducationLevel(string level)
     {

@@ -76,11 +76,18 @@ const JobPostCard = ({ position, show, onHide }) => {
   console.log('📊 Final companyData:', companyData);
 
   const formatSalary = () => {
-    if (position.salaryType === 'None' || !position.salaryMin) return 'Salary not specified';
-    const min = new Intl.NumberFormat('en-US').format(position.salaryMin);
-    const max = position.salaryMax ? ` - $${new Intl.NumberFormat('en-US').format(position.salaryMax)}` : '';
-    const period = position.salaryType.toLowerCase();
-    return `$${min}${max} ${period}`;
+    const type = position.salaryType ?? 'None';
+    const val = position.salaryValue;
+    if (val && type && type !== 'None') {
+      const v = new Intl.NumberFormat('en-US').format(Number(val));
+      return `$${v} ${type.toLowerCase()}`;
+    }
+    if (type !== 'None' && position.salaryMin) {
+      const min = new Intl.NumberFormat('en-US').format(Number(position.salaryMin));
+      const max = position.salaryMax ? ` - $${new Intl.NumberFormat('en-US').format(Number(position.salaryMax))}` : '';
+      return `$${min}${max} ${type.toLowerCase()}`;
+    }
+    return 'Salary not specified';
   };
 
   const shouldShowMore = (text) => {
@@ -195,55 +202,79 @@ const JobPostCard = ({ position, show, onHide }) => {
                   {/* Right Column - Requirements */}
                   <div className="col-md-5 p-4 bg-light">
                     {/* Education Requirements */}
-                    {(position.education || []).length > 0 && (
-                      <div className="mb-4">
-                        <h6 className="fw-bold mb-3 text-dark">
-                          <i className="fas fa-graduation-cap me-2 text-success"></i>
-                          Education Requirements
-                        </h6>
-                        <div className="d-flex flex-wrap gap-2">
-                          {position.education.map((edu, index) => (
-                            <span key={index} className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2">
-                              {edu}
-                            </span>
-                          ))}
+                    {(() => {
+                      const raw = Array.isArray(position.educations)
+                        ? position.educations
+                        : Array.isArray(position.education)
+                          ? position.education
+                          : Array.isArray(position.educationLevels)
+                            ? position.educationLevels
+                            : [];
+                      const eduArr = raw.map(e => e?.education ?? e?.Education ?? e).filter(Boolean);
+                      return (
+                        <div className="mb-4">
+                          <h6 className="fw-bold mb-3 text-dark">
+                            <i className="fas fa-graduation-cap me-2 text-success"></i>
+                            Education Requirements
+                          </h6>
+                          {eduArr.length > 0 ? (
+                            <div className="d-flex flex-wrap gap-2">
+                              {eduArr.map((edu, i) => (
+                                <span key={i} className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2">
+                                  {typeof edu === 'string' ? edu : (edu?.name ?? edu?.title ?? JSON.stringify(edu))}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (<p className="text-muted mb-0">Not specified</p>)}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Experience Requirements */}
-                    {(position.experiences || []).length > 0 && (
-                      <div className="mb-4">
-                        <h6 className="fw-bold mb-3 text-dark">
-                          <i className="fas fa-briefcase me-2 text-info"></i>
-                          Experience Requirements
-                        </h6>
-                        <div className="d-flex flex-wrap gap-2">
-                          {position.experiences.map((exp, index) => (
-                            <span key={index} className="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2">
-                              {exp}
-                            </span>
-                          ))}
+                    {(() => {
+                      const raw = Array.isArray(position.experiences) ? position.experiences : (Array.isArray(position.experience) ? position.experience : []);
+                      const expArr = raw.map(x => x?.experience ?? x?.Experience ?? x).filter(Boolean);
+                      return (
+                        <div className="mb-4">
+                          <h6 className="fw-bold mb-3 text-dark">
+                            <i className="fas fa-briefcase me-2 text-info"></i>
+                            Experience Requirements
+                          </h6>
+                          {expArr.length > 0 ? (
+                            <div className="d-flex flex-wrap gap-2">
+                              {expArr.map((exp, i) => (
+                                <span key={i} className="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2">
+                                  {typeof exp === 'string' ? exp : (exp?.name ?? exp?.title ?? JSON.stringify(exp))}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (<p className="text-muted mb-0">Not specified</p>)}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Skills */}
-                    {(position.skills || []).length > 0 && (
-                      <div className="mb-4">
-                        <h6 className="fw-bold mb-3 text-dark">
-                          <i className="fas fa-star me-2 text-warning"></i>
-                          Skills
-                        </h6>
-                        <div className="d-flex flex-wrap gap-2">
-                          {position.skills.map((skill, index) => (
-                            <span key={index} className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-2">
-                              {skill}
-                            </span>
-                          ))}
+                    {(() => {
+                      const raw = Array.isArray(position.skillsList) ? position.skillsList : (Array.isArray(position.skills) ? position.skills : []);
+                      const skillsArr = raw.map(s => s?.skill ?? s?.Skill ?? s).filter(Boolean);
+                      return (
+                        <div className="mb-4">
+                          <h6 className="fw-bold mb-3 text-dark">
+                            <i className="fas fa-star me-2 text-warning"></i>
+                            Skills
+                          </h6>
+                          {skillsArr.length > 0 ? (
+                            <div className="d-flex flex-wrap gap-2">
+                              {skillsArr.map((skill, i) => (
+                                <span key={i} className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-2">
+                                  {typeof skill === 'string' ? skill : (skill?.name ?? skill?.title ?? JSON.stringify(skill))}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (<p className="text-muted mb-0">Not specified</p>)}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Salary */}
                     <div className="mb-4">
@@ -290,7 +321,7 @@ const JobPostCard = ({ position, show, onHide }) => {
                       <div className="text-center">
                         <i className="fas fa-plane fa-2x text-info mb-2"></i>
                         <h6 className="fw-bold text-dark mb-1">Travel Requirements</h6>
-                        <p className="text-muted mb-0">{position.travel || 'None'}</p>
+                        <p className="text-muted mb-0">{position.travelRequirements || 'None'}</p>
                       </div>
                     </div>
                     <div className="col-md-3">

@@ -1,6 +1,6 @@
 import PositionSwiper from './PositionSwiper';
 
-export default function PositionReviewModal({ position, onClose }){
+export default function PositionReviewModal({ position, onClose, onInterested, onNotInterested }){
   if (!position) return null;
 
   console.log('🔍 PositionReviewModal received position:', position);
@@ -42,7 +42,11 @@ export default function PositionReviewModal({ position, onClose }){
               </button>
             </div>
             <div>
-              <PositionSwiper initialPositions={[position]} />
+              <PositionSwiper 
+                initialPositions={[position]} 
+                onInterested={onInterested}
+                onNotInterested={onNotInterested}
+              />
             </div>
           </div>
         </div>
