@@ -153,9 +153,9 @@ export default function InterestedPositionsList({ seeker }){
                   <h5 className="mb-2" style={{fontSize: '1.125rem', fontWeight: '600', color: '#111827'}}>
                     {item.title || 'Position'}
                   </h5>
-                  {item.position?.companyName && (
+                  {(item.position?.employer?.companyName || item.position?.companyName) && (
                     <p className="mb-0" style={{fontSize: '14px', color: '#6b7280'}}>
-                      {item.position.companyName}
+                      {item.position?.employer?.companyName || item.position?.companyName}
                     </p>
                   )}
                 </div>
