@@ -285,7 +285,10 @@ namespace FutureOfTheJobSearch.Server.Controllers
         // Request password reset email (unauthenticated flow)
         [HttpPost("password-reset-request")]
         [AllowAnonymous]
-        public async Task<IActionResult> PasswordResetRequest([FromServices] FutureOfTheJobSearch.Server.Services.IEmailService emailService, [FromBody] PasswordResetRequest req)
+        public async Task<IActionResult> PasswordResetRequest(
+            [FromServices] FutureOfTheJobSearch.Server.Services.IEmailService emailService,
+            [FromServices] ILogger<SeekersController> logger,
+            [FromBody] PasswordResetRequest req)
         {
             if (string.IsNullOrWhiteSpace(req.Email)) return BadRequest(new { error = "Email is required" });
             var user = await _userManager.FindByEmailAsync(req.Email);
@@ -304,7 +307,15 @@ namespace FutureOfTheJobSearch.Server.Controllers
             var body = $@"<p>We received a request to reset your password.</p>
                           <p><a href='{resetUrl}'>Click here to reset your password</a>. This link will expire after a short period.</p>
                           <p>If you did not request this, you can safely ignore this email.</p>";
-            await emailService.SendAsync(user.Email!, subject, body);
+            try
+            {
+                await emailService.SendAsync(user.Email!, subject, body);
+            }
+            catch (Exception ex)
+            {
+                // Do not reveal details to the client; log server-side and still return 200 to avoid user enumeration and UX breakage.
+                logger.LogError(ex, "[PasswordResetRequest] Failed to send email to {Email}", user.Email);
+            }
             return Ok(new { message = "If an account exists, a reset link has been sent." });
         }
 
