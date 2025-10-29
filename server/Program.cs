@@ -143,14 +143,48 @@ builder.Services.ConfigureApplicationCookie(options => {
 });
 
 // CORS for local dev and production
+// Reads allowed origins from configuration/env to avoid hard-coding hostnames
+// Keys (any of these will work):
+//   - FrontendBaseUrl (string)
+//   - FRONTEND_BASE_URL (env)
+//   - Cors:AllowedOrigins (comma/semicolon separated)
+//   - CORS__ALLOWEDORIGINS (env, comma/semicolon separated)
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowLocalhost", policy => {
-        var allowedOrigins = new List<string> { "http://localhost:3000" };
-        // Add production frontend URL when not in development
-        if (!builder.Environment.IsDevelopment())
+        var allowedOrigins = new List<string>
         {
-            allowedOrigins.Add("https://futureofthejobsearch-d3d3fad4c2h4g4hc.centralus-01.azurewebsites.net");
+            // sensible local defaults
+            "http://localhost:3000",
+            "https://localhost:3000",
+            "http://127.0.0.1:3000",
+            "https://127.0.0.1:3000"
+        };
+
+        // Single frontend base URL
+        var feUrl = configuration["FrontendBaseUrl"] ?? Environment.GetEnvironmentVariable("FRONTEND_BASE_URL");
+        if (!string.IsNullOrWhiteSpace(feUrl))
+        {
+            allowedOrigins.Add(feUrl.TrimEnd('/'));
         }
+
+        // Multiple origins from config
+        var cfgList = configuration["Cors:AllowedOrigins"] ?? Environment.GetEnvironmentVariable("CORS__ALLOWEDORIGINS");
+        if (!string.IsNullOrWhiteSpace(cfgList))
+        {
+            foreach (var o in cfgList.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                allowedOrigins.Add(o.Trim().TrimEnd('/'));
+            }
+        }
+
+        // De-dup and log
+        allowedOrigins = allowedOrigins
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .Select(o => o.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        Console.WriteLine("[Startup] CORS allowed origins: " + string.Join(", ", allowedOrigins));
 
         policy.WithOrigins(allowedOrigins.ToArray())
               .AllowAnyHeader()
