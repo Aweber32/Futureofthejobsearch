@@ -1,5 +1,6 @@
 import Head from 'next/head';
 import AnnouncementBanner from './AnnouncementBanner';
+import BackButton from './BackButton';
 import Footer from './Footer';
 
 export default function Layout({ children, title = 'ELEV8R - Elevating into the right hire' }) {
@@ -13,7 +14,10 @@ export default function Layout({ children, title = 'ELEV8R - Elevating into the 
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </Head>
       <AnnouncementBanner />
-      <main className="container-fluid container-sm mt-4 px-3 px-sm-4">{children}</main>
+      <main className="container-fluid container-sm mt-4 px-3 px-sm-4">
+        <BackButton />
+        {children}
+      </main>
       <Footer />
     </>
   );

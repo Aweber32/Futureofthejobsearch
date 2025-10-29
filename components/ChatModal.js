@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import * as signalR from '@microsoft/signalr';
 import API_CONFIG from '../config/api';
 
@@ -149,9 +150,26 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
     }
   }
 
-  return (
-    <div className="chat-modal-overlay" role="dialog" aria-modal="true">
-      <div className="chat-modal" data-testid="chat-modal">
+  // Don't render during SSR
+  if (typeof window === 'undefined') return null;
+  
+  // Use portal to render at document body level (escape card container)
+  return createPortal(
+    <div 
+      className="chat-modal-overlay" 
+      role="dialog" 
+      aria-modal="true"
+      style={{
+        animation: 'fadeIn 0.2s ease-out'
+      }}
+    >
+      <div 
+        className="chat-modal" 
+        data-testid="chat-modal"
+        style={{
+          animation: 'popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+        }}
+      >
         <div className="chat-header d-flex align-items-center justify-content-between">
           <div className="d-flex align-items-center">
             <div className="chat-avatar me-2">{(title||'Chat').slice(0,1)}</div>
@@ -206,7 +224,7 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
           <input
             type="text"
             className="form-control me-2"
-            placeholder="iMessage-like chat — type a message"
+            placeholder="Type a message"
             value={input}
             onChange={e=>setInput(e.target.value)}
             onKeyDown={e=>{ if(e.key==='Enter') send(); }}
@@ -216,11 +234,25 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
       </div>
 
       <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes popUp {
+          from { 
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+          }
+          to { 
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
         .chat-modal-overlay{
-          position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;z-index:2000;background:rgba(0,0,0,0.35);
+          position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:2000;background:rgba(0,0,0,0.35);
         }
         .chat-modal{
-          width:420px;max-width:96%;height:640px;border-radius:18px;background:#f7f7f8;box-shadow:0 20px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden;margin-bottom:20px;
+          width:420px;max-width:96%;height:640px;border-radius:18px;background:#f7f7f8;box-shadow:0 20px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden;
         }
         .chat-header{padding:12px 16px;background:linear-gradient(180deg,#ffffff,#f1f1f3);border-bottom:1px solid rgba(0,0,0,0.04)}
         .chat-avatar{width:40px;height:40px;border-radius:20px;background:#dfe6ff;color:#1f2d78;display:flex;align-items:center;justify-content:center;font-weight:700}
@@ -232,12 +264,22 @@ export default function ChatModal({ open, onClose, title, subtitle, conversation
         .chat-input{padding:12px;box-shadow:0 -6px 12px rgba(0,0,0,0.03);background:linear-gradient(180deg,#ffffff,#fafafa)}
         .chat-input .form-control{border-radius:999px;padding:10px 14px}
         /* On small screens keep full-height bottom-aligned (like a sheet). On wider screens center the modal */
-        @media (max-width:480px){ .chat-modal{height:100%;border-radius:0;margin-bottom:0} }
-        @media (min-width:768px){
-          .chat-modal-overlay{align-items:center}
-          .chat-modal{margin-bottom:0}
+        @media (max-width:480px){ 
+          .chat-modal{height:100%;border-radius:0;max-width:100%}
+          .chat-modal-overlay{align-items:flex-end}
+          @keyframes popUp {
+            from { 
+              opacity: 0;
+              transform: translateY(100%);
+            }
+            to { 
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }

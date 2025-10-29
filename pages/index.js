@@ -19,9 +19,319 @@ import {
   Fingerprint,
   BarChart3,
   Activity,
-  MousePointerClick
+  MousePointerClick,
+  MapPin
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+// Job Carousel Component
+const JobCarousel = () => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const carouselCards = [
+    {
+      id: 1,
+      type: 'profile',
+      headline: 'Be more than a Document',
+      title: 'Sarah Johnson',
+      subtitle: 'Senior Software Engineer',
+      location: 'Robinson, IL',
+      experience: '5+ years',
+      skills: 'React, Node.js, AWS',
+      description: 'Passionate full-stack developer with a proven track record of building scalable web applications. Looking for opportunities to make an impact.',
+      logo: '👩‍�',
+      videoPlaceholder: true
+    },
+    {
+      id: 2,
+      type: 'job',
+      headline: 'Find Jobs based on your experience',
+      title: 'Product Manager',
+      company: 'Innovatech Labs',
+      location: 'Louisville, KY',
+      salary: '$90k - $140k',
+      type: 'Full-time',
+      description: 'Lead product strategy and roadmap planning. Work with cross-functional teams to deliver exceptional user experiences.',
+      logo: '💡',
+      videoPlaceholder: true
+    },
+    {
+      id: 3,
+      type: 'profile',
+      headline: 'Showcase Your Skills in Action',
+      title: 'Michael Chen',
+      subtitle: 'UX/UI Designer',
+      location: 'Nashville, TN',
+      experience: '3+ years',
+      skills: 'Figma, Adobe XD, User Research',
+      description: 'Creative designer focused on crafting intuitive user experiences. Let employers see my design process and portfolio highlights.',
+      logo: '🎨',
+      videoPlaceholder: true
+    },
+    {
+      id: 4,
+      type: 'job',
+      headline: 'Companies Looking for Talent Like You',
+      title: 'Data Scientist',
+      company: 'DataFlow Analytics',
+      location: 'Indianapolis, IN',
+      salary: '$95k - $135k',
+      type: 'Full-time',
+      description: 'Transform data into actionable insights. Build ML models and analyze large datasets to drive business decisions.',
+      logo: '📊',
+      videoPlaceholder: true
+    }
+  ];
+
+  useEffect(() => {
+    if (!isHovered) {
+      const interval = setInterval(() => {
+        setCurrentIndex((prev) => (prev + 1) % carouselCards.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isHovered, carouselCards.length]);
+
+  const currentCard = carouselCards[currentIndex];
+
+  return (
+    <div 
+      className="position-relative overflow-hidden py-4"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="container">
+        {/* Dynamic headline above carousel */}
+        <div className="text-center mb-4">
+          <h2 className="fw-bold">{currentCard.headline}</h2>
+        </div>
+
+        <div className="d-flex justify-content-center">
+          <motion.div
+            key={currentCard.id}
+            className="card border-0 shadow-lg"
+            style={{ 
+              width: '100%',
+              maxWidth: '900px'
+            }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="card-body p-4 p-md-5">
+              <div className="row g-4">
+                {/* Left Column - Video Placeholder */}
+                <div className="col-md-5">
+                  <div 
+                    className="bg-primary bg-opacity-10 rounded-3 d-flex flex-column align-items-center justify-content-center position-relative overflow-hidden"
+                    style={{ 
+                      height: '320px',
+                      background: 'transparent'
+                    }}
+                  >
+                    {currentCard.id === 1 ? (
+                      <>
+                        {/* Sarah Johnson's profile image */}
+                        <Image 
+                          src="/SemiProfessionalGirl.png"
+                          alt="Sarah Johnson"
+                          fill
+                          style={{ objectFit: 'cover' }}
+                          className="rounded-3"
+                        />
+                        {/* Smaller play button overlay */}
+                        <div className="position-absolute top-50 start-50 translate-middle">
+                          <div 
+                            className="bg-white rounded-circle shadow-lg d-flex align-items-center justify-content-center"
+                            style={{ width: '60px', height: '60px' }}
+                          >
+                            <div 
+                              style={{ 
+                                width: 0, 
+                                height: 0, 
+                                borderLeft: '18px solid #6366f1',
+                                borderTop: '10px solid transparent',
+                                borderBottom: '10px solid transparent',
+                                marginLeft: '4px'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    ) : currentCard.id === 3 ? (
+                      <>
+                        {/* Michael Chen's profile image */}
+                        <Image 
+                          src="/SemiProfessionalBoy.png"
+                          alt="Michael Chen"
+                          fill
+                          style={{ objectFit: 'cover' }}
+                          className="rounded-3"
+                        />
+                        {/* Smaller play button overlay */}
+                        <div className="position-absolute top-50 start-50 translate-middle">
+                          <div 
+                            className="bg-white rounded-circle shadow-lg d-flex align-items-center justify-content-center"
+                            style={{ width: '60px', height: '60px' }}
+                          >
+                            <div 
+                              style={{ 
+                                width: 0, 
+                                height: 0, 
+                                borderLeft: '18px solid #6366f1',
+                                borderTop: '10px solid transparent',
+                                borderBottom: '10px solid transparent',
+                                marginLeft: '4px'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    ) : currentCard.id === 2 ? (
+                      <>
+                        {/* Product Manager job image */}
+                        <Image 
+                          src="/Collaborative Meeting in Modern Office.png"
+                          alt="Product Manager"
+                          fill
+                          style={{ objectFit: 'cover' }}
+                          className="rounded-3"
+                        />
+                        {/* Smaller play button overlay */}
+                        <div className="position-absolute top-50 start-50 translate-middle">
+                          <div 
+                            className="bg-white rounded-circle shadow-lg d-flex align-items-center justify-content-center"
+                            style={{ width: '60px', height: '60px' }}
+                          >
+                            <div 
+                              style={{ 
+                                width: 0, 
+                                height: 0, 
+                                borderLeft: '18px solid #6366f1',
+                                borderTop: '10px solid transparent',
+                                borderBottom: '10px solid transparent',
+                                marginLeft: '4px'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Data Scientist job image */}
+                        <Image 
+                          src="/Meetingoveranalytics.png"
+                          alt="Data Scientist"
+                          fill
+                          style={{ objectFit: 'cover' }}
+                          className="rounded-3"
+                        />
+                        {/* Smaller play button overlay */}
+                        <div className="position-absolute top-50 start-50 translate-middle">
+                          <div 
+                            className="bg-white rounded-circle shadow-lg d-flex align-items-center justify-content-center"
+                            style={{ width: '60px', height: '60px' }}
+                          >
+                            <div 
+                              style={{ 
+                                width: 0, 
+                                height: 0, 
+                                borderLeft: '18px solid #6366f1',
+                                borderTop: '10px solid transparent',
+                                borderBottom: '10px solid transparent',
+                                marginLeft: '4px'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column - Card Details */}
+                <div className="col-md-7">
+                  <div className="mb-3">
+                    <h3 className="mb-2 fw-bold">{currentCard.title}</h3>
+                    <h5 className="text-primary mb-0">
+                      {currentCard.type === 'profile' ? currentCard.subtitle : currentCard.company}
+                    </h5>
+                  </div>
+                  
+                  <div className="d-flex align-items-center text-muted mb-3">
+                    <MapPin size={16} className="me-2" />
+                    <span>{currentCard.location}</span>
+                  </div>
+                  
+                  <p className="text-muted mb-4" style={{ fontSize: '15px', lineHeight: '1.6' }}>
+                    {currentCard.description}
+                  </p>
+                  
+                  <div className="d-flex flex-wrap gap-2 mb-4">
+                    {currentCard.type === 'job' ? (
+                      <>
+                        <span className="badge bg-success bg-opacity-10 text-success px-3 py-2" style={{ fontSize: '14px' }}>
+                          <DollarSign size={14} className="me-1" />
+                          {currentCard.salary}
+                        </span>
+                        <span className="badge bg-primary bg-opacity-10 text-primary px-3 py-2" style={{ fontSize: '14px' }}>
+                          <Briefcase size={14} className="me-1" />
+                          {currentCard.type}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="badge bg-info bg-opacity-10 text-info px-3 py-2" style={{ fontSize: '14px' }}>
+                          <Briefcase size={14} className="me-1" />
+                          {currentCard.experience}
+                        </span>
+                        <span className="badge bg-primary bg-opacity-10 text-primary px-3 py-2" style={{ fontSize: '14px' }}>
+                          💼 {currentCard.skills}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="d-flex gap-2">
+                    <button 
+                      className="btn btn-outline-danger flex-fill"
+                      onClick={() => setCurrentIndex((prev) => (prev + 1) % carouselCards.length)}
+                      style={{ minHeight: '44px' }}
+                    >
+                      Not Interested
+                    </button>
+                    <Link href="/seeker/login" className="flex-fill">
+                      <button 
+                        className="btn btn-primary w-100"
+                        style={{ minHeight: '44px' }}
+                      >
+                        I'm Interested
+                      </button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+      
+      {/* Carousel indicators */}
+      <div className="d-flex justify-content-center gap-2 mt-4">
+        {carouselCards.map((_, idx) => (
+          <button
+            key={idx}
+            onClick={() => setCurrentIndex(idx)}
+            className={`border-0 rounded-circle ${idx === currentIndex ? 'bg-primary' : 'bg-secondary bg-opacity-25'}`}
+            style={{ width: '10px', height: '10px', padding: 0, cursor: 'pointer', transition: 'all 0.3s' }}
+            aria-label={`Go to slide ${idx + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const fadeInUp = {
   initial: { opacity: 0, y: 60 },
@@ -87,7 +397,7 @@ export default function Home(){
         </motion.div>
       </motion.section>
 
-      {/* Trust/Stats Section */}
+      {/* Trust/Stats Section with Job Carousel */}
       <motion.section 
         className="py-5 mb-5"
         initial="initial"
@@ -95,44 +405,9 @@ export default function Home(){
         viewport={{ once: true }}
         variants={staggerContainer}
       >
-        <motion.div className="row text-center mb-5" variants={fadeInUp}>
-          <div className="col-md-4 mb-3">
-            <div className="bg-primary text-white rounded-pill px-4 py-2 d-inline-block">
-              <strong>1000+</strong> roles posted
-            </div>
-          </div>
-          <div className="col-md-4 mb-3">
-            <div className="bg-success text-white rounded-pill px-4 py-2 d-inline-block">
-              <strong>500+</strong> companies
-            </div>
-          </div>
-          <div className="col-md-4 mb-3">
-            <div className="bg-warning text-white rounded-pill px-4 py-2 d-inline-block">
-              <strong>10k+</strong> candidates
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div className="row align-items-center" variants={fadeInUp}>
-          <div className="col-md-8">
-            <div className="d-flex gap-3 justify-content-center flex-wrap mb-4">
-              {/* Placeholder company logos */}
-              {[1,2,3,4,5,6].map(i => (
-                <div key={i} className="bg-light rounded p-3" style={{width: '80px', height: '50px'}}>
-                  <div className="bg-secondary rounded h-100 opacity-25"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="col-md-4">
-            <blockquote className="text-center">
-              <p className="mb-2">"ELEV8R is great Sweetie"</p>
-              <footer className="d-flex align-items-center justify-content-center">
-                <div className="bg-primary rounded-circle me-2" style={{width: '32px', height: '32px'}}></div>
-                <small className="text-muted">-Mom</small>
-              </footer>
-            </blockquote>
-          </div>
+        {/* Job Posting Carousel - Try It Out */}
+        <motion.div variants={fadeInUp}>
+          <JobCarousel />
         </motion.div>
       </motion.section>
 

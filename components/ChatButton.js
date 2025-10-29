@@ -54,10 +54,49 @@ export default function ChatButton({ title = 'Conversation', subtitle = '' , oth
 
   return (
     <>
-      <button className="btn btn-sm btn-outline-success position-relative" onClick={openChat} disabled={loading}>
+      <button 
+        className="btn btn-outline-primary d-flex align-items-center justify-content-center gap-2 position-relative" 
+        onClick={openChat} 
+        disabled={loading}
+        style={{
+          borderRadius: '8px',
+          padding: '0.625rem 1rem',
+          fontSize: '14px',
+          fontWeight: '500',
+          borderColor: '#10b981',
+          color: '#10b981',
+          transition: 'all 0.2s ease',
+          minWidth: '100px'
+        }}
+        onMouseEnter={(e) => {
+          if (!loading) {
+            e.currentTarget.style.backgroundColor = '#10b981';
+            e.currentTarget.style.color = 'white';
+            e.currentTarget.style.borderColor = '#10b981';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!loading) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#10b981';
+            e.currentTarget.style.borderColor = '#10b981';
+          }
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
         {loading ? 'Opening…' : 'Chat'}
         {hasUnread && (
-          <span className="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+          <span 
+            className="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"
+            style={{
+              width: '10px',
+              height: '10px',
+              marginTop: '2px',
+              marginLeft: '-4px'
+            }}
+          >
             <span className="visually-hidden">Unread messages</span>
           </span>
         )}

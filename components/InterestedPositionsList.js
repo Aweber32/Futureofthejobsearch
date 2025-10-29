@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { MessageSquare, FileSearch } from 'lucide-react';
+import { motion } from 'framer-motion';
 import PositionReviewModal from './PositionReviewModal';
 import ChatButton from './ChatButton';
 import { API_CONFIG } from '../config/api';
@@ -12,6 +14,7 @@ export default function InterestedPositionsList({ seeker }){
   const [error, setError] = useState('');
   const [activePosition, setActivePosition] = useState(null);
   const [token, setToken] = useState(null);
+  const [fetchingPosition, setFetchingPosition] = useState(false);
 
   useEffect(()=>{
     if (!seeker) return;
@@ -105,81 +108,156 @@ export default function InterestedPositionsList({ seeker }){
     })();
   },[seeker]);
 
-  if (loading) return <div>Loading interested positions…</div>;
+  if (loading) return <div className="text-center py-5" style={{color: '#6b7280'}}>Loading interested positions…</div>;
   if (error) return <div className="alert alert-danger">{error}</div>;
-  if (!items.length) return <div>No interested positions yet. Use <Link href="/seeker/find-positions">Find Positions</Link> to swipe.</div>;
+  if (!items.length) return (
+    <div className="text-center py-5">
+      <p style={{color: '#6b7280', marginBottom: '1rem'}}>No interested positions yet.</p>
+      <Link href="/seeker/find-positions" className="btn btn-primary" style={{borderRadius: '8px'}}>
+        Find Positions
+      </Link>
+    </div>
+  );
 
   return (
-    <div className="list-group">
-      {items.map(item => (
-        <div key={item.id || JSON.stringify(item.raw)} className="list-group-item">
-          <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start">
-            <div className="flex-grow-1 mb-2 mb-sm-0">
-              <div className="fw-bold h6 mb-1">{item.title || 'Position'}</div>
-              {item.position?.companyName && <div className="text-muted small">{item.position.companyName}</div>}
-            </div>
-            <div className="w-100 w-sm-auto">
-              {(() => {
-                const raw = item.posterStatus ?? 'Job-Poster Status: Unreviewed';
-                const ps = raw.replace('Not-Intrested', 'Not-Interested');
-                const psLower = ps.toLowerCase();
-                // badge classes: green = interested, dark gray = not-interested, gray = unreviewed
-                let badgeClass = 'bg-secondary text-white';
-                if (psLower.includes('not-interested')) badgeClass = 'bg-dark text-white';
-                else if (psLower.includes('interested')) badgeClass = 'bg-success text-white';
-                return (
-                  <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-                    <span className={`badge ${badgeClass} text-center`} style={{borderRadius: '0.75rem', padding: '0.5rem 0.75rem'}}>{ps}</span>
-                    <div className="d-flex gap-2 align-items-center">
-                      {(() => {
-                        // Derive a robust company name from many possible response shapes
-                        const tryVals = [
-                          item.position?.companyName,
-                          item.position?.company,
-                          item.position?.employer?.companyName,
-                          item.position?.employer?.name,
-                          item.position?.company?.name,
-                          item.position?.company?.companyName,
-                          item.raw?.position?.companyName,
-                          item.raw?.position?.employer?.name,
-                          item.raw?.companyName,
-                          item.raw?.company,
-                          item.raw?.employer?.companyName,
-                          item.raw?.employer?.name
-                        ];
-                        const found = tryVals.find(v => v && typeof v === 'string' && v.trim().length > 0);
-                        const companyName = found ? found.trim() : 'Unknown company';
-                        // Debug: log shapes when company couldn't be determined
-                        // silently fallback to Unknown company when data is incomplete
-                        const positionTitle = item.position?.title ?? item.title ?? 'Position Conversation';
-                        // attempt to derive the other user's id (poster/employer user id) and pass position id
-                        const otherUserId = item.position?.employer?.userId || item.position?.employer?.userId || item.raw?.posterUserId || null;
-                        const posId = item.id || item.position?.id || null;
-                        return <ChatButton title={positionTitle} subtitle={companyName} otherUserId={otherUserId} positionId={posId} unreadCount={item.unreadCount || 0} />;
-                      })()}
-                      <button
-                      onClick={async ()=> {
-                        // open the review modal with enriched position details
+    <div className="row g-4">
+      {items.map((item, index) => (
+        <motion.div 
+          key={item.id || JSON.stringify(item.raw)} 
+          className="col-12 col-lg-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: index * 0.1 }}
+        >
+          <div 
+            className="card h-100 border-0 shadow-sm" 
+            style={{
+              borderRadius: '12px',
+              borderTop: '3px solid #6E56CF',
+              transition: 'all 0.3s ease',
+              overflow: 'hidden'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+            }}
+          >
+            <div className="card-body p-4">
+              <div className="d-flex flex-column gap-3">
+                {/* Title and Company */}
+                <div>
+                  <h5 className="mb-2" style={{fontSize: '1.125rem', fontWeight: '600', color: '#111827'}}>
+                    {item.title || 'Position'}
+                  </h5>
+                  {item.position?.companyName && (
+                    <p className="mb-0" style={{fontSize: '14px', color: '#6b7280'}}>
+                      {item.position.companyName}
+                    </p>
+                  )}
+                </div>
 
-                        let positionToShow = item.position;
+                {/* Status Badge */}
+                {(() => {
+                  const raw = item.posterStatus ?? 'Job-Poster Status: Unreviewed';
+                  const ps = raw.replace('Not-Intrested', 'Not-Interested');
+                  const psLower = ps.toLowerCase();
+                  
+                  let badgeClass = 'bg-secondary bg-opacity-10 text-secondary';
+                  let displayText = 'Unreviewed';
+                  
+                  if (psLower.includes('not-interested')) {
+                    badgeClass = 'bg-danger bg-opacity-10 text-danger';
+                    displayText = 'Not Interested';
+                  } else if (psLower.includes('interested')) {
+                    badgeClass = 'bg-success bg-opacity-10 text-success';
+                    displayText = 'Interested';
+                  }
+                  
+                  return (
+                    <div>
+                      <span 
+                        className={`badge ${badgeClass}`}
+                        style={{
+                          borderRadius: '9999px',
+                          padding: '0.375rem 0.75rem',
+                          fontSize: '12px',
+                          fontWeight: '500'
+                        }}
+                      >
+                        Employer: {displayText}
+                      </span>
+                    </div>
+                  );
+                })()}
 
-                        // If position data exists but is missing key information, try to re-fetch
-                        if (positionToShow && (!positionToShow.employer || !positionToShow.educations || !positionToShow.experiences || !positionToShow.skillsList)) {
-                          try {
-                            const pres = await fetch(`${API}/api/positions/${item.id}`, { headers: { Authorization: `Bearer ${token}` } });
-                            if (pres.ok) {
-                              const freshData = await pres.json();
-                              positionToShow = freshData;
-                            }
-                          } catch (error) {
-                            console.error('❌ Failed to re-fetch position data:', error);
-                          }
+                {/* Action Buttons */}
+                <div className="d-flex gap-2 mt-2">
+                  {(() => {
+                    const tryVals = [
+                      item.position?.companyName,
+                      item.position?.company,
+                      item.position?.employer?.companyName,
+                      item.position?.employer?.name,
+                      item.position?.company?.name,
+                      item.position?.company?.companyName,
+                      item.raw?.position?.companyName,
+                      item.raw?.position?.employer?.name,
+                      item.raw?.companyName,
+                      item.raw?.company,
+                      item.raw?.employer?.companyName,
+                      item.raw?.employer?.name
+                    ];
+                    const found = tryVals.find(v => v && typeof v === 'string' && v.trim().length > 0);
+                    const companyName = found ? found.trim() : 'Unknown company';
+                    const positionTitle = item.position?.title ?? item.title ?? 'Position Conversation';
+                    const otherUserId = item.position?.employer?.userId || item.position?.employer?.userId || item.raw?.posterUserId || null;
+                    const posId = item.id || item.position?.id || null;
+                    
+                    return <ChatButton title={positionTitle} subtitle={companyName} otherUserId={otherUserId} positionId={posId} unreadCount={item.unreadCount || 0} />;
+                  })()}
+                  
+                  <button
+                    onClick={async ()=> {
+                      // Always fetch fresh complete data from the API
+                      setFetchingPosition(true);
+                      try {
+                        const pres = await fetch(`${API}/api/positions/${item.id}`, { 
+                          headers: { Authorization: `Bearer ${token}` } 
+                        });
+                        
+                        if (pres.ok) {
+                          const freshData = await pres.json();
+                          console.log('✅ Fetched fresh position data:', freshData);
+                          setActivePosition(freshData);
+                        } else {
+                          console.error('❌ Failed to fetch position:', pres.status);
+                          // Fallback to existing data if fetch fails
+                          setActivePosition(item.position ?? {
+                            id: item.id,
+                            title: item.title,
+                            description: item.position?.description ?? 'No description available',
+                            employer: item.position?.employer ?? null,
+                            educations: item.position?.educations ?? [],
+                            experiences: item.position?.experiences ?? [],
+                            skillsList: item.position?.skillsList ?? [],
+                            salaryMin: item.position?.salaryMin ?? null,
+                            salaryMax: item.position?.salaryMax ?? null,
+                            salaryType: item.position?.salaryType ?? 'None',
+                            workSetting: item.position?.workSetting ?? 'Not specified',
+                            travelRequirements: item.position?.travelRequirements ?? 'None'
+                          });
                         }
-
-                        setActivePosition(positionToShow ?? {
+                      } catch (error) {
+                        console.error('❌ Error fetching position data:', error);
+                        // Fallback to existing data on error
+                        setActivePosition(item.position ?? {
                           id: item.id,
                           title: item.title,
-                          description: item.position?.description ?? item.raw?.description ?? 'No description available',
+                          description: item.position?.description ?? 'No description available',
                           employer: item.position?.employer ?? null,
                           educations: item.position?.educations ?? [],
                           experiences: item.position?.experiences ?? [],
@@ -190,19 +268,43 @@ export default function InterestedPositionsList({ seeker }){
                           workSetting: item.position?.workSetting ?? 'Not specified',
                           travelRequirements: item.position?.travelRequirements ?? 'None'
                         });
-                      }}
-                      className="btn btn-sm btn-outline-primary flex-grow-1 flex-sm-grow-0"
-                      style={{minHeight: '38px'}}
-                    >
-                      Review Position
-                    </button>
-                    </div>
-                    </div>
-                );
-              })()}
+                      } finally {
+                        setFetchingPosition(false);
+                      }
+                    }}
+                    className="btn btn-outline-primary flex-grow-1 d-flex align-items-center justify-content-center gap-2"
+                    disabled={fetchingPosition}
+                    style={{
+                      borderRadius: '8px',
+                      padding: '0.625rem 1rem',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      borderColor: '#6E56CF',
+                      color: fetchingPosition ? '#9ca3af' : '#6E56CF',
+                      transition: 'all 0.2s ease',
+                      opacity: fetchingPosition ? 0.6 : 1
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!fetchingPosition) {
+                        e.currentTarget.style.backgroundColor = '#6E56CF';
+                        e.currentTarget.style.color = 'white';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!fetchingPosition) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = '#6E56CF';
+                      }
+                    }}
+                  >
+                    <FileSearch size={16} />
+                    {fetchingPosition ? 'Loading...' : 'Review Position'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       ))}
       {activePosition && <PositionReviewModal position={activePosition} onClose={()=>setActivePosition(null)} />}
     </div>
