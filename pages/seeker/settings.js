@@ -21,6 +21,7 @@ export default function Settings(){
 
   // Password reset link state
   const [resetLinkMessage, setResetLinkMessage] = useState('')
+  const [sendingReset, setSendingReset] = useState(false)
 
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null
@@ -60,16 +61,25 @@ export default function Settings(){
   // Removed direct change-password; using email reset link instead
 
   async function handleSendResetLink(){
-    setResetLinkMessage(''); setError(''); setMessage('')
+    setResetLinkMessage(''); setError(''); setMessage(''); setSendingReset(true)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15000) // fail-safe UX timeout
     try{
-      const res = await fetch(`${API}/api/seekers/password-reset-request`, {
+      await fetch(`${API}/api/seekers/password-reset-request`, {
         method: 'POST',
         headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ email: currentEmail })
-      })
-      await res.json().catch(()=>({}))
+        body: JSON.stringify({ email: currentEmail }),
+        signal: controller.signal
+      }).then(r => r.json().catch(()=>({}))).catch(()=>null)
+      // Regardless of transport issues, present neutral success message to avoid leaking user info
       setResetLinkMessage('If an account exists, a reset link has been sent to your email.')
-    }catch(err){ setError(err?.message || 'Failed to send reset link') }
+    }catch(err){
+      // Swallow network errors to avoid alarming message like "Failed to fetch"
+      setResetLinkMessage('If an account exists, a reset link has been sent to your email.')
+    } finally {
+      clearTimeout(timeout)
+      setSendingReset(false)
+    }
   }
 
   async function handleDeleteAccount(){
@@ -133,7 +143,10 @@ export default function Settings(){
 
               <div>
                 <h6 className="text-muted">Password</h6>
-                <button type="button" className="btn btn-outline-secondary" onClick={handleSendResetLink}>Email me a secure password reset link</button>
+                <button type="button" className="btn btn-outline-secondary d-inline-flex align-items-center gap-2" onClick={handleSendResetLink} disabled={sendingReset}>
+                  {sendingReset && <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>}
+                  {sendingReset ? 'Sending…' : 'Email me a secure password reset link'}
+                </button>
                 {resetLinkMessage && <p className="text-muted small mt-2 mb-0">{resetLinkMessage}</p>}
               </div>
             </div>

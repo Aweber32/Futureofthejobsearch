@@ -303,9 +303,16 @@ namespace FutureOfTheJobSearch.Server.Controllers
             var frontendBase = _config["FrontendBaseUrl"] ?? Environment.GetEnvironmentVariable("FRONTEND_BASE_URL") ?? "http://localhost:3000";
             var resetUrl = $"{frontendBase.TrimEnd('/')}/seeker/reset-password?uid={Uri.EscapeDataString(user.Id)}&token={Uri.EscapeDataString(token)}";
 
+            // Read configured token lifetime to keep email copy accurate
+            var minutes = 30;
+            if (int.TryParse(_config["Identity:ResetTokenMinutes"] ?? Environment.GetEnvironmentVariable("IDENTITY__RESETTOKENMINUTES"), out var cfgMins) && cfgMins > 0)
+            {
+                minutes = cfgMins;
+            }
+
             var subject = "Reset your ELEV8R password";
             var body = $@"<p>We received a request to reset your password.</p>
-                          <p><a href='{resetUrl}'>Click here to reset your password</a>. This link will expire after a short period.</p>
+                          <p><a href='{resetUrl}'>Click here to reset your password</a>. This link will expire in {minutes} minutes.</p>
                           <p>If you did not request this, you can safely ignore this email.</p>";
             try
             {

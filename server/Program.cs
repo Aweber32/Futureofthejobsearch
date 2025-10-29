@@ -132,6 +132,20 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
+// Align password reset token lifetime with email copy
+// Default is 1 day; we prefer a shorter window (e.g., 30 minutes).
+// You can override via Identity:ResetTokenMinutes or env IDENTITY__RESETTOKENMINUTES
+var resetMinutes = 30;
+if (int.TryParse(configuration["Identity:ResetTokenMinutes"] ?? Environment.GetEnvironmentVariable("IDENTITY__RESETTOKENMINUTES"), out var cfgMins) && cfgMins > 0)
+{
+    resetMinutes = cfgMins;
+}
+builder.Services.Configure<Microsoft.AspNetCore.Identity.DataProtectionTokenProviderOptions>(o =>
+{
+    o.TokenLifespan = TimeSpan.FromMinutes(resetMinutes);
+});
+Console.WriteLine($"[Startup] Password reset token lifespan: {resetMinutes} minutes");
+
 // Configure cookie authentication for Identity
 builder.Services.ConfigureApplicationCookie(options => {
     options.Cookie.HttpOnly = true;
