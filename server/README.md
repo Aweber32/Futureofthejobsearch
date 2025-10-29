@@ -111,6 +111,37 @@ Notes:
 - The sender (Acs:From) must be a verified domain or email address in your ACS resource.
 - In local dev, keep `Email:Provider=Console` to log emails; switch to `Acs` in production.
 
+### Email health check endpoint
+
+Use this to validate email configuration in a safe way (requires a shared key header).
+
+1) Configure a secret:
+
+```json
+{
+	"Email": {
+		"HealthKey": "<long-random-secret>",
+		"HealthRecipient": "ops@example.com" // optional; can also pass 'to' in request body
+	}
+}
+```
+
+Environment variable equivalent: `EMAIL_HEALTH_KEY`.
+
+Security model:
+- In Production, the endpoint requires the `X-Debug-Key` header to match `Email:HealthKey`/`EMAIL_HEALTH_KEY`.
+- In non-production environments (Development/Staging), the endpoint can be called without setting any environment variables or keys, to simplify testing.
+
+2) Call the endpoint:
+
+POST /api/debug/email-health
+- Header: `X-Debug-Key: <your-secret>`
+- JSON body (optional): `{ "to": "someone@example.com" }`
+
+Response: `{ ok: true, provider: "Acs|Smtp|Console", to: "..." }` or `{ ok: false, error: "..." }`.
+
+Security: Don’t leave `Email:HealthKey` empty in production. Rotate the key as needed.
+
 Alternative: environment variables (useful for containers/CI):
 
 ```powershell

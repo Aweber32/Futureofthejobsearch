@@ -23,6 +23,53 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _config = config;
         }
 
+        /// <summary>
+        /// Sends a test email using the configured email provider. Protected by an out-of-band header key.
+        /// Set Email:HealthKey or env EMAIL_HEALTH_KEY to a secret value. Provide it via header X-Debug-Key.
+        /// Optional Email:HealthRecipient config can define a default recipient; otherwise you must pass one in the body.
+        /// </summary>
+        [HttpPost("email-health")]
+        public async Task<IActionResult> EmailHealth(
+            [FromServices] FutureOfTheJobSearch.Server.Services.IEmailService emailService,
+            [FromServices] IHostEnvironment env,
+            [FromBody] EmailHealthRequest? req)
+        {
+            try
+            {
+                // In non-production environments, allow calling without a key to reduce friction.
+                // In Production, require X-Debug-Key to be present and match Email:HealthKey/EMAIL_HEALTH_KEY.
+                if (env.IsProduction())
+                {
+                    var expectedKey = _config["Email:HealthKey"] ?? Environment.GetEnvironmentVariable("EMAIL_HEALTH_KEY");
+                    var providedKey = Request.Headers.ContainsKey("X-Debug-Key") ? Request.Headers["X-Debug-Key"].ToString() : null;
+                    if (string.IsNullOrEmpty(expectedKey) || !string.Equals(expectedKey, providedKey))
+                    {
+                        return Unauthorized(new { ok = false, error = "Unauthorized. Provide X-Debug-Key header." });
+                    }
+                }
+
+                var provider = (_config["Email:Provider"] ?? "Smtp").Trim();
+                var defaultTo = _config["Email:HealthRecipient"] ?? _config["Acs:From"] ?? _config["Smtp:From"]; // safe fallback to sender
+                var to = req?.To ?? defaultTo;
+                if (string.IsNullOrWhiteSpace(to))
+                {
+                    return BadRequest(new { ok = false, error = "No recipient specified. Provide 'to' in body or set Email:HealthRecipient/Acs:From/Smtp:From." });
+                }
+
+                var subject = "Email Health Check";
+                var body = $"<p>This is a health check email from FutureOfTheJobSearch.</p><p>Provider: {provider}</p>";
+
+                await emailService.SendAsync(to, subject, body);
+
+                return Ok(new { ok = true, provider, to });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "EmailHealth failed");
+                return StatusCode(500, new { ok = false, error = ex.Message });
+            }
+        }
+
             [HttpGet("token/raw")]
             public IActionResult InspectRawToken()
             {
@@ -208,4 +255,9 @@ namespace FutureOfTheJobSearch.Server.Controllers
 public class DebugTokenRequest
 {
     public string? Token { get; set; }
+}
+
+public class EmailHealthRequest
+{
+    public string? To { get; set; }
 }
