@@ -82,20 +82,19 @@ export default function Settings(){
     }
   }
 
-  async function handleDeleteAccount(){
-    if (!seekerId) return
-    const confirmed = window.confirm('This will permanently delete your account and data. Are you sure?')
+  async function handleDiscontinueAccount(){
+    const confirmed = window.confirm('This will discontinue your account and sign you out. You can re-register later with the same email. Continue?')
     if (!confirmed) return
     const token = localStorage.getItem('fjs_token')
     setMessage(''); setError('')
     try{
-      const res = await fetch(`${API}/api/seekers/${seekerId}`, { method:'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch(`${API}/api/auth/discontinue`, { method:'POST', headers: { Authorization: `Bearer ${token}` } })
       const body = await res.json().catch(()=>({}))
-      if (!res.ok) throw new Error(body?.error || 'Failed to delete account')
+      if (!res.ok) throw new Error(body?.error || 'Failed to discontinue account')
       // Clear token and redirect to signup
       localStorage.removeItem('fjs_token')
       router.push('/seeker/signup')
-    }catch(err){ setError(err?.message || 'Failed to delete account') }
+    }catch(err){ setError(err?.message || 'Failed to discontinue account') }
   }
 
   return (
@@ -156,8 +155,8 @@ export default function Settings(){
           <div className="card shadow-sm border-0" style={{borderRadius:'12px'}}>
             <div className="card-body">
               <h5 className="mb-3 text-danger">Discontinue Account</h5>
-              <p className="text-muted">Discontinuing your account will permanently remove your profile, messages, and any uploaded files (resume/video) where possible. This action cannot be undone.</p>
-              <button className="btn btn-outline-danger" onClick={handleDeleteAccount} disabled={!seekerId}>Delete My Account</button>
+              <p className="text-muted">Discontinuing your account will disable login and free your email for re‑registration. We retain anonymized analytics. This action cannot be undone.</p>
+              <button className="btn btn-outline-danger" onClick={handleDiscontinueAccount}>Delete My Account</button>
             </div>
           </div>
         </>

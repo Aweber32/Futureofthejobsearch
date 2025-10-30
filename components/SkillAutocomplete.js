@@ -374,12 +374,10 @@ export default function SkillAutocomplete({ value, onChange, onAdd, placeholder 
     onChange({ target: { value: skill } });
     setShowDropdown(false);
     setSelectedIndex(-1);
-    // Focus back on input for immediate add
+    // Focus back on input so user can click Add button
     if (inputRef.current) {
       inputRef.current.focus();
     }
-    // Auto-add the skill after selection
-    setTimeout(() => onAdd(), 0);
   };
 
   return (

@@ -20,6 +20,7 @@ export default function SeekerSignup(){
   const [skillInput, setSkillInput] = useState('');
   // Experience entry helpers
   const [newExpTitle, setNewExpTitle] = useState('');
+  const [newExpCompany, setNewExpCompany] = useState('');
   const [newExpStart, setNewExpStart] = useState('');
   const [newExpEnd, setNewExpEnd] = useState('');
   const [newExpDesc, setNewExpDesc] = useState('');
@@ -506,16 +507,19 @@ export default function SeekerSignup(){
             <div className="mb-3">
               <label className="form-label">Experience</label>
               <div className="mb-2">
-                <button type="button" className="btn btn-primary" onClick={()=>{ setNewExpTitle(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); setEditingIndex(null); setShowExpModal(true); }}>Add Experience</button>
+                <button type="button" className="btn btn-primary" onClick={()=>{ setNewExpTitle(''); setNewExpCompany(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); setEditingIndex(null); setShowExpModal(true); }}>Add Experience</button>
               </div>
               <div>
                 {(form.experience || []).map((ex, idx)=> (
                   <div key={idx} className="card mb-2">
                     <div className="card-body p-2">
                       <div className="d-flex justify-content-between">
-                        <strong>{ex.title || 'Untitled'}</strong>
                         <div>
-                          <button type="button" className="btn btn-sm btn-link" onClick={()=>{ setNewExpTitle(ex.title || ''); setNewExpStart(ex.StartDate || ex.start || ''); setNewExpEnd(ex.EndDate || ex.end || ''); setNewExpDesc(ex.description || ''); setEditingIndex(idx); setShowExpModal(true); }}>Edit</button>
+                          <strong>{ex.title || 'Untitled'}</strong>
+                          {(ex.company || ex.Company) && <div className="small text-muted">{ex.company || ex.Company}</div>}
+                        </div>
+                        <div>
+                          <button type="button" className="btn btn-sm btn-link" onClick={()=>{ setNewExpTitle(ex.title || ''); setNewExpCompany(ex.company || ex.Company || ''); setNewExpStart(ex.StartDate || ex.start || ''); setNewExpEnd(ex.EndDate || ex.end || ''); setNewExpDesc(ex.description || ''); setEditingIndex(idx); setShowExpModal(true); }}>Edit</button>
                           <button type="button" className="btn btn-sm btn-link text-danger" onClick={()=>{ setForm(prev=> ({ ...prev, experience: prev.experience.filter((_,i)=>i!==idx) }) ); if (editingIndex !== null && editingIndex === idx) setEditingIndex(null); }}>Remove</button>
                         </div>
                       </div>
@@ -538,6 +542,7 @@ export default function SeekerSignup(){
                         </div>
                         <div className="modal-body">
                           <div className="mb-2"><label className="form-label small">Title</label><input className="form-control" value={newExpTitle} onChange={e=>setNewExpTitle(e.target.value)} placeholder="e.g. Senior Software Engineer" /></div>
+                          <div className="mb-2"><label className="form-label small">Company</label><input className="form-control" value={newExpCompany} onChange={e=>setNewExpCompany(e.target.value)} placeholder="e.g. Microsoft" /></div>
                           <div className="row">
                             <div className="col-6 mb-2"><label className="form-label small">Start (month)</label><input type="month" className="form-control" value={newExpStart} onChange={e=>setNewExpStart(e.target.value)} /></div>
                             <div className="col-6 mb-2"><label className="form-label small">End (month)</label><input type="month" className="form-control" value={newExpEnd} onChange={e=>setNewExpEnd(e.target.value)} /></div>
@@ -545,11 +550,11 @@ export default function SeekerSignup(){
                           <div className="mb-2"><label className="form-label small">Description</label><textarea className="form-control" rows={6} value={newExpDesc} onChange={e=>{ const v=e.target.value; if ((v||'').length<=2000) setNewExpDesc(v); }} placeholder="Describe your role and accomplishments (up to ~300 words)"></textarea></div>
                         </div>
                         <div className="modal-footer">
-                          <button type="button" className="btn btn-secondary" onClick={()=>{ setShowExpModal(false); setEditingIndex(null); setNewExpTitle(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); }}>Cancel</button>
+                          <button type="button" className="btn btn-secondary" onClick={()=>{ setShowExpModal(false); setEditingIndex(null); setNewExpTitle(''); setNewExpCompany(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); }}>Cancel</button>
                           <button type="button" className="btn btn-primary" onClick={()=>{
-                            const title = (newExpTitle||'').trim(); const start = (newExpStart||'').trim(); const end = (newExpEnd||'').trim(); const desc = (newExpDesc||'').trim().slice(0,2000);
+                            const title = (newExpTitle||'').trim(); const company = (newExpCompany||'').trim(); const start = (newExpStart||'').trim(); const end = (newExpEnd||'').trim(); const desc = (newExpDesc||'').trim().slice(0,2000);
                             if (!title && !desc) { setError('Please provide at least a title or description for experience'); return; }
-                            const entry = { title, StartDate: start, EndDate: end, description: desc };
+                            const entry = { title, company, StartDate: start, EndDate: end, description: desc };
                             if (editingIndex !== null && Number.isInteger(editingIndex)){
                               setForm(prev=>{
                                 const arr = Array.isArray(prev.experience) ? [...prev.experience] : [];
@@ -561,7 +566,7 @@ export default function SeekerSignup(){
                               setForm(prev=> ({ ...prev, experience: [ ...(prev.experience||[]), entry ] }));
                             }
                             setShowExpModal(false);
-                            setNewExpTitle(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); setError('');
+                            setNewExpTitle(''); setNewExpCompany(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); setError('');
                           }}>{editingIndex !== null ? 'Save' : 'Add'}</button>
                         </div>
                       </div>

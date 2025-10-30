@@ -21,16 +21,60 @@ const PreviewProfile = ({ seeker, show, onHide }) => {
 
   if (!show) return null;
 
-  // Parse JSON data
-  const experience = seeker.experienceJson ? JSON.parse(seeker.experienceJson) : [];
-  const education = seeker.educationJson ? JSON.parse(seeker.educationJson) : [];
+  // Handle both parsed arrays and JSON strings for experience/education
+  let experience = [];
+  let education = [];
+
+  // Try to get experience - could be already parsed array or JSON string
+  if (Array.isArray(seeker.Experience)) {
+    experience = seeker.Experience;
+  } else if (Array.isArray(seeker.experience)) {
+    experience = seeker.experience;
+  } else {
+    // Fall back to parsing JSON strings
+    try {
+      const experienceJson = seeker.experienceJson || seeker.ExperienceJson;
+      if (experienceJson && experienceJson.trim()) {
+        experience = JSON.parse(experienceJson);
+        if (!Array.isArray(experience)) {
+          console.warn('Experience data is not an array:', experience);
+          experience = [];
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing experience JSON:', error);
+      experience = [];
+    }
+  }
+
+  // Try to get education - could be already parsed array or JSON string
+  if (Array.isArray(seeker.Education)) {
+    education = seeker.Education;
+  } else if (Array.isArray(seeker.education)) {
+    education = seeker.education;
+  } else {
+    // Fall back to parsing JSON strings
+    try {
+      const educationJson = seeker.educationJson || seeker.EducationJson;
+      if (educationJson && educationJson.trim()) {
+        education = JSON.parse(educationJson);
+        if (!Array.isArray(education)) {
+          console.warn('Education data is not an array:', education);
+          education = [];
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing education JSON:', error);
+      education = [];
+    }
+  }
 
   // Parse comma-separated arrays
-  const skills = seeker.skills ? seeker.skills.split(',').map(s => s.trim()) : [];
-  const languages = seeker.languages ? seeker.languages.split(',').map(l => l.trim()) : [];
-  const certifications = seeker.certifications ? seeker.certifications.split(',').map(c => c.trim()) : [];
-  const interests = seeker.interests ? seeker.interests.split(',').map(i => i.trim()) : [];
-  const workSettings = seeker.workSetting ? seeker.workSetting.split(',').map(w => w.trim()) : [];
+  const skills = seeker.skills ? seeker.skills.split(',').map(s => s.trim()).filter(s => s) : [];
+  const languages = seeker.languages ? seeker.languages.split(',').map(l => l.trim()).filter(l => l) : [];
+  const certifications = seeker.certifications ? seeker.certifications.split(',').map(c => c.trim()).filter(c => c) : [];
+  const interests = seeker.interests ? seeker.interests.split(',').map(i => i.trim()).filter(i => i) : [];
+  const workSettings = seeker.workSetting ? seeker.workSetting.split(',').map(w => w.trim()).filter(w => w) : [];
 
   const formatDateRange = (startDate, endDate) => {
     if (!startDate && !endDate) return '';
@@ -41,37 +85,63 @@ const PreviewProfile = ({ seeker, show, onHide }) => {
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Full-page overlay backdrop */}
       <div 
-        className="modal-backdrop fade show" 
-        style={{ zIndex: 1040 }}
-        onClick={onHide}
-      ></div>
-      
-      {/* Modal */}
-      <div 
-        className="modal fade show d-block" 
-        style={{ zIndex: 1050 }}
-        tabIndex="-1"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          zIndex: 1040,
+          overflowY: 'auto'
+        }}
+        onClick={(e) => {
+          // Only close if clicking the backdrop itself, not the card
+          if (e.target === e.currentTarget) {
+            onHide();
+          }
+        }}
       >
-        <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title">Profile Preview</h5>
-              <button 
-                type="button" 
-                className="btn-close" 
-                onClick={onHide}
-                aria-label="Close"
-              ></button>
-            </div>
-            <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-              <div className="profile-preview-card" style={{
-                background: 'white',
-                borderRadius: '12px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                overflow: 'hidden'
-              }}>
+        {/* Close button - fixed in top right */}
+        <button
+          type="button"
+          className="btn-close"
+          onClick={onHide}
+          aria-label="Close"
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: 1060,
+            background: 'white',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            padding: '0',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+          }}
+        ></button>
+
+        {/* Scrollable content container */}
+        <div 
+          style={{ padding: '40px 20px', minHeight: '100%' }}
+          onClick={(e) => {
+            // Close if clicking the padding area, not the card
+            if (e.target === e.currentTarget) {
+              onHide();
+            }
+          }}
+        >
+          <div className="profile-preview-card" style={{
+            background: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
+            maxWidth: '800px',
+            margin: '0 auto'
+          }}>
 
                 {/* Top Section - Header */}
                 <div className="profile-header" style={{
@@ -188,7 +258,7 @@ const PreviewProfile = ({ seeker, show, onHide }) => {
                               borderRadius: '8px',
                               borderLeft: '4px solid #28a745'
                             }}>
-                              <h6 style={{ marginBottom: '4px', color: '#333' }}>{edu.degree || edu.Level || 'Degree not specified'}</h6>
+                              <h6 style={{ marginBottom: '4px', color: '#333' }}>{edu.level || edu.Level || edu.degree || edu.Degree || 'Degree not specified'}</h6>
                               <p style={{ marginBottom: '4px', color: '#666', fontSize: '14px' }}>
                                 {edu.school || edu.School || 'School not specified'}
                               </p>
@@ -343,11 +413,9 @@ const PreviewProfile = ({ seeker, show, onHide }) => {
                     </div>
                   </div>
                 </div>
-              </div>
             </div>
           </div>
         </div>
-      </div>
     </>
   );
 };

@@ -5,6 +5,7 @@ using FutureOfTheJobSearch.Server.Data;
 using FutureOfTheJobSearch.Server.DTOs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using System.Linq;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -94,6 +95,12 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 var user = await _userManager.FindByEmailAsync(req.Email);
                 if (user == null) return Unauthorized(new { error = "Invalid credentials" });
 
+                // Block sign-in for discontinued accounts (neutral message to prevent enumeration)
+                if (user.IsDiscontinued)
+                {
+                    return Unauthorized(new { error = "Invalid credentials" });
+                }
+
                 var result = await _signInManager.PasswordSignInAsync(req.Email, req.Password, isPersistent: false, lockoutOnFailure: false);
                 if (!result.Succeeded) return Unauthorized(new { error = "Invalid credentials" });
 
@@ -126,6 +133,55 @@ namespace FutureOfTheJobSearch.Server.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine("AuthController.Login error: " + ex.ToString());
+                return StatusCode(500, new { error = "Server error", detail = ex.Message });
+            }
+        }
+
+        // Discontinue the current account: soft-delete user to allow re-registration with the same email.
+        [HttpPost("discontinue")]
+        [Authorize]
+        public async Task<IActionResult> Discontinue()
+        {
+            try
+            {
+                var user = await _userManager.GetUserAsync(User);
+                if (user == null)
+                {
+                    return Unauthorized(new { error = "Unauthorized" });
+                }
+
+                if (user.IsDiscontinued)
+                {
+                    // Idempotent
+                    return Ok(new { message = "Account already discontinued" });
+                }
+
+                // Archive identifiers and free up unique constraints
+                user.ArchivedEmail = user.Email;
+                user.ArchivedUserName = user.UserName;
+                user.Email = null;
+                user.NormalizedEmail = null;
+                user.UserName = null;
+                user.NormalizedUserName = null;
+                user.PhoneNumber = null; // optional: drop PII to align with privacy expectations
+
+                user.IsDiscontinued = true;
+                user.DiscontinuedAt = DateTimeOffset.UtcNow;
+
+                var updateResult = await _userManager.UpdateAsync(user);
+                if (!updateResult.Succeeded)
+                {
+                    return StatusCode(500, new { error = "Failed to discontinue account", detail = string.Join("; ", updateResult.Errors.Select(e => e.Description)) });
+                }
+
+                // Optional: sign out any active session
+                await _signInManager.SignOutAsync();
+
+                return Ok(new { message = "Account discontinued" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("AuthController.Discontinue error: " + ex.ToString());
                 return StatusCode(500, new { error = "Server error", detail = ex.Message });
             }
         }

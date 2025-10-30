@@ -60,6 +60,7 @@ export default function EditProfile(){
   
   // Experience modal fields
   const [newExpTitle, setNewExpTitle] = useState('');
+  const [newExpCompany, setNewExpCompany] = useState('');
   const [newExpStart, setNewExpStart] = useState('');
   const [newExpEnd, setNewExpEnd] = useState('');
   const [newExpDesc, setNewExpDesc] = useState('');
@@ -239,54 +240,60 @@ export default function EditProfile(){
         const rawInterests = s?.interests ?? s?.Interests ?? '';
         setInterests(rawInterests ? (Array.isArray(rawInterests) ? rawInterests : String(rawInterests).split(',').map(x=>x.trim()).filter(Boolean)) : []);
         
-        // Load structured data
-        if (s?.experienceJson ?? s?.ExperienceJson) {
+        // Load structured data - handle both JSON string and already-parsed array
+        let expData = [];
+        if (Array.isArray(s?.Experience)) {
+          expData = s.Experience;
+        } else if (Array.isArray(s?.experience)) {
+          expData = s.experience;
+        } else if (s?.experienceJson ?? s?.ExperienceJson) {
           try {
-            const expData = JSON.parse(s.experienceJson ?? s.ExperienceJson);
-            console.log('Loaded experience data:', expData); // Debug log
-            
-            // Normalize experience data to ensure consistent property names
-            const normalizedExpData = Array.isArray(expData) ? expData.map(exp => ({
-              title: exp.title || exp.Title || '',
-              startDate: exp.startDate || exp.start || exp.StartDate || exp.Start || '',
-              endDate: exp.endDate || exp.end || exp.EndDate || exp.End || '',
-              description: exp.description || exp.Description || ''
-            })) : [];
-            
-            console.log('Normalized experience data:', normalizedExpData); // Debug log
-            setExperience(normalizedExpData);
+            expData = JSON.parse(s.experienceJson ?? s.ExperienceJson);
+            console.log('Loaded experience data from JSON:', expData);
           } catch (err) {
-            console.error('Error parsing experience JSON:', err); // Debug log
-            setExperience([]);
+            console.error('Error parsing experience JSON:', err);
+            expData = [];
           }
-        } else {
-          console.log('No experience data found in response'); // Debug log
-          setExperience([]);
         }
         
-        if (s?.educationJson ?? s?.EducationJson) {
+        // Normalize experience data to ensure consistent property names
+        const normalizedExpData = Array.isArray(expData) ? expData.map(exp => ({
+          title: exp.title || exp.Title || '',
+          company: exp.company || exp.Company || '',
+          startDate: exp.startDate || exp.start || exp.StartDate || exp.Start || '',
+          endDate: exp.endDate || exp.end || exp.EndDate || exp.End || '',
+          description: exp.description || exp.Description || ''
+        })) : [];
+        
+        console.log('Normalized experience data:', normalizedExpData);
+        setExperience(normalizedExpData);
+        
+        // Load education - handle both JSON string and already-parsed array
+        let eduData = [];
+        if (Array.isArray(s?.Education)) {
+          eduData = s.Education;
+        } else if (Array.isArray(s?.education)) {
+          eduData = s.education;
+        } else if (s?.educationJson ?? s?.EducationJson) {
           try {
-            const eduData = JSON.parse(s.educationJson ?? s.EducationJson);
-            console.log('Loaded education data:', eduData); // Debug log
-            
-            // Normalize education data to ensure consistent property names
-            const normalizedEduData = Array.isArray(eduData) ? eduData.map(edu => ({
-              Level: edu.level || edu.Level || '',
-              School: edu.school || edu.School || '',
-              StartDate: edu.startDate || edu.start || edu.StartDate || edu.Start || '',
-              EndDate: edu.endDate || edu.end || edu.EndDate || edu.End || ''
-            })) : [];
-            
-            console.log('Normalized education data:', normalizedEduData); // Debug log
-            setEducation(normalizedEduData);
+            eduData = JSON.parse(s.educationJson ?? s.EducationJson);
+            console.log('Loaded education data from JSON:', eduData);
           } catch (err) {
-            console.error('Error parsing education JSON:', err); // Debug log
-            setEducation([]);
+            console.error('Error parsing education JSON:', err);
+            eduData = [];
           }
-        } else {
-          console.log('No education data found in response'); // Debug log
-          setEducation([]);
         }
+        
+        // Normalize education data to ensure consistent property names
+        const normalizedEduData = Array.isArray(eduData) ? eduData.map(edu => ({
+          Level: edu.level || edu.Level || '',
+          School: edu.school || edu.School || '',
+          StartDate: edu.startDate || edu.start || edu.StartDate || edu.Start || '',
+          EndDate: edu.endDate || edu.end || edu.EndDate || edu.End || ''
+        })) : [];
+        
+        console.log('Normalized education data:', normalizedEduData);
+        setEducation(normalizedEduData);
         
       }catch(err){ console.error(err); router.push('/seeker/login'); }
     })();
@@ -323,6 +330,7 @@ export default function EditProfile(){
   // Experience functions - Modal based
   function addExperience(){
     setNewExpTitle('');
+    setNewExpCompany('');
     setNewExpStart('');
     setNewExpEnd('');
     setNewExpDesc('');
@@ -333,6 +341,7 @@ export default function EditProfile(){
   function editExperience(index){
     const exp = experience[index];
     setNewExpTitle(exp.title || '');
+    setNewExpCompany(exp.company || exp.Company || '');
     setNewExpStart(exp.StartDate || exp.startDate || exp.start || '');
     setNewExpEnd(exp.EndDate || exp.endDate || exp.end || '');
     setNewExpDesc(exp.description || '');
@@ -342,6 +351,7 @@ export default function EditProfile(){
   
   function saveExperience(){
     const title = (newExpTitle || '').trim();
+    const company = (newExpCompany || '').trim();
     const start = (newExpStart || '').trim();
     const end = (newExpEnd || '').trim();
     const desc = (newExpDesc || '').trim();
@@ -351,7 +361,7 @@ export default function EditProfile(){
       return;
     }
     
-    const expEntry = { title, StartDate: start, EndDate: end, description: desc };
+    const expEntry = { title, company, StartDate: start, EndDate: end, description: desc };
     
     if (editingExpIndex !== null) {
       // Update existing
@@ -365,6 +375,7 @@ export default function EditProfile(){
     
     setShowExpModal(false);
     setNewExpTitle('');
+    setNewExpCompany('');
     setNewExpStart('');
     setNewExpEnd('');
     setNewExpDesc('');
@@ -660,12 +671,7 @@ export default function EditProfile(){
         Preview Profile
       </button>
 
-      <div className="d-flex justify-content-between align-items-center">
-        <h2>Edit profile</h2>
-        <div>
-          <button className="btn btn-danger" onClick={deleteAccount} disabled={loading}>Delete account</button>
-        </div>
-      </div>
+      <h2>Edit profile</h2>
 
       <form onSubmit={submit} className="mt-3">
         <div className="row">
@@ -816,7 +822,10 @@ export default function EditProfile(){
               <div key={index} className="card mb-2">
                 <div className="card-body p-2">
                   <div className="d-flex justify-content-between">
-                    <strong>{exp.title || 'Untitled'}</strong>
+                    <div>
+                      <strong>{exp.title || 'Untitled'}</strong>
+                      {(exp.company || exp.Company) && <div className="small text-muted">{exp.company || exp.Company}</div>}
+                    </div>
                     <div>
                       <button type="button" className="btn btn-sm btn-link" onClick={() => editExperience(index)}>Edit</button>
                       <button type="button" className="btn btn-sm btn-link text-danger" onClick={() => removeExperience(index)}>Remove</button>
@@ -903,10 +912,11 @@ export default function EditProfile(){
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">{editingExpIndex !== null ? 'Edit Experience' : 'Add Experience'}</h5>
-                  <button type="button" className="btn-close" aria-label="Close" onClick={()=>{ setShowExpModal(false); setEditingExpIndex(null); setNewExpTitle(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); }}></button>
+                  <button type="button" className="btn-close" aria-label="Close" onClick={()=>{ setShowExpModal(false); setEditingExpIndex(null); setNewExpTitle(''); setNewExpCompany(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); }}></button>
                 </div>
                 <div className="modal-body">
                   <div className="mb-2"><label className="form-label small">Title</label><input className="form-control" value={newExpTitle} onChange={e=>setNewExpTitle(e.target.value)} placeholder="e.g. Senior Software Engineer" /></div>
+                  <div className="mb-2"><label className="form-label small">Company</label><input className="form-control" value={newExpCompany} onChange={e=>setNewExpCompany(e.target.value)} placeholder="e.g. Microsoft" /></div>
                   <div className="row">
                     <div className="col-6 mb-2"><label className="form-label small">Start (month)</label><input type="month" className="form-control" value={newExpStart} onChange={e=>setNewExpStart(e.target.value)} /></div>
                     <div className="col-6 mb-2"><label className="form-label small">End (month)</label><input type="month" className="form-control" value={newExpEnd} onChange={e=>setNewExpEnd(e.target.value)} /></div>
@@ -914,7 +924,7 @@ export default function EditProfile(){
                   <div className="mb-2"><label className="form-label small">Description</label><textarea className="form-control" rows={6} value={newExpDesc} onChange={e=>{ const v=e.target.value; if ((v||'').length<=2000) setNewExpDesc(v); }} placeholder="Describe your role and accomplishments (up to ~300 words)"></textarea></div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={()=>{ setShowExpModal(false); setEditingExpIndex(null); setNewExpTitle(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); }}>Cancel</button>
+                  <button type="button" className="btn btn-secondary" onClick={()=>{ setShowExpModal(false); setEditingExpIndex(null); setNewExpTitle(''); setNewExpCompany(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); }}>Cancel</button>
                   <button type="button" className="btn btn-primary" onClick={saveExperience}>Save</button>
                 </div>
               </div>
