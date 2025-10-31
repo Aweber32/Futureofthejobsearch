@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import SkillAutocomplete from '../../components/SkillAutocomplete';
+import DegreeAutocomplete from '../../components/DegreeAutocomplete';
+import UniversityAutocomplete from '../../components/UniversityAutocomplete';
 import PreviewProfile from '../../components/PreviewProfile';
 import { API_CONFIG } from '../../config/api';
 
@@ -68,6 +70,8 @@ export default function EditProfile(){
   // Education modal fields
   const EDUCATION_LEVELS = ["High School","Associate's","Bachelor's","Master's","Doctorate","None"];
   const [newEduLevel, setNewEduLevel] = useState(EDUCATION_LEVELS[0]);
+    const [newEduDegree, setNewEduDegree] = useState('');
+    const [degreeInput, setDegreeInput] = useState('');
   const [newEduSchool, setNewEduSchool] = useState('');
   const [newEduStart, setNewEduStart] = useState('');
   const [newEduEnd, setNewEduEnd] = useState('');
@@ -287,6 +291,7 @@ export default function EditProfile(){
         // Normalize education data to ensure consistent property names
         const normalizedEduData = Array.isArray(eduData) ? eduData.map(edu => ({
           Level: edu.level || edu.Level || '',
+            Degree: edu.degree || edu.Degree || '',
           School: edu.school || edu.School || '',
           StartDate: edu.startDate || edu.start || edu.StartDate || edu.Start || '',
           EndDate: edu.endDate || edu.end || edu.EndDate || edu.End || ''
@@ -390,6 +395,8 @@ export default function EditProfile(){
   // Education functions - Modal based
   function addEducation(){
     setNewEduLevel(EDUCATION_LEVELS[0]);
+    setNewEduDegree('');
+    setDegreeInput('');
     setNewEduSchool('');
     setNewEduStart('');
     setNewEduEnd('');
@@ -409,6 +416,8 @@ export default function EditProfile(){
     const validLevel = EDUCATION_LEVELS.includes(currentLevel) ? currentLevel : EDUCATION_LEVELS[0];
     console.log('validLevel:', validLevel);
     setNewEduLevel(validLevel);
+  setNewEduDegree(edu.Degree || '');
+  setDegreeInput(edu.Degree || '');
     setNewEduSchool(edu.School || '');
     setNewEduStart(edu.StartDate || edu.startDate || edu.start || '');
     setNewEduEnd(edu.EndDate || edu.endDate || edu.end || '');
@@ -418,6 +427,7 @@ export default function EditProfile(){
   
   function saveEducation(){
     const level = newEduLevel;
+    const degree = (degreeInput || '').trim();
     const school = (newEduSchool || '').trim();
     const start = (newEduStart || '').trim();
     const end = (newEduEnd || '').trim();
@@ -429,7 +439,7 @@ export default function EditProfile(){
       return;
     }
     
-    const eduEntry = { Level: level, School: school, StartDate: start, EndDate: end };
+  const eduEntry = { Level: level, Degree: degree, School: school, StartDate: start, EndDate: end };
     console.log('Education entry:', eduEntry);
     
     if (editingEduIndex !== null) {
@@ -444,6 +454,8 @@ export default function EditProfile(){
     
     setShowEduModal(false);
     setNewEduLevel(EDUCATION_LEVELS[0]);
+    setNewEduDegree('');
+    setDegreeInput('');
     setNewEduSchool('');
     setNewEduStart('');
     setNewEduEnd('');
@@ -855,7 +867,7 @@ export default function EditProfile(){
                       <button type="button" className="btn btn-sm btn-link text-danger" onClick={() => removeEducation(index)}>Remove</button>
                     </div>
                   </div>
-                  <div className="small text-muted">{edu.Level} {formatDateRange(edu.StartDate, edu.EndDate) ? `(${formatDateRange(edu.StartDate, edu.EndDate)})` : ''}</div>
+                  <div className="small text-muted">{edu.Level || ''}{edu.Degree ? ` • ${edu.Degree}` : ''} {formatDateRange(edu.StartDate, edu.EndDate) ? `(${formatDateRange(edu.StartDate, edu.EndDate)})` : ''}</div>
                 </div>
               </div>
             ))}
@@ -943,7 +955,7 @@ export default function EditProfile(){
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">{editingEduIndex !== null ? 'Edit Education' : 'Add Education'}</h5>
-                  <button type="button" className="btn-close" aria-label="Close" onClick={()=>{ setShowEduModal(false); setEditingEduIndex(null); setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); }}></button>
+                  <button type="button" className="btn-close" aria-label="Close" onClick={()=>{ setShowEduModal(false); setEditingEduIndex(null); setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduDegree(''); setDegreeInput(''); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); }}></button>
                 </div>
                 <div className="modal-body">
                   <div className="mb-2"><label className="form-label small">Level</label>
@@ -955,14 +967,29 @@ export default function EditProfile(){
                       {EDUCATION_LEVELS.map(level => <option key={level} value={level}>{level}</option>)}
                     </select>
                   </div>
-                  <div className="mb-2"><label className="form-label small">School/University</label><input className="form-control" value={newEduSchool} onChange={e=>setNewEduSchool(e.target.value)} placeholder="e.g. University of Example" /></div>
+                  <div className="mb-2">
+                    <label className="form-label small">Degree</label>
+                    <DegreeAutocomplete 
+                      value={degreeInput}
+                      onChange={(e) => setDegreeInput(e.target.value)}
+                      placeholder="Degree (e.g., Computer Science)"
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label small">University</label>
+                    <UniversityAutocomplete 
+                      value={newEduSchool} 
+                      onChange={e=>setNewEduSchool(e.target.value)} 
+                      placeholder="Select or type your university" 
+                    />
+                  </div>
                   <div className="row">
                     <div className="col-6 mb-2"><label className="form-label small">Start (month)</label><input type="month" className="form-control" value={newEduStart} onChange={e=>setNewEduStart(e.target.value)} /></div>
                     <div className="col-6 mb-2"><label className="form-label small">End (month)</label><input type="month" className="form-control" value={newEduEnd} onChange={e=>setNewEduEnd(e.target.value)} /></div>
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={()=>{ setShowEduModal(false); setEditingEduIndex(null); setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); }}>Cancel</button>
+                  <button type="button" className="btn btn-secondary" onClick={()=>{ setShowEduModal(false); setEditingEduIndex(null); setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduDegree(''); setDegreeInput(''); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); }}>Cancel</button>
                   <button type="button" className="btn btn-primary" onClick={saveEducation}>Save</button>
                 </div>
               </div>
@@ -1121,7 +1148,8 @@ export default function EditProfile(){
             description: exp.description || exp.Description || ''
           }))),
           educationJson: JSON.stringify(education.map(edu => ({
-            degree: edu.Level || edu.degree || 'Degree not specified',
+            level: edu.Level || edu.level || '',
+            degree: edu.Degree || edu.degree || '',
             school: edu.School || edu.school || 'School not specified',
             startDate: edu.StartDate || edu.startDate || edu.start || '',
             endDate: edu.EndDate || edu.endDate || edu.end || ''

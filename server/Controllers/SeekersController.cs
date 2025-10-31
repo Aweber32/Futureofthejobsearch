@@ -368,6 +368,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
     public class EducationDto {
         public string? Level { get; set; }
+        public string? Degree { get; set; }
         public string? School { get; set; }
         // Expect ISO-like month strings: yyyy-MM
         public string? StartDate { get; set; }

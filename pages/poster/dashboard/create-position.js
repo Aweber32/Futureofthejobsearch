@@ -98,16 +98,20 @@ export default function CreatePosition(){
         }catch(err){ console.error('Poster video upload failed', err); setError('Poster video upload failed: ' + (err.message||err)); }
         finally{ setVideoUploading(false); }
       }
-    const payload = {
+  // Ensure any un-added input text is captured on save
+  const finalExperiences = experiences.concat((experienceInput || '').trim() ? [(experienceInput || '').trim()] : []);
+  const finalSkills = skills.concat((skillInput || '').trim() ? [(skillInput || '').trim()] : []);
+
+  const payload = {
         Title: title,
         Category: category,
         Description: description,
         EmploymentType: employmentType,
         WorkSetting: workSetting,
         TravelRequirements: travel,
-        EducationLevels: education,
-  Experiences: experiences,
-  Skills: skills,
+    EducationLevels: education,
+  Experiences: finalExperiences,
+  Skills: finalSkills,
   SalaryType: salaryType === 'None' ? null : salaryType,
   SalaryValue: null,
   SalaryMin: salaryMin !== '' ? parseFloat(salaryMin) : null,

@@ -298,6 +298,10 @@ export default function EditPosition(){
         }
       }
 
+      // Ensure any un-added input text is captured on save
+      const finalExperiences = experiences.concat((experienceInput || '').trim() ? [(experienceInput || '').trim()] : []);
+      const finalSkills = skills.concat((skillInput || '').trim() ? [(skillInput || '').trim()] : []);
+
       const payload = {
         Title: title,
         Category: category,
@@ -306,8 +310,8 @@ export default function EditPosition(){
         WorkSetting: workSetting,
         TravelRequirements: travel,
         EducationLevels: education,
-        Experiences: experiences,
-        Skills: skills,
+        Experiences: finalExperiences,
+        Skills: finalSkills,
         SalaryType: salaryType === 'None' ? null : salaryType,
         SalaryValue: null,
         SalaryMin: salaryMin !== '' ? parseFloat(salaryMin) : null,

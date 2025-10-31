@@ -4,6 +4,8 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import SkillAutocomplete from '../../components/SkillAutocomplete';
+import DegreeAutocomplete from '../../components/DegreeAutocomplete';
+import UniversityAutocomplete from '../../components/UniversityAutocomplete';
 import Select from 'react-select';
 import { State, City } from 'country-state-city';
 import { API_CONFIG } from '../../config/api';
@@ -28,6 +30,8 @@ export default function SeekerSignup(){
   // Education entry helpers
   const EDUCATION_LEVELS = ["High School","Associate's","Bachelor's","Master's","Doctorate","None"];
   const [newEduLevel, setNewEduLevel] = useState(EDUCATION_LEVELS[0]);
+    const [newEduDegree, setNewEduDegree] = useState('');
+    const [degreeInput, setDegreeInput] = useState('');
   const [newEduSchool, setNewEduSchool] = useState('');
   const [newEduStart, setNewEduStart] = useState('');
   const [newEduEnd, setNewEduEnd] = useState('');
@@ -594,17 +598,17 @@ export default function SeekerSignup(){
 
             <div className="mb-3">
               <label className="form-label">Education</label>
-              <div className="mb-2"><button type="button" className="btn btn-primary" onClick={()=>{ setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); setEditingEduIndex(null); setShowEduModal(true); }}>Add Education</button></div>
+                <div className="mb-2"><button type="button" className="btn btn-primary" onClick={()=>{ setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduDegree(''); setDegreeInput(''); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); setEditingEduIndex(null); setShowEduModal(true); }}>Add Education</button></div>
               <div>
                 {(form.education || []).map((ed, idx)=> (
                   <div key={idx} className="card mb-2">
                     <div className="card-body p-2 d-flex justify-content-between align-items-start">
                       <div>
                         <div><strong>{ed.School || ed.Level || 'Untitled'}</strong></div>
-                        <div className="small text-muted">{ed.Level || ''}{((ed.StartDate || ed.start) && (ed.EndDate || ed.end)) ? ` • ${ed.StartDate || ed.start} — ${ed.EndDate || ed.end}` : ((ed.StartDate || ed.start) ? ` • ${ed.StartDate || ed.start}` : ((ed.EndDate || ed.end) ? ` • ${ed.EndDate || ed.end}` : ''))}</div>
+                          <div className="small text-muted">{ed.Level || ''}{ed.Degree ? ` • ${ed.Degree}` : ''}{((ed.StartDate || ed.start) && (ed.EndDate || ed.end)) ? ` • ${ed.StartDate || ed.start} — ${ed.EndDate || ed.end}` : ((ed.StartDate || ed.start) ? ` • ${ed.StartDate || ed.start}` : ((ed.EndDate || ed.end) ? ` • ${ed.EndDate || ed.end}` : ''))}</div>
                       </div>
                       <div>
-                        <button type="button" className="btn btn-sm btn-link" onClick={()=>{ setNewEduLevel(ed.Level || EDUCATION_LEVELS[0]); setNewEduSchool(ed.School || ''); setNewEduStart(ed.StartDate || ed.start || ''); setNewEduEnd(ed.EndDate || ed.end || ''); setEditingEduIndex(idx); setShowEduModal(true); }}>Edit</button>
+                          <button type="button" className="btn btn-sm btn-link" onClick={()=>{ setNewEduLevel(ed.Level || EDUCATION_LEVELS[0]); setNewEduDegree(ed.Degree || ''); setDegreeInput(ed.Degree || ''); setNewEduSchool(ed.School || ''); setNewEduStart(ed.StartDate || ed.start || ''); setNewEduEnd(ed.EndDate || ed.end || ''); setEditingEduIndex(idx); setShowEduModal(true); }}>Edit</button>
                         <button type="button" className="btn btn-sm btn-link text-danger" onClick={()=>{ setForm(prev=> ({ ...prev, education: (prev.education||[]).filter((_,i)=>i!==idx) }) ); if (editingEduIndex !== null && editingEduIndex === idx) setEditingEduIndex(null); }}>Remove</button>
                       </div>
                     </div>
@@ -628,25 +632,40 @@ export default function SeekerSignup(){
                               {EDUCATION_LEVELS.map(l=> <option key={l} value={l}>{l}</option>)}
                             </select>
                           </div>
-                          <div className="mb-2"><label className="form-label small">School</label><input className="form-control" value={newEduSchool} onChange={e=>setNewEduSchool(e.target.value)} placeholder="e.g. University of Somewhere" /></div>
+                            <div className="mb-2">
+                              <label className="form-label small">Degree</label>
+                              <DegreeAutocomplete 
+                                value={degreeInput} 
+                                onChange={e => setDegreeInput(e.target.value)} 
+                                placeholder="Degree (e.g., Computer Science)" 
+                              />
+                            </div>
+                          <div className="mb-2">
+                            <label className="form-label small">University</label>
+                            <UniversityAutocomplete
+                              value={newEduSchool}
+                              onChange={e => setNewEduSchool(e.target.value)}
+                              placeholder="Select or type your university"
+                            />
+                          </div>
                           <div className="row">
                             <div className="col-6 mb-2"><label className="form-label small">Start (month)</label><input type="month" className="form-control" value={newEduStart} onChange={e=>setNewEduStart(e.target.value)} /></div>
                             <div className="col-6 mb-2"><label className="form-label small">End (month)</label><input type="month" className="form-control" value={newEduEnd} onChange={e=>setNewEduEnd(e.target.value)} /></div>
                           </div>
                         </div>
                         <div className="modal-footer">
-                          <button type="button" className="btn btn-secondary" onClick={()=>{ setShowEduModal(false); setEditingEduIndex(null); setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); }}>Cancel</button>
+                            <button type="button" className="btn btn-secondary" onClick={()=>{ setShowEduModal(false); setEditingEduIndex(null); setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduDegree(''); setDegreeInput(''); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); }}>Cancel</button>
                           <button type="button" className="btn btn-primary" onClick={()=>{
-                            const level = (newEduLevel||'').trim(); const school = (newEduSchool||'').trim(); const start = (newEduStart||'').trim(); const end = (newEduEnd||'').trim();
+                                const level = (newEduLevel||'').trim(); const degree = (degreeInput||'').trim(); const school = (newEduSchool||'').trim(); const start = (newEduStart||'').trim(); const end = (newEduEnd||'').trim();
                             if (!school && !level) { setError('Please provide at least a school name or level'); return; }
-                            const entry = { Level: level, School: school, StartDate: start, EndDate: end };
+                              const entry = { Level: level, Degree: degree, School: school, StartDate: start, EndDate: end };
                             if (editingEduIndex !== null && Number.isInteger(editingEduIndex)){
                               setForm(prev=>{ const arr = Array.isArray(prev.education) ? [...prev.education] : []; arr[editingEduIndex] = entry; return { ...prev, education: arr }; });
                               setEditingEduIndex(null);
                             } else {
                               setForm(prev=> ({ ...prev, education: [ ...(prev.education||[]), entry ] }));
                             }
-                            setShowEduModal(false); setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); setError('');
+                                setShowEduModal(false); setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduDegree(''); setDegreeInput(''); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); setError('');
                           }}>{editingEduIndex !== null ? 'Save' : 'Add'}</button>
                         </div>
                       </div>

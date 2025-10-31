@@ -378,9 +378,9 @@ export default function CandidateSwiper({ initialCandidates }){
                       borderRadius: '8px',
                       borderLeft: '4px solid #28a745'
                     }}>
-                      <h6 style={{ marginBottom: '4px', color: '#333' }}>{edu.degree || edu.Level || 'Degree not specified'}</h6>
-                      <p style={{ marginBottom: '4px', color: '#666', fontSize: '14px' }}>
-                        {edu.school || edu.School || 'School not specified'}
+                      <h6 style={{ marginBottom: '4px', color: '#333' }}>{edu.school || edu.School || 'School not specified'}</h6>
+                      <p style={{ marginBottom: '4px', color: '#666', fontSize: '12px' }}>
+                        {(edu.Level || edu.level || '') + ((edu.Degree || edu.degree) ? ` • ${edu.Degree || edu.degree}` : '')}
                       </p>
                       <p style={{ color: '#888', fontSize: '12px' }}>
                         {formatDateRange(edu.startDate || edu.StartDate, edu.endDate || edu.EndDate)}
