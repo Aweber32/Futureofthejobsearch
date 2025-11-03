@@ -7,6 +7,7 @@ const JobPostCard = ({ position, show, onHide }) => {
   // Sign blob URLs
   const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
   const { signedUrl: posterVideo } = useSignedBlobUrl(position?.posterVideoUrl, token);
+  const { signedUrl: companyLogoUrl } = useSignedBlobUrl(position?.companyLogo, token);
 
   console.log('JobPostCard render:', { position, show, onHide });
   console.log('🔍 Company size in position:', position.companySize);
@@ -32,6 +33,14 @@ const JobPostCard = ({ position, show, onHide }) => {
   }, [show, onHide]);
 
   if (!show) return null;
+
+  // Helper: normalize any candidate into an array of items
+  const toArray = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') return val.split(',').map(s => s.trim()).filter(Boolean);
+    return [];
+  };
 
   // Mock company data - in real app this would come from API
   // Format company size from enum value
@@ -65,7 +74,7 @@ const JobPostCard = ({ position, show, onHide }) => {
 
   const companyData = {
     name: position.companyName || 'Company Name',
-    logo: position.companyLogo || null,
+    logo: companyLogoUrl || position.companyLogo || null,
     description: position.companyDescription || 'A great company to work for.',
     website: position.companyWebsite || 'https://example.com',
     size: formatCompanySize(position.companySize),
@@ -203,14 +212,12 @@ const JobPostCard = ({ position, show, onHide }) => {
                   <div className="col-md-5 p-4 bg-light">
                     {/* Education Requirements */}
                     {(() => {
-                      const raw = Array.isArray(position.educations)
-                        ? position.educations
-                        : Array.isArray(position.education)
-                          ? position.education
-                          : Array.isArray(position.educationLevels)
-                            ? position.educationLevels
-                            : [];
-                      const eduArr = raw.map(e => e?.education ?? e?.Education ?? e).filter(Boolean);
+                      const rawEdu = [
+                        ...toArray(position.educations),
+                        ...toArray(position.education),
+                        ...toArray(position.educationLevels)
+                      ];
+                      const eduArr = rawEdu.map(e => e?.education ?? e?.Education ?? e).filter(Boolean);
                       return (
                         <div className="mb-4">
                           <h6 className="fw-bold mb-3 text-dark">
@@ -232,8 +239,11 @@ const JobPostCard = ({ position, show, onHide }) => {
 
                     {/* Experience Requirements */}
                     {(() => {
-                      const raw = Array.isArray(position.experiences) ? position.experiences : (Array.isArray(position.experience) ? position.experience : []);
-                      const expArr = raw.map(x => x?.experience ?? x?.Experience ?? x).filter(Boolean);
+                      const rawExp = [
+                        ...toArray(position.experiences),
+                        ...toArray(position.experience)
+                      ];
+                      const expArr = rawExp.map(x => x?.experience ?? x?.Experience ?? x).filter(Boolean);
                       return (
                         <div className="mb-4">
                           <h6 className="fw-bold mb-3 text-dark">
@@ -255,8 +265,11 @@ const JobPostCard = ({ position, show, onHide }) => {
 
                     {/* Skills */}
                     {(() => {
-                      const raw = Array.isArray(position.skillsList) ? position.skillsList : (Array.isArray(position.skills) ? position.skills : []);
-                      const skillsArr = raw.map(s => s?.skill ?? s?.Skill ?? s).filter(Boolean);
+                      const rawSkills = [
+                        ...toArray(position.skillsList),
+                        ...toArray(position.skills)
+                      ];
+                      const skillsArr = rawSkills.map(s => s?.skill ?? s?.Skill ?? s).filter(Boolean);
                       return (
                         <div className="mb-4">
                           <h6 className="fw-bold mb-3 text-dark">

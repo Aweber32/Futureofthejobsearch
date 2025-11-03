@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import Layout from '../../../components/Layout';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { API_CONFIG } from '../../../config/api';
+import JobPostCard from '../../../components/JobPostCard';
 
 const API = API_CONFIG.BASE_URL;
 
@@ -33,6 +34,38 @@ export default function CreatePosition(){
   const [salaryMax, setSalaryMax] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [employerData, setEmployerData] = useState({
+    companyName: '',
+    logoUrl: null,
+    companyDescription: '',
+    website: '',
+    companySize: null,
+    city: '',
+    state: ''
+  });
+
+  // Load employer data for preview header (company name, logo, etc.)
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+    if (!token) return;
+    fetch(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const emp = data?.employer;
+        if (!emp) return;
+        setEmployerData({
+          companyName: emp.companyName || '',
+          logoUrl: emp.logoUrl || null,
+          companyDescription: emp.companyDescription || '',
+          website: emp.website || '',
+          companySize: emp.companySize !== undefined && emp.companySize !== null ? emp.companySize : null,
+          city: emp.city || '',
+          state: emp.state || ''
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   // helpers to format numbers with commas as the user types
   function unformatInput(str){
@@ -242,9 +275,52 @@ export default function CreatePosition(){
         {error && <div className="alert alert-danger">{error}</div>}
         <div className="d-flex gap-2">
           <button className="btn btn-primary" type="submit" disabled={loading}>{loading? 'Saving…' : 'Save'}</button>
+          <button
+            type="button"
+            className="btn btn-outline-info"
+            disabled={loading}
+            onClick={() => setShowPreviewModal(true)}
+          >
+            Preview Job Post
+          </button>
           <Link href="/poster/dashboard" className="btn btn-outline-secondary">Cancel</Link>
         </div>
       </form>
+
+      {/* Preview Job Post Modal */}
+      <JobPostCard
+        position={{
+          id: null,
+          title,
+          category,
+          description,
+          employmentType,
+          workSetting,
+          travelRequirements: travel,
+          education,
+          experiences: [
+            ...experiences,
+            ...(experienceInput && experienceInput.trim() ? [experienceInput.trim()] : [])
+          ],
+          skills: [
+            ...skills,
+            ...(skillInput && skillInput.trim() ? [skillInput.trim()] : [])
+          ],
+          salaryType,
+          salaryMin: salaryMin !== '' ? parseFloat(salaryMin) : null,
+          salaryMax: salaryMax !== '' ? parseFloat(salaryMax) : null,
+          posterVideoUrl: posterVideoUrl || null,
+          companyName: employerData.companyName,
+          companyLogo: employerData.logoUrl,
+          companyDescription: employerData.companyDescription,
+          companyWebsite: employerData.website,
+          companySize: employerData.companySize,
+          city: employerData.city,
+          state: employerData.state
+        }}
+        show={showPreviewModal}
+        onHide={() => setShowPreviewModal(false)}
+      />
     </Layout>
   )
 }

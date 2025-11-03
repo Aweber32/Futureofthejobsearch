@@ -5,6 +5,7 @@ import Select from 'react-select';
 import { State, City } from 'country-state-city';
 import { useRouter } from 'next/router';
 import { API_CONFIG } from '../../../config/api';
+import { signBlobUrl } from '../../../utils/blobHelpers';
 
 const API = API_CONFIG.BASE_URL;
 
@@ -14,6 +15,8 @@ export default function EditCompany(){
     companyName: '', contactName: '', contactEmail: '', website: '', companyDescription: '', companySize: 'Small', address: '', city: '', state: ''
   });
   const [logoFile, setLogoFile] = useState(null);
+  const [currentLogoUrl, setCurrentLogoUrl] = useState('');
+  const [showLogoModal, setShowLogoModal] = useState(false);
   const [stateOptions, setStateOptions] = useState([]);
   const [cityOptions, setCityOptions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -29,10 +32,17 @@ export default function EditCompany(){
 
     fetch(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r=>r.ok? r.json() : Promise.reject('Unauthorized'))
-      .then(data=>{
+      .then(async data=>{
           if (!data.employer) { router.push('/poster/login'); return; }
           const emp = data.employer;
           setEmployerId(emp.id);
+          
+          // Sign and store logo URL if available
+          if (emp.logoUrl) {
+            const signedUrl = await signBlobUrl(emp.logoUrl, token);
+            setCurrentLogoUrl(signedUrl);
+          }
+          
           // server returns CompanySize as enum number; convert to name string expected by API
           const sizeToName = (v) => {
             if (v === null || v === undefined) return 'Small';
@@ -101,25 +111,10 @@ export default function EditCompany(){
     finally{ setLoading(false); }
   }
 
-  async function deleteAccount(){
-    if (!confirm('Delete your account and all data? This cannot be undone.')) return;
-    setLoading(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
-    try{
-      const res = await fetch(`${API}/api/employers/${employerId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok){ localStorage.removeItem('fjs_token'); router.push('/'); }
-      else { const txt = await res.text(); throw new Error(txt || 'Delete failed'); }
-    }catch(err){ setError(err?.message || 'Delete failed'); }
-    finally{ setLoading(false); }
-  }
-
   return (
     <Layout title="Edit company">
       <div className="d-flex justify-content-between align-items-center">
         <h2>Edit company</h2>
-        <div>
-          <button className="btn btn-danger" onClick={deleteAccount} disabled={loading}>Delete account</button>
-        </div>
       </div>
 
       <form className="mt-3" onSubmit={save}>
@@ -178,6 +173,15 @@ export default function EditCompany(){
           <div className="col-md-6 mb-3">
             <label className="form-label">Company logo (optional)</label>
             <input type="file" className="form-control" accept="image/*" onChange={e=>setLogoFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
+            {currentLogoUrl && (
+              <button 
+                type="button" 
+                className="btn btn-link btn-sm ps-0 mt-1" 
+                onClick={() => setShowLogoModal(true)}
+              >
+                View Logo
+              </button>
+            )}
           </div>
         </div>
 
@@ -201,6 +205,50 @@ export default function EditCompany(){
           <Link href="/poster/dashboard" className="btn btn-outline-secondary">Cancel</Link>
         </div>
       </form>
+
+      {/* Logo Preview Modal */}
+      {showLogoModal && (
+        <div 
+          className="modal show d-block" 
+          tabIndex={-1} 
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setShowLogoModal(false)}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Company Logo</h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowLogoModal(false)}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div className="modal-body text-center">
+                {currentLogoUrl ? (
+                  <img 
+                    src={currentLogoUrl} 
+                    alt="Company Logo" 
+                    style={{ maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <p className="text-muted">No logo uploaded</p>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowLogoModal(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

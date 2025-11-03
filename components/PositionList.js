@@ -121,7 +121,7 @@ export default function PositionList({ positions = [] }){
                           fontWeight: '500'
                         }}
                       >
-                        Draft
+                        Not-Visable
                       </span>
                     )}
                   </div>

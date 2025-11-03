@@ -193,6 +193,69 @@ namespace FutureOfTheJobSearch.Server.Controllers
             return Ok(new { message = "Logged out" });
         }
 
+        // Request password reset email (works for both employers and seekers)
+        [HttpPost("password-reset-request")]
+        [AllowAnonymous]
+        public async Task<IActionResult> PasswordResetRequest(
+            [FromServices] FutureOfTheJobSearch.Server.Services.IEmailService emailService,
+            [FromServices] ILogger<AuthController> logger,
+            [FromBody] DTOs.PasswordResetRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Email)) return BadRequest(new { error = "Email is required" });
+            var user = await _userManager.FindByEmailAsync(req.Email);
+            if (user == null)
+            {
+                // Do not reveal that the user does not exist
+                return Ok(new { message = "If an account exists, a reset link has been sent." });
+            }
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            
+            // Determine if this is a seeker or employer
+            var isSeeker = await _db.Seekers.AnyAsync(s => s.UserId == user.Id);
+            var userType = isSeeker ? "seeker" : "poster";
+            
+            // Frontend URL to handle reset
+            var frontendBase = _config["FrontendBaseUrl"] ?? Environment.GetEnvironmentVariable("FRONTEND_BASE_URL") ?? "http://localhost:3000";
+            var resetUrl = $"{frontendBase.TrimEnd('/')}/{userType}/reset-password?uid={Uri.EscapeDataString(user.Id)}&token={Uri.EscapeDataString(token)}";
+
+            // Read configured token lifetime to keep email copy accurate
+            var minutes = 30;
+            if (int.TryParse(_config["Identity:ResetTokenMinutes"] ?? Environment.GetEnvironmentVariable("IDENTITY__RESETTOKENMINUTES"), out var cfgMins) && cfgMins > 0)
+            {
+                minutes = cfgMins;
+            }
+
+            var subject = "Reset your ELEV8R password";
+            var body = $@"<p>We received a request to reset your password.</p>
+                          <p><a href='{resetUrl}'>Click here to reset your password</a>. This link will expire in {minutes} minutes.</p>
+                          <p>If you did not request this, you can safely ignore this email.</p>";
+            try
+            {
+                await emailService.SendAsync(user.Email!, subject, body);
+            }
+            catch (Exception ex)
+            {
+                // Do not reveal details to the client; log server-side and still return 200 to avoid user enumeration and UX breakage.
+                logger.LogError(ex, "[PasswordResetRequest] Failed to send email to {Email}", user.Email);
+            }
+            return Ok(new { message = "If an account exists, a reset link has been sent." });
+        }
+
+        // Confirm password reset (works for both employers and seekers)
+        [HttpPost("password-reset-confirm")]
+        [AllowAnonymous]
+        public async Task<IActionResult> PasswordResetConfirm([FromBody] DTOs.PasswordResetConfirmRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.UserId) || string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.NewPassword))
+                return BadRequest(new { error = "Missing fields" });
+            var user = await _userManager.FindByIdAsync(req.UserId);
+            if (user == null) return BadRequest(new { error = "Invalid user" });
+            var result = await _userManager.ResetPasswordAsync(user, req.Token, req.NewPassword);
+            if (!result.Succeeded) return BadRequest(new { error = "Failed to reset password", details = result.Errors });
+            return Ok(new { message = "Password reset successful" });
+        }
+
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> Me()

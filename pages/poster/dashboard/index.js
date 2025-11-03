@@ -206,8 +206,10 @@ export default function Dashboard(){
                   whiteSpace: 'nowrap' 
                 }}>{userEmail}</span></li>
                 <li><hr className="dropdown-divider" /></li>
+                <li><Link href="/poster/dashboard/analytics" className="dropdown-item">Analytics</Link></li>
                 <li><Link href="/poster/dashboard/edit-company" className="dropdown-item">Edit Company</Link></li>
-                <li><span className="dropdown-item">Billing</span></li>
+                <li><Link href="/poster/dashboard/settings" className="dropdown-item">Settings</Link></li>
+                <li><Link href="/poster/dashboard/billing" className="dropdown-item">Billing</Link></li>
                 <li><button className="dropdown-item text-danger" onClick={logout}>Logout</button></li>
               </ul>
             </div>

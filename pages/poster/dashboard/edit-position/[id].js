@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import JobPostCard from '../../../../components/JobPostCard';
 import { API_CONFIG } from '../../../../config/api';
+import { signBlobUrl } from '../../../../utils/blobHelpers';
 
 const API = API_CONFIG.BASE_URL;
 
@@ -25,6 +26,7 @@ export default function EditPosition(){
   const [description, setDescription] = useState('');
   const [posterVideoFile, setPosterVideoFile] = useState(null);
   const [posterVideoUrl, setPosterVideoUrl] = useState('');
+  const [signedPosterVideoUrl, setSignedPosterVideoUrl] = useState('');
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   const [removeVideo, setRemoveVideo] = useState(false);
@@ -40,6 +42,7 @@ export default function EditPosition(){
   const [salaryMin, setSalaryMin] = useState('');
   const [salaryMax, setSalaryMax] = useState('');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
 
   // Employer data state
   const [employerData, setEmployerData] = useState({
@@ -66,7 +69,8 @@ export default function EditPosition(){
         setTitle(pos.title || pos.Title || '');
         setCategory(pos.category || pos.Category || JOB_CATEGORIES[0]);
         setDescription(pos.description || pos.Description || '');
-        setPosterVideoUrl(pos.posterVideoUrl || pos.PosterVideoUrl || '');
+  const rawVideoPath = pos.posterVideoUrl || pos.PosterVideoUrl || '';
+  setPosterVideoUrl(rawVideoPath);
         setRemoveVideo(false); // Reset remove video state when loading position
         setEmploymentType(pos.employmentType || pos.EmploymentType || EMPLOYMENT_TYPES[0]);
         setWorkSetting(pos.workSetting || pos.WorkSetting || WORK_SETTINGS[0]);
@@ -102,6 +106,28 @@ export default function EditPosition(){
             city: employer.city || employer.City || '',
             state: employer.state || employer.State || ''
           });
+        }
+
+        // Sign poster video URL if it's a path-only blob reference
+        try {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+          if (rawVideoPath) {
+            const signed = await signBlobUrl(rawVideoPath, token);
+            if (signed) {
+              setSignedPosterVideoUrl(signed);
+            } else {
+              // Fallback: ensure absolute path if path-only
+              const fallback = (rawVideoPath.startsWith('http://') || rawVideoPath.startsWith('https://'))
+                ? rawVideoPath
+                : (rawVideoPath.startsWith('/') ? rawVideoPath : `/${rawVideoPath}`);
+              setSignedPosterVideoUrl(fallback);
+            }
+          } else {
+            setSignedPosterVideoUrl('');
+          }
+        } catch (e) {
+          console.warn('Failed to sign poster video URL', e);
+          setSignedPosterVideoUrl(rawVideoPath);
         }
       }catch(err){ console.error(err); setError('Failed to load position'); }
       finally{ if (!cancelled) setLoading(false); }
@@ -390,9 +416,13 @@ export default function EditPosition(){
             {videoUploading && <div className="mt-2"><div className="progress"><div className="progress-bar" role="progressbar" style={{width: `${videoProgress}%`}} aria-valuenow={videoProgress} aria-valuemin="0" aria-valuemax="100">{videoProgress}%</div></div></div>}
             {posterVideoUrl && (
               <div className="mt-2 d-flex align-items-center gap-2">
-                <a href={posterVideoUrl} target="_blank" rel="noreferrer" className="text-decoration-none">
+                <button
+                  type="button"
+                  className="btn btn-link btn-sm ps-0 text-decoration-none"
+                  onClick={() => setShowVideoModal(true)}
+                >
                   <i className="fas fa-video me-1"></i>Current poster video
-                </a>
+                </button>
                 {removeVideo ? (
                   <span className="badge bg-warning text-dark">
                     <i className="fas fa-exclamation-triangle me-1"></i>Will be removed on save
@@ -545,6 +575,46 @@ export default function EditPosition(){
         </div>
       </form>
 
+      {/* Poster Video Preview Modal */}
+      {showVideoModal && (
+        <div
+          className="modal show d-block"
+          tabIndex={-1}
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setShowVideoModal(false)}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Poster Video</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowVideoModal(false)}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div className="modal-body text-center">
+                { (signedPosterVideoUrl || posterVideoUrl) ? (
+                  <video
+                    src={signedPosterVideoUrl || (posterVideoUrl.startsWith('http') ? posterVideoUrl : (posterVideoUrl.startsWith('/') ? posterVideoUrl : `/${posterVideoUrl}`))}
+                    controls
+                    style={{ maxWidth: '100%', maxHeight: '70vh', outline: 'none' }}
+                  />
+                ) : (
+                  <p className="text-muted">No video uploaded</p>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowVideoModal(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Preview Job Post Modal */}
       <JobPostCard
         position={{
@@ -554,14 +624,20 @@ export default function EditPosition(){
           description: description,
           employmentType: employmentType,
           workSetting: workSetting,
-          travel: travel,
+          travelRequirements: travel,
           education: education,
-          experiences: experiences,
-          skills: skills,
+          experiences: [
+            ...experiences,
+            ...(experienceInput && experienceInput.trim() ? [experienceInput.trim()] : [])
+          ],
+          skills: [
+            ...skills,
+            ...(skillInput && skillInput.trim() ? [skillInput.trim()] : [])
+          ],
           salaryType: salaryType,
           salaryMin: salaryMin !== '' ? parseFloat(salaryMin) : null,
           salaryMax: salaryMax !== '' ? parseFloat(salaryMax) : null,
-          posterVideoUrl: posterVideoUrl,
+          posterVideoUrl: signedPosterVideoUrl || posterVideoUrl,
           // Real employer data from API
           companyName: employerData.companyName,
           companyLogo: employerData.logoUrl,
