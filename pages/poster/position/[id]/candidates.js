@@ -1,21 +1,25 @@
 import Layout from '../../../../components/Layout';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { API_CONFIG } from '../../../../config/api';
-import ChatButton from '../../../../components/ChatButton';
+import { MessageCircle, Bot } from 'lucide-react';
+import ChatModal from '../../../../components/ChatModal';
+
+const PIPELINE_STAGES = ['Interested', 'Reviewed', 'Interviewed', 'Offer', 'Hired'];
 
 export default function PositionCandidates(){
   const router = useRouter();
   const { id } = router.query;
-  const [interestedList, setInterestedList] = useState([]);
-  const [notInterestedList, setNotInterestedList] = useState([]);
+  const [candidates, setCandidates] = useState([]);
   const [positionTitle, setPositionTitle] = useState('');
+  const [positionDetails, setPositionDetails] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [draggedItem, setDraggedItem] = useState(null);
-  const [dragOverIndex, setDragOverIndex] = useState(null);
-  const [convUnreadMap, setConvUnreadMap] = useState({});
-  const saveTimeoutRef = useRef(null);
+  const [draggedCandidate, setDraggedCandidate] = useState(null);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [chatTitle, setChatTitle] = useState('');
+  const [chatSubtitle, setChatSubtitle] = useState('');
 
   useEffect(()=>{
     if (!id) return;
@@ -23,62 +27,39 @@ export default function PositionCandidates(){
     async function load(){
       try{
         const base = API_CONFIG.BASE_URL;
+        
+        // Fetch position details
+        try{
+          const pres = await fetch(`${base}/api/positions/${id}`);
+          if (pres.ok){
+            const pjson = await pres.json();
+            setPositionTitle(pjson.title ?? pjson.Title ?? '');
+            setPositionDetails(pjson);
+          }
+        }catch(e){ /* ignore */ }
+        
+        // Fetch all candidates (seeker interests)
         const res = await fetch(`${base}/api/seekerinterests?positionId=${id}`);
         if (!res.ok) { 
-          setInterestedList([]);
-          setNotInterestedList([]);
+          setCandidates([]);
           setLoading(false);
           return;
         }
         const data = await res.json();
         
-        // Fetch position title
-        try{
-          const pres = await fetch(`${base}/api/positions/${id}`);
-          if (pres.ok){
-            const pjson = await pres.json();
-            setPositionTitle(pjson.title ?? pjson.Title ?? pjson.positionTitle ?? '');
-          }
-        }catch(e){ /* ignore */ }
-        
         if (!cancelled) {
-          // Split into interested and not interested, preserving order from server (already ranked)
-          const interested = (data || []).filter(r => r.interested || r.Interested);
-          const notInterested = (data || []).filter(r => !(r.interested || r.Interested));
-          setInterestedList(interested);
-          setNotInterestedList(notInterested);
-
-          // Fetch conversations once to compute unread counts for ChatButtons
-          try {
-            const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
-            if (token) {
-              const cres = await fetch(`${base}/api/conversations`, { headers: { Authorization: `Bearer ${token}` } });
-              if (cres.ok) {
-                const convs = await cres.json();
-                // Build a map keyed by `${positionId}|${otherUserId}`
-                const map = {};
-                (convs || []).forEach(c => {
-                  const keyBase = `${c.positionId ?? c.PositionId ?? ''}|`;
-                  const parts = c.participantUserIds || c.ParticipantUserIds || [];
-                  parts.forEach(uid => {
-                    const key = keyBase + uid;
-                    // Store highest unread (binary at the moment) per key
-                    map[key] = Math.max(map[key] || 0, c.unreadCount || c.UnreadCount || 0);
-                  });
-                });
-                setConvUnreadMap(map);
-              }
-            }
-          } catch (e) {
-            // ignore conv fetch errors to avoid blocking page
-          }
-
+          // Add pipeline stage to all candidates
+          const allCandidates = (data || []).map(r => ({
+            ...r,
+            pipelineStage: r.pipelineStage || 'Interested' // Default to Interested if not set
+          }));
+          
+          setCandidates(allCandidates);
           setLoading(false);
         }
       }catch(e){ 
         if (!cancelled) {
-          setInterestedList([]);
-          setNotInterestedList([]);
+          setCandidates([]);
           setLoading(false);
         }
       }
@@ -87,154 +68,350 @@ export default function PositionCandidates(){
     return ()=>{ cancelled = true; }
   },[id]);
 
-  const saveRanks = async (list, isInterested) => {
-    if (!id) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
-    if (!token) return;
+  const handleDragStart = (candidate) => {
+    setDraggedCandidate(candidate);
+  };
 
-    // Build rankings array with new rank order
-    const rankings = list.map((item, index) => ({
-      seekerInterestId: item.id ?? item.Id,
-      rank: index + 1
-    }));
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
 
+  const handleDrop = async (stage) => {
+    if (!draggedCandidate) return;
+    
+    const candidateId = draggedCandidate.id ?? draggedCandidate.Id;
+    
+    // Update candidate stage locally with timestamp
+    const updatedCandidates = candidates.map(c => 
+      (c.id ?? c.Id) === candidateId
+        ? { ...c, pipelineStage: stage, pipelineStageUpdatedAt: new Date().toISOString() }
+        : c
+    );
+    setCandidates(updatedCandidates);
+    setDraggedCandidate(null);
+
+    // Save stage to backend via API
     try {
-      const res = await fetch(`${API_CONFIG.BASE_URL}/api/seekerinterests/updateranks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+      const base = API_CONFIG.BASE_URL;
+      
+      const response = await fetch(`${base}/api/seekerinterests/${candidateId}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify({
-          positionId: parseInt(id, 10),
-          rankings
+        body: JSON.stringify({ 
+          interested: true, // Keep them interested when moving stages
+          pipelineStage: stage 
         })
       });
-
-      if (!res.ok) {
-        console.warn('Failed to save ranks', await res.text());
+      
+      if (!response.ok) {
+        console.error('Failed to update pipeline stage:', response.status);
+        // Optionally revert the UI change or show error
       }
     } catch (err) {
-      console.error('Error saving ranks:', err);
+      console.error('Error updating pipeline stage:', err);
     }
   };
 
-  const handleDragStart = (e, item, listType) => {
-    setDraggedItem({ item, listType });
-    e.dataTransfer.effectAllowed = 'move';
-    e.currentTarget.style.opacity = '0.4';
-  };
-
-  const handleDragEnd = (e) => {
-    e.currentTarget.style.opacity = '1';
-    setDraggedItem(null);
-    setDragOverIndex(null);
-  };
-
-  const handleDragOver = (e, index) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIndex(index);
-  };
-
-  const handleDragLeave = () => {
-    setDragOverIndex(null);
-  };
-
-  const handleDrop = (e, targetIndex, listType) => {
-    e.preventDefault();
-    setDragOverIndex(null);
+  const handleDropNotInterested = async () => {
+    if (!draggedCandidate) return;
     
-    if (!draggedItem || draggedItem.listType !== listType) return;
-
-    const sourceList = listType === 'interested' ? interestedList : notInterestedList;
-    const setSourceList = listType === 'interested' ? setInterestedList : setNotInterestedList;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+      const base = API_CONFIG.BASE_URL;
+      const candidateId = draggedCandidate.id ?? draggedCandidate.Id;
+      
+      // Update interested status to false in database
+      const response = await fetch(`${base}/api/seekerinterests/${candidateId}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ interested: false })
+      });
+      
+      if (response.ok) {
+        // Update local state - mark candidate as not interested
+        const updatedCandidates = candidates.map(c => 
+          (c.id ?? c.Id) === candidateId
+            ? { ...c, interested: false, Interested: false }
+            : c
+        );
+        setCandidates(updatedCandidates);
+      } else {
+        console.error('Failed to mark candidate as not interested:', response.status);
+        alert('Failed to update candidate status. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error marking candidate as not interested:', err);
+      alert('An error occurred. Please try again.');
+    }
     
-    const draggedIndex = sourceList.findIndex(item => 
-      (item.id ?? item.Id) === (draggedItem.item.id ?? draggedItem.item.Id)
+    setDraggedCandidate(null);
+  };
+
+  const getCandidatesByStage = (stage) => {
+    return candidates.filter(c => 
+      (c.interested || c.Interested) && (c.pipelineStage || 'Interested') === stage
     );
-    
-    if (draggedIndex === -1 || draggedIndex === targetIndex) return;
-
-    // Reorder the list
-    const newList = [...sourceList];
-    const [removed] = newList.splice(draggedIndex, 1);
-    newList.splice(targetIndex, 0, removed);
-    
-    setSourceList(newList);
-
-    // Debounce save to avoid too many API calls
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    saveTimeoutRef.current = setTimeout(() => {
-      saveRanks(newList, listType === 'interested');
-    }, 500);
   };
 
-  const renderCandidate = (r, index, listType) => {
-    const seeker = r.seeker ?? r.Seeker ?? {};
-    const name = (seeker.firstName ?? seeker.FirstName ?? seeker.name ?? seeker.Name ?? '') + ' ' + (seeker.lastName ?? seeker.LastName ?? '');
-    const seekerUserId = seeker.userId ?? seeker.UserId ?? null;
-    const posId = parseInt(id, 10);
-    const isDragOver = dragOverIndex === index && draggedItem?.listType === listType;
+  const getNotInterestedCandidates = () => {
+    return candidates.filter(c => !(c.interested || c.Interested));
+  };
+
+  const handleMarkInterested = async (candidate) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+      const base = API_CONFIG.BASE_URL;
+      const candidateId = candidate.id ?? candidate.Id;
+      
+      // Update interested status in database
+      const response = await fetch(`${base}/api/seekerinterests/${candidateId}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ interested: true })
+      });
+      
+      if (response.ok) {
+        // Update local state - move candidate to Interested stage
+        const updatedCandidates = candidates.map(c => 
+          (c.id ?? c.Id) === candidateId
+            ? { ...c, interested: true, Interested: true, pipelineStage: 'Interested' }
+            : c
+        );
+        setCandidates(updatedCandidates);
+      } else {
+        console.error('Failed to mark candidate as interested:', response.status);
+        alert('Failed to update candidate status. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error marking candidate as interested:', err);
+      alert('An error occurred. Please try again.');
+    }
+  };
+
+  const handleOpenChat = async (candidate) => {
+    const seeker = candidate.seeker ?? candidate.Seeker ?? {};
+    const seekerId = seeker.id ?? seeker.Id;
+    const seekerUserId = seeker.userId ?? seeker.UserId;
+    const firstName = seeker.firstName ?? seeker.FirstName ?? '';
+    const lastName = seeker.lastName ?? seeker.LastName ?? '';
+    const name = `${firstName} ${lastName}`.trim() || 'Candidate';
+
+    if (!seekerUserId) {
+      console.error('Cannot open chat: seeker UserId not found');
+      return;
+    }
+
+    // Try to find or create conversation
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+      const base = API_CONFIG.BASE_URL;
+      
+      // First try to get all conversations and find the one with this seeker for this position
+      const convRes = await fetch(`${base}/api/conversations`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      let conversationId = null;
+      if (convRes.ok) {
+        const conversations = await convRes.json();
+        // Find conversation that matches this position and has this seeker as participant
+        const matchingConv = conversations.find(c => 
+          c.positionId === parseInt(id) && 
+          c.participantUserIds && 
+          c.participantUserIds.includes(seekerUserId)
+        );
+        if (matchingConv) {
+          conversationId = matchingConv.id ?? matchingConv.Id;
+        }
+      }
+      
+      // If no conversation exists, create one
+      if (!conversationId) {
+        const createRes = await fetch(`${base}/api/conversations`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          },
+          body: JSON.stringify({ 
+            otherUserId: seekerUserId, 
+            positionId: parseInt(id),
+            subject: `${name} - ${positionTitle || 'Position'}`
+          })
+        });
+        
+        if (createRes.ok) {
+          const newConv = await createRes.json();
+          conversationId = newConv.id ?? newConv.Id;
+        } else {
+          const errorText = await createRes.text();
+          console.error('Failed to create conversation:', createRes.status, errorText);
+        }
+      }
+      
+      if (conversationId) {
+        setSelectedConversation(conversationId);
+        setChatTitle(name);
+        setChatSubtitle(positionTitle || 'Position');
+        setShowChatModal(true);
+      }
+    } catch (err) {
+      console.error('Failed to open chat:', err);
+    }
+  };
+
+  const renderCandidateCard = (candidate) => {
+    const seeker = candidate.seeker ?? candidate.Seeker ?? {};
+    const firstName = seeker.firstName ?? seeker.FirstName ?? '';
+    const lastName = seeker.lastName ?? seeker.LastName ?? '';
+    const name = `${firstName} ${lastName}`.trim() || 'Candidate';
+    
+    // Format reviewed timestamp from DB
+    const reviewedAt = candidate.reviewedAt ?? candidate.ReviewedAt;
+    const formattedReviewedDate = reviewedAt ? new Date(reviewedAt).toLocaleDateString('en-US', { 
+      month: 'numeric', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }) : 'Not reviewed';
+    
+    // Format pipeline stage timestamp
+    const pipelineStageUpdatedAt = candidate.pipelineStageUpdatedAt ?? candidate.PipelineStageUpdatedAt;
+    const formattedStageDate = pipelineStageUpdatedAt ? new Date(pipelineStageUpdatedAt).toLocaleDateString('en-US', { 
+      month: 'numeric', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }) : 'Not set';
+    
+    const stageLabel = candidate.pipelineStage ?? candidate.PipelineStage ?? 'Interested';
+    const stageAction = stageLabel === 'Interested' ? 'Interested' : 
+                       stageLabel === 'Reviewed' ? 'Reviewed' : 
+                       stageLabel === 'Interviewed' ? 'Interviewed' :
+                       stageLabel === 'Offer' ? 'Offer' : 'Hired';
 
     return (
       <div
-        key={r.id ?? r.Id}
+        key={candidate.id ?? candidate.Id}
         draggable
-        onDragStart={(e) => handleDragStart(e, r, listType)}
-        onDragEnd={handleDragEnd}
-        onDragOver={(e) => handleDragOver(e, index)}
-        onDragLeave={handleDragLeave}
-        onDrop={(e) => handleDrop(e, index, listType)}
-        className={`list-group-item d-flex justify-content-between align-items-center ${isDragOver ? 'drag-over' : ''}`}
-        style={{ 
+        onDragStart={() => handleDragStart(candidate)}
+        className="candidate-card"
+        style={{
+          background: 'white',
+          borderRadius: '8px',
+          padding: '10px',
+          marginBottom: '8px',
+          border: '1px solid #e5e7eb',
           cursor: 'grab',
           transition: 'all 0.2s ease',
-          borderLeft: isDragOver ? '4px solid #0d6efd' : '4px solid transparent'
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
         }}
+        onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'}
+        onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'}
       >
-        <div className="d-flex align-items-center" style={{gap: 12}}>
-          <div className="drag-handle" style={{cursor: 'grab', color: '#6c757d', fontSize: '1.2rem'}}>
-            ⋮⋮
-          </div>
-          <div className="badge bg-light text-dark border" style={{minWidth: '30px'}}>
-            #{index + 1}
-          </div>
-          <div>
-            <div><strong>{name.trim() || 'Candidate'}</strong></div>
-            <div className="small text-muted">Reviewed: {new Date(r.reviewedAt ?? r.ReviewedAt).toLocaleString()}</div>
+        {/* Name and AI Score */}
+        <div className="d-flex justify-content-between align-items-start mb-2">
+          <h6 className="mb-0" style={{ fontWeight: '600', fontSize: '13px', color: '#111827', lineHeight: '1.2' }}>
+            {name}
+          </h6>
+          <div 
+            style={{
+              color: '#10b981',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+            title="Coming Soon"
+          >
+            <Bot size={18} />
           </div>
         </div>
-        <div className="d-flex align-items-center" style={{gap:12}}>
-          <ChatButton 
-            title={name.trim() || 'Candidate Conversation'} 
-            subtitle={positionTitle || ''} 
-            otherUserId={seekerUserId} 
-            positionId={posId} 
-            unreadCount={convUnreadMap[`${posId}|${seekerUserId}`] || 0}
-          />
-          <Link 
-            href={`/poster/candidate/${seeker.id ?? seeker.Id}?positionId=${id}`} 
-            className="btn btn-sm btn-outline-primary"
+
+        {/* Timestamp */}
+        <div className="mb-2" style={{ fontSize: '11px', color: '#6b7280' }}>
+          <div>Moved to {stageAction}: {formattedStageDate}</div>
+          <div style={{ marginTop: '2px' }}>
+            Reviewed: {formattedReviewedDate}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="d-flex gap-2">
+          <button 
+            className="btn btn-sm flex-fill"
+            style={{
+              background: '#7c3aed',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: '500',
+              padding: '4px 8px'
+            }}
+            onClick={() => router.push(`/poster/candidate/${seeker.id ?? seeker.Id}?positionId=${id}`)}
           >
             Review
-          </Link>
+          </button>
+          
+          <button 
+            className="btn btn-sm flex-fill"
+            style={{
+              border: '1px solid #10b981',
+              color: '#10b981',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: '500',
+              padding: '4px 8px',
+              background: 'white'
+            }}
+            onClick={() => handleOpenChat(candidate)}
+          >
+            <MessageCircle size={12} className="me-1" style={{ display: 'inline' }} />
+            Chat
+          </button>
         </div>
       </div>
     );
   };
 
+  // Calculate stats
+  const interestedCandidates = candidates.filter(c => c.interested || c.Interested);
+  const totalCandidates = interestedCandidates.length;
+  const interviewedCount = interestedCandidates.filter(c => 
+    ['Interviewed', 'Offer', 'Hired'].includes(c.pipelineStage)
+  ).length;
+  const interviewedPercent = totalCandidates > 0 
+    ? Math.round((interviewedCount / totalCandidates) * 100) 
+    : 0;
+  
+  const acceptedCount = interestedCandidates.filter(c => c.pipelineStage === 'Hired').length;
+  const acceptancePercent = totalCandidates > 0
+    ? Math.round((acceptedCount / totalCandidates) * 100)
+    : 0;
+
+  const notInterestedCandidates = getNotInterestedCandidates();
+
   return (
-    <Layout title="Reviewed candidates">
+    <Layout title="Hiring Pipeline">
+      {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <h2 className="mb-0">Ranked Candidates</h2>
-          <p className="text-muted mb-0">Drag and drop to rank candidates for this position</p>
-        </div>
-        <div>
-          <Link href="/poster/dashboard" className="btn btn-outline-secondary">Return</Link>
+          <h2 className="mb-1" style={{ fontWeight: '700', fontSize: '24px' }}>Hiring Pipeline</h2>
+          <p className="text-muted mb-0" style={{ fontSize: '13px' }}>
+            {totalCandidates} Candidates | {interviewedPercent}% Interviewed | {acceptancePercent}% Acceptance
+          </p>
         </div>
       </div>
 
@@ -246,52 +423,181 @@ export default function PositionCandidates(){
         </div>
       ) : (
         <>
-          {/* Interested Candidates Section */}
-          <div className="mb-4">
-            <div className="d-flex align-items-center mb-2">
-              <h4 className="mb-0">
-                <span className="badge bg-success me-2">Interested</span>
-                {interestedList.length} {interestedList.length === 1 ? 'Candidate' : 'Candidates'}
-              </h4>
-            </div>
-            {interestedList.length === 0 ? (
-              <div className="alert alert-info">No interested candidates yet.</div>
-            ) : (
-              <div className="list-group">
-                {interestedList.map((r, index) => renderCandidate(r, index, 'interested'))}
+          {/* Kanban Board */}
+          <div style={{ 
+            display: 'flex',
+            gap: '12px',
+            overflowX: 'auto',
+            paddingBottom: '16px',
+            marginBottom: '24px'
+          }}>
+            {PIPELINE_STAGES.map(stage => {
+              const stageCandidates = getCandidatesByStage(stage);
+              return (
+                <div
+                  key={stage}
+                  onDragOver={handleDragOver}
+                  onDrop={() => handleDrop(stage)}
+                  style={{
+                    flex: '1 1 0',
+                    minWidth: '180px',
+                    minHeight: '300px',
+                    background: '#f9fafb',
+                    borderRadius: '8px',
+                    padding: '12px'
+                  }}
+                >
+                  {/* Column Header */}
+                  <div className="mb-2">
+                    <h5 style={{ 
+                      fontSize: '12px', 
+                      fontWeight: '600', 
+                      color: '#111827',
+                      marginBottom: '4px'
+                    }}>
+                      {stage}
+                    </h5>
+                    <div style={{ 
+                      fontSize: '11px', 
+                      color: '#6b7280'
+                    }}>
+                      {stageCandidates.length} {stageCandidates.length === 1 ? 'candidate' : 'candidates'}
+                    </div>
+                  </div>
+
+                  {/* Cards */}
+                  <div>
+                    {stageCandidates.length === 0 ? (
+                      <div 
+                        style={{
+                          textAlign: 'center',
+                          padding: '30px 10px',
+                          color: '#9ca3af',
+                          fontSize: '12px'
+                        }}
+                      >
+                        No candidates
+                      </div>
+                    ) : (
+                      stageCandidates.map(candidate => renderCandidateCard(candidate))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Drop Zone for Not Interested */}
+          <div
+            onDragOver={handleDragOver}
+            onDrop={handleDropNotInterested}
+            style={{
+              border: draggedCandidate ? '2px dashed #ef4444' : '2px dashed transparent',
+              borderRadius: '8px',
+              padding: draggedCandidate ? '8px' : '0',
+              marginBottom: '24px',
+              background: draggedCandidate ? '#fef2f2' : 'transparent',
+              transition: 'all 0.2s ease',
+              textAlign: 'center',
+              minHeight: draggedCandidate ? '60px' : '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {draggedCandidate && (
+              <div style={{ color: '#ef4444', fontSize: '14px', fontWeight: '500' }}>
+                🗑️ Drop here to mark as Not Interested
               </div>
             )}
           </div>
 
-          {/* Not Interested Candidates Section */}
-          <div className="mb-4">
-            <div className="d-flex align-items-center mb-2">
-              <h4 className="mb-0">
-                <span className="badge bg-secondary me-2">Not Interested</span>
-                {notInterestedList.length} {notInterestedList.length === 1 ? 'Candidate' : 'Candidates'}
+          {/* Not Interested Section */}
+          {notInterestedCandidates.length > 0 && (
+            <div style={{ marginTop: '40px' }}>
+              <h4 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px' }}>
+                Not Interested
               </h4>
+              <table className="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Reviewed At</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {notInterestedCandidates.map(candidate => {
+                    const seeker = candidate.seeker ?? candidate.Seeker ?? {};
+                    const firstName = seeker.firstName ?? seeker.FirstName ?? '';
+                    const lastName = seeker.lastName ?? seeker.LastName ?? '';
+                    const name = `${firstName} ${lastName}`.trim() || 'Candidate';
+                    
+                    // Format reviewed timestamp from DB
+                    const reviewedAt = candidate.reviewedAt ?? candidate.ReviewedAt;
+                    const formattedReviewedDate = reviewedAt ? new Date(reviewedAt).toLocaleDateString('en-US', { 
+                      month: 'numeric', 
+                      day: 'numeric', 
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit'
+                    }) : 'Not reviewed';
+                    
+                    return (
+                      <tr key={candidate.id ?? candidate.Id}>
+                        <td>{name}</td>
+                        <td style={{ fontSize: '14px', color: '#6b7280' }}>{formattedReviewedDate}</td>
+                        <td>
+                          <div className="d-flex gap-2">
+                            <button 
+                              className="btn btn-sm btn-success"
+                              onClick={() => handleMarkInterested(candidate)}
+                            >
+                              Make Interested
+                            </button>
+                            <Link 
+                              href={`/poster/candidate/${seeker.id ?? seeker.Id}?positionId=${id}`}
+                              className="btn btn-sm btn-outline-primary"
+                            >
+                              View Profile
+                            </Link>
+                            <button 
+                              className="btn btn-sm"
+                              style={{
+                                border: '1px solid #10b981',
+                                color: '#10b981',
+                                background: 'white'
+                              }}
+                              onClick={() => handleOpenChat(candidate)}
+                            >
+                              <MessageCircle size={14} className="me-1" style={{ display: 'inline' }} />
+                              Chat
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            {notInterestedList.length === 0 ? (
-              <div className="alert alert-info">No not-interested candidates.</div>
-            ) : (
-              <div className="list-group">
-                {notInterestedList.map((r, index) => renderCandidate(r, index, 'not-interested'))}
-              </div>
-            )}
-          </div>
+          )}
         </>
       )}
 
+      {/* Chat Modal */}
+      <ChatModal
+        open={showChatModal}
+        onClose={() => setShowChatModal(false)}
+        title={chatTitle}
+        subtitle={chatSubtitle}
+        conversationId={selectedConversation}
+      />
+
       <style jsx>{`
-        .list-group-item:active {
+        .candidate-card:active {
           cursor: grabbing !important;
-        }
-        .drag-over {
-          background-color: #f8f9fa;
-          transform: scale(1.02);
-        }
-        .drag-handle:active {
-          cursor: grabbing;
+          opacity: 0.5;
         }
       `}</style>
     </Layout>

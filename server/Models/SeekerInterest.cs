@@ -23,8 +23,12 @@ namespace FutureOfTheJobSearch.Server.Models
 
         public DateTime ReviewedAt { get; set; } = DateTime.UtcNow;
 
-            // Rank for ordering candidates (lower number = higher priority)
-            // Null means unranked
-            public int? Rank { get; set; }
+        // Rank for ordering candidates (lower number = higher priority)
+        // Null means unranked
+        public int? Rank { get; set; }
+
+        // Pipeline stage tracking
+        public string? PipelineStage { get; set; } // Interested, Reviewed, Interviewed, Offer, Hired
+        public DateTime? PipelineStageUpdatedAt { get; set; }
     }
 }

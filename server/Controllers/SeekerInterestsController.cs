@@ -104,6 +104,13 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 existing.Interested = req.Interested;
                 existing.ReviewedAt = DateTime.UtcNow;
 
+                // Update pipeline stage if provided
+                if (!string.IsNullOrWhiteSpace(req.PipelineStage))
+                {
+                    existing.PipelineStage = req.PipelineStage;
+                    existing.PipelineStageUpdatedAt = DateTime.UtcNow;
+                }
+
                 await _db.SaveChangesAsync();
                 _logger.LogInformation("Patched SeekerInterest Id={Id} by EmployerId={EmployerId}", id, employerId);
                 return Ok(existing);
