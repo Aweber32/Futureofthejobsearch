@@ -8,6 +8,7 @@ import DegreeAutocomplete from '../../components/DegreeAutocomplete';
 import UniversityAutocomplete from '../../components/UniversityAutocomplete';
 import PreviewProfile from '../../components/PreviewProfile';
 import { API_CONFIG } from '../../config/api';
+import { sanitizeUrl } from '../../utils/sanitize';
 
 const API = API_CONFIG.BASE_URL;
 
@@ -1019,7 +1020,25 @@ export default function EditProfile(){
                         title="Resume Preview"
                         onError={(e) => {
                           e.target.style.display = 'none';
-                          e.target.parentElement.innerHTML = '<div class="d-flex justify-content-center align-items-center h-100"><div class="text-center"><i class="fas fa-file-pdf fa-3x text-muted mb-3"></i><p class="text-muted">Unable to preview PDF. <a href="' + currentResumeUrl + '" target="_blank">Click here to open</a></p></div></div>';
+                          const container = e.target.parentElement;
+                          container.innerHTML = '';
+                          const div = document.createElement('div');
+                          div.className = 'd-flex justify-content-center align-items-center h-100';
+                          const textDiv = document.createElement('div');
+                          textDiv.className = 'text-center';
+                          textDiv.innerHTML = '<i class="fas fa-file-pdf fa-3x text-muted mb-3"></i>';
+                          const p = document.createElement('p');
+                          p.className = 'text-muted';
+                          p.textContent = 'Unable to preview PDF. ';
+                          const a = document.createElement('a');
+                          a.href = sanitizeUrl(currentResumeUrl);
+                          a.target = '_blank';
+                          a.rel = 'noopener noreferrer';
+                          a.textContent = 'Click here to open';
+                          p.appendChild(a);
+                          textDiv.appendChild(p);
+                          div.appendChild(textDiv);
+                          container.appendChild(div);
                         }}
                       />
                     </div>
