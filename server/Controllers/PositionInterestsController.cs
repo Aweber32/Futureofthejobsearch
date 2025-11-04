@@ -21,10 +21,24 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
         // GET api/positioninterests?positionId=123
         [HttpGet]
+        [Authorize]
         public async Task<IActionResult> List([FromQuery] int? positionId)
         {
-            var q = _db.PositionInterests.Include(pi => pi.Position).Include(pi => pi.Seeker).AsQueryable();
-            if (positionId.HasValue) q = q.Where(pi => pi.PositionId == positionId.Value);
+            // Get seeker ID from claims (only seekers should access this)
+            var seekerClaim = User.Claims.FirstOrDefault(c => c.Type == "seekerId");
+            if (seekerClaim == null || !int.TryParse(seekerClaim.Value, out var seekerId))
+                return Unauthorized(new { error = "No seeker associated with this account" });
+
+            // Only return position interests for this specific seeker
+            var q = _db.PositionInterests
+                .Where(pi => pi.SeekerId == seekerId)
+                .Include(pi => pi.Position)
+                .Include(pi => pi.Seeker)
+                .AsQueryable();
+                
+            if (positionId.HasValue) 
+                q = q.Where(pi => pi.PositionId == positionId.Value);
+                
             var list = await q.OrderByDescending(pi => pi.ReviewedAt).ToListAsync();
             return Ok(list);
         }

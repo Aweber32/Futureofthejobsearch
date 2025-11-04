@@ -27,6 +27,7 @@ export default function PositionCandidates(){
     async function load(){
       try{
         const base = API_CONFIG.BASE_URL;
+        const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
         
         // Fetch position details
         try{
@@ -38,9 +39,12 @@ export default function PositionCandidates(){
           }
         }catch(e){ /* ignore */ }
         
-        // Fetch all candidates (seeker interests)
-        const res = await fetch(`${base}/api/seekerinterests?positionId=${id}`);
+        // Fetch all candidates (seeker interests) - now requires authentication
+        const res = await fetch(`${base}/api/seekerinterests?positionId=${id}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
         if (!res.ok) { 
+          console.error('Failed to fetch candidates:', res.status, res.statusText);
           setCandidates([]);
           setLoading(false);
           return;

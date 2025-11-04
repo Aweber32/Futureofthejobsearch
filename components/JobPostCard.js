@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSignedBlobUrl } from '../utils/blobHelpers';
+import { sanitizeDescription } from '../utils/sanitize';
 
 const JobPostCard = ({ position, show, onHide }) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -189,11 +190,11 @@ const JobPostCard = ({ position, show, onHide }) => {
                     <div className="text-muted">
                       {showFullDescription || !shouldShowMore(position.description || '') ? (
                         <div dangerouslySetInnerHTML={{
-                          __html: (position.description || 'No description available.').replace(/\n/g, '<br>')
+                          __html: sanitizeDescription((position.description || 'No description available.').replace(/\n/g, '<br>'))
                         }} />
                       ) : (
                         <div dangerouslySetInnerHTML={{
-                          __html: (position.description || 'No description available.').substring(0, 500) + '...'
+                          __html: sanitizeDescription((position.description || 'No description available.').substring(0, 500) + '...')
                         }} />
                       )}
 

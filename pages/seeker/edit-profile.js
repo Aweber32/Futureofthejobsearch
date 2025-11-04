@@ -1083,7 +1083,22 @@ export default function EditProfile(){
                       preload="metadata"
                       onError={(e) => {
                         e.target.style.display = 'none';
-                        e.target.parentElement.innerHTML = '<div class="text-center"><i class="fas fa-video fa-3x text-muted mb-3"></i><p class="text-muted">Unable to load video. <a href="' + currentVideoUrl + '" target="_blank">Click here to open</a></p></div>';
+                        const container = e.target.parentElement;
+                        container.innerHTML = '';
+                        const div = document.createElement('div');
+                        div.className = 'text-center';
+                        div.innerHTML = '<i class="fas fa-video fa-3x text-muted mb-3"></i>';
+                        const p = document.createElement('p');
+                        p.className = 'text-muted';
+                        p.textContent = 'Unable to load video. ';
+                        const a = document.createElement('a');
+                        a.href = sanitizeUrl(currentVideoUrl);
+                        a.target = '_blank';
+                        a.rel = 'noopener noreferrer';
+                        a.textContent = 'Click here to open';
+                        p.appendChild(a);
+                        div.appendChild(p);
+                        container.appendChild(div);
                       }}
                     >
                       Your browser does not support the video tag.

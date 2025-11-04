@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { API_CONFIG } from '../config/api'
 import { useSignedBlobUrl } from '../utils/blobHelpers'
+import { sanitizeDescription } from '../utils/sanitize'
 
 export default function PositionSwiper({ initialPositions, onInterested, onNotInterested }){
   const [stack, setStack] = useState(initialPositions || []);
@@ -305,11 +306,11 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
               <div className="text-muted">
                 {showFullDescription || !shouldShowMore(description) ? (
                   <div dangerouslySetInnerHTML={{
-                    __html: description.replace(/\n/g, '<br>')
+                    __html: sanitizeDescription(description.replace(/\n/g, '<br>'))
                   }} />
                 ) : (
                   <div dangerouslySetInnerHTML={{
-                    __html: description.substring(0, 500) + '...'
+                    __html: sanitizeDescription(description.substring(0, 500) + '...')
                   }} />
                 )}
 

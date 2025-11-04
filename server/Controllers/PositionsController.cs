@@ -138,6 +138,30 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 .FirstOrDefaultAsync(p => p.Id == id);
             if (pos == null) return NotFound(new { error = "Position not found" });
 
+            // If user is authenticated as an employer, verify they own this position
+            var employerClaim = User.Claims.FirstOrDefault(c => c.Type == "employerId");
+            if (employerClaim != null && !string.IsNullOrEmpty(employerClaim.Value))
+            {
+                if (int.TryParse(employerClaim.Value, out var employerId))
+                {
+                    if (pos.EmployerId != employerId)
+                    {
+                        // Employer trying to access another employer's position - return sanitized view
+                        return Ok(new
+                        {
+                            id = pos.Id,
+                            title = pos.Title,
+                            category = pos.Category,
+                            description = pos.Description,
+                            employmentType = pos.EmploymentType,
+                            workSetting = pos.WorkSetting,
+                            isOpen = pos.IsOpen
+                            // Don't include sensitive employer details
+                        });
+                    }
+                }
+            }
+
             // Debug logging
             _logger.LogInformation($"Position {id} retrieved. Employer: {pos.Employer?.CompanyName}, CompanySize: {pos.Employer?.CompanySize}");
 

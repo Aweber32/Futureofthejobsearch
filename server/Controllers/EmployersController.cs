@@ -80,10 +80,18 @@ namespace FutureOfTheJobSearch.Server.Controllers
         }
 
         [HttpPatch("{id}/logo")]
+        [Authorize]
         public async Task<IActionResult> UpdateLogo([FromRoute] int id, [FromBody] UpdateLogoRequest req)
         {
             var emp = await _db.Employers.FirstOrDefaultAsync(e => e.Id == id);
             if (emp == null) return NotFound(new { error = "Employer not found" });
+
+            // Ensure caller owns this employer
+            var employerClaim = User.Claims.FirstOrDefault(c => c.Type == "employerId");
+            if (employerClaim == null || !int.TryParse(employerClaim.Value, out var employerId) || employerId != id)
+            {
+                return Forbid();
+            }
 
             // Delete the old logo blob if it exists
             if (!string.IsNullOrEmpty(emp.LogoUrl))

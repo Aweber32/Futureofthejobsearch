@@ -21,12 +21,25 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
         // GET api/seekerinterests?positionId=123
         [HttpGet]
+        [Authorize]
         public async Task<IActionResult> List([FromQuery] int positionId)
         {
             if (positionId <= 0) return BadRequest(new { error = "positionId required" });
 
+            // Verify the employer owns this position
+            var employerClaim = User.Claims.FirstOrDefault(c => c.Type == "employerId");
+            if (employerClaim == null || string.IsNullOrEmpty(employerClaim.Value)) 
+                return Unauthorized(new { error = "No employer associated with this account" });
+            if (!int.TryParse(employerClaim.Value, out var employerId)) 
+                return Unauthorized(new { error = "Invalid employer id" });
+
+            // Check if position belongs to this employer
+            var position = await _db.Positions.FirstOrDefaultAsync(p => p.Id == positionId && p.EmployerId == employerId);
+            if (position == null) 
+                return Forbid(); // Position not found or doesn't belong to this employer
+
             var list = await _db.SeekerInterests
-                .Where(si => si.PositionId == positionId)
+                .Where(si => si.PositionId == positionId && si.EmployerId == employerId)
                 .Include(si => si.Seeker)
                     .OrderBy(si => si.Rank.HasValue ? si.Rank.Value : int.MaxValue)
                     .ThenByDescending(si => si.ReviewedAt)
