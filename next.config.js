@@ -24,11 +24,18 @@ const nextConfig = {
         headers: [
           {
             key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'SAMEORIGIN',
           },
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
+          },
+          // Note: modern browsers use CSP frame-ancestors for framing control.
+          // Keeping this minimal in dev; adjust as needed for specific parents.
+          // Example to allow only self (same-origin) frames:
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors 'self'",
           },
         ],
       },

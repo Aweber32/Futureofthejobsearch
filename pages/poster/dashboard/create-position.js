@@ -187,7 +187,7 @@ export default function CreatePosition(){
 
         <div className="row">
           <div className="col-md-6 mb-3">
-            <label className="form-label">Upload short poster video (optional)</label>
+            <label className="form-label">Upload short video explaining the role or company</label>
             <input type="file" accept="video/*" className="form-control" onChange={e=>setPosterVideoFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
             {videoUploading && <div className="mt-2"><div className="progress"><div className="progress-bar" role="progressbar" style={{width: `${videoProgress}%`}} aria-valuenow={videoProgress} aria-valuemin="0" aria-valuemax="100">{videoProgress}%</div></div></div>}
           </div>

@@ -222,7 +222,35 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
             var blobName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
             var blob = container.GetBlobClient(blobName);
-            using (var stream = file.OpenReadStream()) { await blob.UploadAsync(stream, overwrite: true); }
+            
+            // Set content type and disposition for inline viewing (especially for PDFs)
+            var httpHeaders = new Azure.Storage.Blobs.Models.BlobHttpHeaders();
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            
+            // Set proper content type
+            if (ext == ".pdf") httpHeaders.ContentType = "application/pdf";
+            else if (ext == ".jpg" || ext == ".jpeg") httpHeaders.ContentType = "image/jpeg";
+            else if (ext == ".png") httpHeaders.ContentType = "image/png";
+            else if (ext == ".gif") httpHeaders.ContentType = "image/gif";
+            else if (ext == ".mp4") httpHeaders.ContentType = "video/mp4";
+            else if (ext == ".mov") httpHeaders.ContentType = "video/quicktime";
+            else if (ext == ".webm") httpHeaders.ContentType = "video/webm";
+            else if (ext == ".doc") httpHeaders.ContentType = "application/msword";
+            else if (ext == ".docx") httpHeaders.ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            
+            // Force inline disposition for PDFs and images so they display in browser instead of downloading
+            if (ext == ".pdf" || ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif")
+            {
+                httpHeaders.ContentDisposition = "inline";
+            }
+            
+            using (var stream = file.OpenReadStream()) 
+            { 
+                await blob.UploadAsync(stream, new Azure.Storage.Blobs.Models.BlobUploadOptions 
+                { 
+                    HttpHeaders = httpHeaders 
+                }); 
+            }
 
                 // Return path-only reference (container/blob) for dynamic SAS signing
                 var pathOnly = $"{containerName}/{blobName}";

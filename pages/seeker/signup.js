@@ -41,6 +41,8 @@ export default function SeekerSignup(){
   const [showExpModal, setShowExpModal] = useState(false);
   const [videoFile, setVideoFile] = useState(null);
   const [headshotFile, setHeadshotFile] = useState(null);
+  const [showHeadshotModal, setShowHeadshotModal] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -551,6 +553,13 @@ export default function SeekerSignup(){
             <div className="mb-3">
               <label className="form-label">Headshot (Optional)</label>
               <input type="file" className="form-control" accept="image/*" onChange={e=>setHeadshotFile(e.target.files[0])} />
+              {headshotFile && (
+                <div className="mt-2">
+                  <button type="button" className="btn btn-link btn-sm p-0 text-primary fw-bold" onClick={()=>setShowHeadshotModal(true)}>
+                    Preview headshot
+                  </button>
+                </div>
+              )}
               <small className="text-muted">Upload a professional headshot image</small>
             </div>
 
@@ -949,8 +958,13 @@ export default function SeekerSignup(){
                 />
                 <small id="videoUploadHelp" className="text-muted">Accepted formats: mp4 or mov. Max size: 50 MB. Aim for ~20 seconds.</small>
                 {videoFile && (
-                  <div className="form-text">
-                    Selected: {videoFile.name} ({(videoFile.size/(1024*1024)).toFixed(1)} MB)
+                  <div className="d-flex align-items-center gap-3 mt-2">
+                    <div className="form-text m-0">
+                      Selected: {videoFile.name} ({(videoFile.size/(1024*1024)).toFixed(1)} MB)
+                    </div>
+                    <button type="button" className="btn btn-link btn-sm p-0 text-primary fw-bold" onClick={()=>setShowVideoModal(true)}>
+                      Preview video
+                    </button>
                   </div>
                 )}
               </div>
@@ -982,6 +996,61 @@ export default function SeekerSignup(){
           <Link href="/seeker/login" className="back-login-btn">Back to login</Link>
         </div>
       </form>
+
+      {/* Signup Preview Modals */}
+      {typeof window !== 'undefined' && showVideoModal && ReactDOM.createPortal(
+        <>
+          <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:1990}} onClick={()=>setShowVideoModal(false)}></div>
+          <div className={`modal fade show`} style={{display:'block', zIndex:2000}} tabIndex={-1} role="dialog" aria-modal={true} aria-hidden={false} onKeyDown={(e)=>{ if(e.key==='Escape') setShowVideoModal(false); }} onClick={(e)=>e.stopPropagation()}>
+            <div className="modal-dialog modal-lg" role="document" style={{pointerEvents:'auto'}}>
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Preview Intro Video</h5>
+                  <button type="button" className="btn-close" aria-label="Close" onClick={()=>setShowVideoModal(false)}></button>
+                </div>
+                <div className="modal-body p-0 d-flex justify-content-center align-items-center" style={{minHeight:'300px'}}>
+                  {videoFile ? (
+                    <video controls style={{width:'100%', maxHeight:'70vh', objectFit:'contain'}} src={URL.createObjectURL(videoFile)} onLoadedMetadata={(e)=>{ /* no-op */ }}>
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <div className="text-center text-muted">No video selected</div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={()=>setShowVideoModal(false)}>Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>, document.body
+      )}
+
+      {typeof window !== 'undefined' && showHeadshotModal && ReactDOM.createPortal(
+        <>
+          <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:1990}} onClick={()=>setShowHeadshotModal(false)}></div>
+          <div className={`modal fade show`} style={{display:'block', zIndex:2000}} tabIndex={-1} role="dialog" aria-modal={true} aria-hidden={false} onKeyDown={(e)=>{ if(e.key==='Escape') setShowHeadshotModal(false); }} onClick={(e)=>e.stopPropagation()}>
+            <div className="modal-dialog modal-lg" role="document" style={{pointerEvents:'auto'}}>
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Preview Headshot</h5>
+                  <button type="button" className="btn-close" aria-label="Close" onClick={()=>setShowHeadshotModal(false)}></button>
+                </div>
+                <div className="modal-body text-center">
+                  {headshotFile ? (
+                    <img alt="Headshot preview" style={{maxWidth:'100%', maxHeight:'70vh', objectFit:'contain'}} src={URL.createObjectURL(headshotFile)} />
+                  ) : (
+                    <div className="text-center text-muted">No headshot selected</div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={()=>setShowHeadshotModal(false)}>Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>, document.body
+      )}
     </Layout>
   );
 }

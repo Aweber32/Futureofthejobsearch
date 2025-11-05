@@ -8,6 +8,7 @@ import DegreeAutocomplete from '../../components/DegreeAutocomplete';
 import UniversityAutocomplete from '../../components/UniversityAutocomplete';
 import PreviewProfile from '../../components/PreviewProfile';
 import { API_CONFIG } from '../../config/api';
+import { useSignedBlobUrl } from '../../utils/blobHelpers';
 import { sanitizeUrl } from '../../utils/sanitize';
 
 const API = API_CONFIG.BASE_URL;
@@ -101,6 +102,19 @@ export default function EditProfile(){
     const after = cleaned.slice(firstDot + 1).replace(/\./g, "");
     return before + after;
   }
+
+  // Normalize legacy values missing container (e.g., just filename)
+  const ensureContainer = (val, kind) => {
+    if (!val || typeof val !== 'string') return val;
+    if (val.startsWith('http://') || val.startsWith('https://')) return val;
+    if (val.includes('/')) return val;
+    const lower = val.toLowerCase();
+    if (kind === 'headshot') return `qaseekerheadshot/${val}`;
+    if (kind === 'video') return `qaseekervideo/${val}`;
+    if (/\.(jpg|jpeg|png|gif)$/i.test(lower)) return `qaseekerheadshot/${val}`;
+    if (/\.(mp4|mov|webm)$/i.test(lower)) return `qaseekervideo/${val}`;
+    return val;
+  };
 
   // Helper function to format dates nicely
   function formatDateRange(startDate, endDate) {
@@ -304,6 +318,12 @@ export default function EditProfile(){
       }catch(err){ console.error(err); router.push('/seeker/login'); }
     })();
   },[]);
+
+  // Signed URLs for current media (used by preview modals)
+  const tokenForSign = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  const { signedUrl: signedCurrentVideoUrl } = useSignedBlobUrl(ensureContainer(currentVideoUrl, 'video'), tokenForSign);
+  const { signedUrl: signedCurrentHeadshotUrl } = useSignedBlobUrl(ensureContainer(currentHeadshotUrl, 'headshot'), tokenForSign);
+  const { signedUrl: signedCurrentResumeUrl } = useSignedBlobUrl(ensureContainer(currentResumeUrl, 'resume'), tokenForSign);
 
   function addSkill(){
     const v = (skillInput || '').trim();
@@ -880,7 +900,9 @@ export default function EditProfile(){
             <label className="form-label">Upload resume (PDF)</label>
             {currentResumeName && (
               <div className="mb-2">
-                <button type="button" className="btn btn-link btn-sm p-0 text-primary fw-bold" onClick={() => window.open(currentResumeUrl, '_blank')} style={{textDecoration: 'underline', cursor: 'pointer'}} onMouseEnter={(e) => e.target.style.textDecoration = 'underline'} onMouseLeave={(e) => e.target.style.textDecoration = 'underline'}>View</button>
+                <button type="button" className="btn btn-link btn-sm p-0 text-primary fw-bold" onClick={() => setShowResumeModal(true)} style={{textDecoration: 'underline', cursor: 'pointer'}} onMouseEnter={(e) => e.target.style.textDecoration = 'underline'} onMouseLeave={(e) => e.target.style.textDecoration = 'underline'}>
+                  View
+                </button>
               </div>
             )}
             <input type="file" accept="application/pdf" className="form-control" onChange={e=>setResumeFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
@@ -890,7 +912,9 @@ export default function EditProfile(){
             <label className="form-label">Upload 20s intro video (mp4 or mov, max 50MB)</label>
             {currentVideoName && (
               <div className="mb-2">
-                <button type="button" className="btn btn-link btn-sm p-0 text-primary fw-bold" onClick={() => window.open(currentVideoUrl, '_blank')} style={{textDecoration: 'underline', cursor: 'pointer'}} onMouseEnter={(e) => e.target.style.textDecoration = 'underline'} onMouseLeave={(e) => e.target.style.textDecoration = 'underline'}>View</button>
+                <button type="button" className="btn btn-link btn-sm p-0 text-primary fw-bold" onClick={() => setShowVideoModal(true)} style={{textDecoration: 'underline', cursor: 'pointer'}} onMouseEnter={(e) => e.target.style.textDecoration = 'underline'} onMouseLeave={(e) => e.target.style.textDecoration = 'underline'}>
+                  View
+                </button>
               </div>
             )}
             <input type="file" accept=",.mp4,.mov,video/mp4,video/quicktime" className="form-control" onChange={onVideoSelect} />
@@ -1012,10 +1036,10 @@ export default function EditProfile(){
                   <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowResumeModal(false)}></button>
                 </div>
                 <div className="modal-body p-0">
-                  {currentResumeUrl ? (
+                  {signedCurrentResumeUrl ? (
                     <div style={{height: '600px', overflow: 'auto'}}>
                       <iframe
-                        src={currentResumeUrl}
+                        src={signedCurrentResumeUrl}
                         style={{width: '100%', height: '100%', border: 'none'}}
                         title="Resume Preview"
                         onError={(e) => {
@@ -1031,7 +1055,7 @@ export default function EditProfile(){
                           p.className = 'text-muted';
                           p.textContent = 'Unable to preview PDF. ';
                           const a = document.createElement('a');
-                          a.href = sanitizeUrl(currentResumeUrl);
+                          a.href = sanitizeUrl(signedCurrentResumeUrl);
                           a.target = '_blank';
                           a.rel = 'noopener noreferrer';
                           a.textContent = 'Click here to open';
@@ -1053,7 +1077,7 @@ export default function EditProfile(){
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowResumeModal(false)}>Close</button>
-                  <a href={currentResumeUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Open in New Tab</a>
+                  <a href={signedCurrentResumeUrl || '#'} target="_blank" rel="noopener noreferrer" className="btn btn-primary" disabled={!signedCurrentResumeUrl}>Open in New Tab</a>
                 </div>
               </div>
             </div>
@@ -1074,11 +1098,11 @@ export default function EditProfile(){
                   <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowVideoModal(false)}></button>
                 </div>
                 <div className="modal-body p-0 d-flex justify-content-center align-items-center" style={{minHeight: '400px'}}>
-                  {currentVideoUrl ? (
+                  {signedCurrentVideoUrl ? (
                     <video
                       controls
                       style={{width: '100%', maxHeight: '500px', objectFit: 'contain'}}
-                      src={currentVideoUrl}
+                      src={signedCurrentVideoUrl}
                       title="Video Preview"
                       preload="metadata"
                       onError={(e) => {
@@ -1092,7 +1116,7 @@ export default function EditProfile(){
                         p.className = 'text-muted';
                         p.textContent = 'Unable to load video. ';
                         const a = document.createElement('a');
-                        a.href = sanitizeUrl(currentVideoUrl);
+                        a.href = sanitizeUrl(signedCurrentVideoUrl);
                         a.target = '_blank';
                         a.rel = 'noopener noreferrer';
                         a.textContent = 'Click here to open';
@@ -1112,7 +1136,7 @@ export default function EditProfile(){
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowVideoModal(false)}>Close</button>
-                  <a href={currentVideoUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Open in New Tab</a>
+                  <a href={signedCurrentVideoUrl || '#'} target="_blank" rel="noopener noreferrer" className="btn btn-primary" disabled={!signedCurrentVideoUrl}>Open in New Tab</a>
                 </div>
               </div>
             </div>
@@ -1133,9 +1157,9 @@ export default function EditProfile(){
                   <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowHeadshotModal(false)}></button>
                 </div>
                 <div className="modal-body text-center">
-                  {currentHeadshotUrl ? (
+                  {signedCurrentHeadshotUrl ? (
                     <img 
-                      src={currentHeadshotUrl} 
+                      src={signedCurrentHeadshotUrl} 
                       alt="Headshot" 
                       style={{maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain'}} 
                     />
@@ -1148,8 +1172,8 @@ export default function EditProfile(){
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowHeadshotModal(false)}>Close</button>
-                  {currentHeadshotUrl && (
-                    <a href={currentHeadshotUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Open in New Tab</a>
+                  {signedCurrentHeadshotUrl && (
+                    <a href={signedCurrentHeadshotUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Open in New Tab</a>
                   )}
                 </div>
               </div>

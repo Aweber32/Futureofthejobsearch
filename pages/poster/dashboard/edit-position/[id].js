@@ -402,7 +402,7 @@ export default function EditPosition(){
 
         <div className="row">
           <div className="col-md-6 mb-3">
-            <label className="form-label">Upload short poster video (optional)</label>
+            <label className="form-label">Upload short video explaining the role or company</label>
             <input type="file" accept="video/*" className="form-control" onChange={e=>{
               const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
               setPosterVideoFile(file);

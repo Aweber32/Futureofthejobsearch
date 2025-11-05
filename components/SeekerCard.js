@@ -10,8 +10,19 @@ export default function SeekerCard({ seeker = {} }){
   
   // Sign blob URLs
   const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
-  const { signedUrl: resume } = useSignedBlobUrl(resumeRaw, token);
-  const { signedUrl: video } = useSignedBlobUrl(videoRaw, token);
+  const ensureContainer = (val, kind) => {
+    if (!val || typeof val !== 'string') return val;
+    if (val.startsWith('http://') || val.startsWith('https://')) return val;
+    if (val.includes('/')) return val;
+    const lower = val.toLowerCase();
+    if (kind === 'resume') return `qaresumes/${val}`;
+    if (kind === 'video') return `qaseekervideo/${val}`;
+    if (/\.(pdf|doc|docx)$/i.test(lower)) return `qaresumes/${val}`;
+    if (/\.(mp4|mov|webm)$/i.test(lower)) return `qaseekervideo/${val}`;
+    return val;
+  };
+  const { signedUrl: resume } = useSignedBlobUrl(ensureContainer(resumeRaw, 'resume'), token);
+  const { signedUrl: video } = useSignedBlobUrl(ensureContainer(videoRaw, 'video'), token);
 
   return (
     <div className="d-flex align-items-center">
