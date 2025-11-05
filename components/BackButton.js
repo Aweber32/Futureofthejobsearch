@@ -9,7 +9,8 @@ export default function BackButton() {
     router.pathname === '/' || 
     router.pathname.includes('/dashboard') ||
     router.pathname === '/poster/find-candidates' ||
-    router.pathname === '/seeker/find-positions'
+    router.pathname === '/seeker/find-positions' ||
+    router.pathname.includes('/signup')
   ) {
     return null;
   }

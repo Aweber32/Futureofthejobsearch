@@ -48,6 +48,9 @@ export default function SeekerSignup(){
   const [parsing, setParsing] = useState(false);
   const [stateOptions, setStateOptions] = useState([]);
   const [cityOptions, setCityOptions] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [highlightUpload, setHighlightUpload] = useState(false);
+  const videoInputRef = useRef(null);
 
   const API = API_CONFIG.BASE_URL;
 
@@ -66,6 +69,15 @@ export default function SeekerSignup(){
       setCityOptions([]);
     }
   },[form.state]);
+
+  useEffect(()=>{
+    // briefly highlight the upload container when arriving on step 4
+    if (step === 4){
+      setHighlightUpload(true);
+      const t = setTimeout(()=> setHighlightUpload(false), 800);
+      return ()=> clearTimeout(t);
+    }
+  }, [step]);
 
   // helpers for skills
   function addSkill(){
@@ -124,15 +136,48 @@ export default function SeekerSignup(){
     });
   }
 
-  async function onVideoSelect(e){
-    const f = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-    if (!f){ setVideoFile(null); return; }
+  async function validateAndSetVideoFile(f){
+    if (!f){ setVideoFile(null); setError('Please upload your intro video.'); return; }
+    const allowedTypes = ['video/mp4', 'video/quicktime'];
+    if (!allowedTypes.includes(f.type)){
+      setError('Unsupported format — please use mp4 or mov.');
+      setVideoFile(null);
+      return;
+    }
     const maxSize = 50 * 1024 * 1024;
-    if (f.size > maxSize){ setError('Video file is too large (max 50MB)'); setVideoFile(null); return; }
-    const ok = await checkVideoDuration(f);
-    if (!ok){ setError('Video must be 20 seconds or shorter'); setVideoFile(null); return; }
+    if (f.size > maxSize){ setError('File too large — must be under 50 MB.'); setVideoFile(null); return; }
+    const durationOk = await new Promise((resolve)=>{
+      const url = URL.createObjectURL(f);
+      const v = document.createElement('video');
+      v.preload = 'metadata'; v.src = url;
+      v.onloadedmetadata = () => {
+        const d = v.duration || 0;
+        URL.revokeObjectURL(url);
+        if (d < 10) { setError('Video is too short. Aim for ~20 seconds.'); resolve(false); return; }
+        if (d > 25) { setError('Video is too long. Aim for ~20 seconds.'); resolve(false); return; }
+        resolve(true);
+      };
+      v.onerror = () => { URL.revokeObjectURL(url); setError('Could not read video metadata. Please try another file.'); resolve(false); };
+    });
+    if (!durationOk){ setVideoFile(null); return; }
     setError(''); setVideoFile(f);
   }
+
+  async function onVideoSelect(e){
+    const f = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    await validateAndSetVideoFile(f);
+  }
+
+  const onDrop = async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    setIsDragging(false);
+    const f = e.dataTransfer?.files && e.dataTransfer.files[0] ? e.dataTransfer.files[0] : null;
+    await validateAndSetVideoFile(f);
+  };
+
+  const onDragOver = (e) => { e.preventDefault(); e.stopPropagation(); };
+  const onDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
+  const onDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); };
 
   async function parseResumeFile(file){
     if (!file) return null;
@@ -344,6 +389,7 @@ export default function SeekerSignup(){
       <div className={`mb-3 progress-wrap ${isSliding ? (direction==='forward' ? 'sliding-forward' : 'sliding-back') : ''}`}>
         <div className="d-flex justify-content-between mb-1 align-items-center">
           <small className="text-muted">Step {step} of {segments}</small>
+          {step === segments && <span className="badge bg-primary-subtle text-primary">Final step</span>}
         </div>
         <div className="signup-progress-bar mt-2">
           <div className="progress-fill" style={{width: `${pct}%`}}></div>
@@ -836,16 +882,97 @@ export default function SeekerSignup(){
 
         {step === 4 && (
           <div className="signup-step-pane enter-active">
-            <h4>Upload your Personality! Create a 20 second Video, it can be a project you have done, a monologue, make it your own!</h4>
-            <div className="mb-3">
-              <label className="form-label">Upload 20s intro video (mp4 or mov, max 50MB)</label>
-              <input type="file" accept=",.mp4,.mov,video/mp4,video/quicktime" className="form-control" onChange={onVideoSelect} />
-            </div>
+                <section className={`card border rounded-3 p-4 p-md-5 mb-3 ${highlightUpload ? 'shadow' : 'shadow-sm'}`} aria-labelledby="videoUploadHeading">
+                  <div className="text-center mb-3">
+                    <h2 id="videoUploadHeading" className="h4 fw-semibold mb-1" style={{letterSpacing: '.2px'}}>
+                      Upload your 20-second intro video
+                    </h2>
+                    <p className="text-muted mb-0">
+                      Let employers see you — not just your resume.
+                    </p>
+                  </div>
 
-            <div className="d-flex gap-2">
-              <button type="button" className="btn btn-secondary" onClick={back}>Back</button>
-              <button className="btn btn-primary" type="submit" disabled={loading}>{loading ? 'Creating…' : 'Create'}</button>
-            </div>
+              <div className="mx-auto mb-4" style={{maxWidth: 720}}>
+                <div className="p-3 p-md-4 rounded-3 border bg-light-subtle">
+                  <div className="fw-semibold mb-2">How to make a great 20‑second intro</div>
+                  <ul className="mb-0 small text-muted ps-3">
+                    <li><strong>Keep it short:</strong> ~20 seconds, one clear message.</li>
+                    <li><strong>Framing:</strong> Eye‑level camera, center yourself, steady phone.</li>
+                    <li><strong>Lighting:</strong> Face a window or soft light; avoid strong backlight.</li>
+                    <li><strong>Audio:</strong> Quiet room, speak clearly, avoid echo/background noise.</li>
+                    <li><strong>Background:</strong> Clean, uncluttered, and professional‑looking.</li>
+                    <li><strong>Script (3 points):</strong> Who you are • what you do best • what you want next.</li>
+                    <li><strong>Energy:</strong> Smile, natural tone, authentic confidence.</li>
+                    <li><strong>Attire:</strong> Dress for the role and industry you’re targeting.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <div className="d-flex align-items-baseline justify-content-between flex-wrap gap-2 mb-2">
+                  <label htmlFor="videoUpload" className="form-label m-0">
+                    Choose or drag & drop your 20-second intro (mp4 or mov, max 50 MB)
+                  </label>
+                </div>
+                <div
+                  className={`rounded-3 border border-2 ${isDragging ? 'border-primary bg-primary bg-opacity-10' : 'border-dashed bg-light-subtle'}`}
+                  style={{ padding: '1.25rem', cursor: 'pointer' }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Upload intro video by clicking or dragging and dropping a file"
+                  aria-describedby="videoUploadHelp"
+                  onClick={()=> videoInputRef.current?.click()}
+                  onKeyDown={(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); videoInputRef.current?.click(); } }}
+                  onDrop={onDrop}
+                  onDragOver={onDragOver}
+                  onDragEnter={onDragEnter}
+                  onDragLeave={onDragLeave}
+                >
+                  <div className="d-flex flex-column align-items-center text-center">
+                    <div className="mb-2">
+                      <i className="fas fa-cloud-upload-alt text-primary" aria-hidden="true" style={{fontSize:'1.5rem'}}></i>
+                    </div>
+                    <div className="fw-semibold">Click to upload or drag & drop</div>
+                    <div className="small text-muted">mp4 or mov, up to 50 MB, ~20 seconds</div>
+                  </div>
+                </div>
+                <input
+                  ref={videoInputRef}
+                  id="videoUpload"
+                  type="file"
+                  accept="video/mp4,video/quicktime"
+                  className="form-control mt-2"
+                  aria-describedby="videoUploadHelp"
+                  aria-invalid={!!error}
+                  onChange={onVideoSelect}
+                  style={{display:'none'}}
+                />
+                <small id="videoUploadHelp" className="text-muted">Accepted formats: mp4 or mov. Max size: 50 MB. Aim for ~20 seconds.</small>
+                {videoFile && (
+                  <div className="form-text">
+                    Selected: {videoFile.name} ({(videoFile.size/(1024*1024)).toFixed(1)} MB)
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 p-3 rounded-3 border bg-light-subtle">
+                <div className="fw-semibold mb-1 small text-muted">Why record a quick intro?</div>
+                <ul className="mb-0 small text-muted ps-3">
+                  <li>Show your personality and communication style.</li>
+                  <li>Highlight what you’re best at in your own words.</li>
+                  <li>Make it easier for employers to remember you.</li>
+                </ul>
+              </div>
+
+              {error && <div className="alert alert-danger" role="alert">{error}</div>}
+
+              <div className="d-flex gap-2 mt-2">
+                <button type="button" className="btn btn-secondary" onClick={back} aria-label="Go back to previous step">Back</button>
+                <button className="btn btn-primary" type="submit" disabled={loading} aria-label="Create profile">
+                  {loading ? 'Creating…' : 'Create Profile'}
+                </button>
+              </div>
+            </section>
           </div>
         )}
 
