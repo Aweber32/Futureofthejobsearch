@@ -7,6 +7,8 @@ export default function CandidateSwiper({ initialCandidates }){
   const [stack, setStack] = useState(initialCandidates || []);
   const [loading, setLoading] = useState(!initialCandidates);
   const [exitDirection, setExitDirection] = useState(null); // 'left' | 'right' | null
+  const [shareBusy, setShareBusy] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   useEffect(()=>{
     if (initialCandidates && initialCandidates.length>0) return;
@@ -188,6 +190,41 @@ export default function CandidateSwiper({ initialCandidates }){
   const { signedUrl: signedHeadshot } = useSignedBlobUrl(rawHeadshot, token);
   const { signedUrl: signedVideo } = useSignedBlobUrl(rawVideo, token);
 
+  async function copyShareLinkForTop() {
+    if (!top || shareBusy) return;
+    const seekerId = top.id ?? top.Id ?? top.seekerId ?? top.SeekerId;
+    if (!seekerId) return;
+    setShareBusy(true);
+    try {
+      const base = API_CONFIG.BASE_URL;
+      const auth = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+      if (!auth) { setToastMsg('Sign in to share profiles'); return; }
+      const res = await fetch(`${base}/api/seekers/share-link/${encodeURIComponent(seekerId)}` , {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth}` }
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || 'Failed to create share link');
+      }
+      const data = await res.json();
+      const link = data?.url;
+      if (!link) throw new Error('Missing link');
+      try {
+        await navigator.clipboard.writeText(link);
+        setToastMsg('Share link copied');
+      } catch {
+        window.prompt('Copy this link:', link);
+      }
+    } catch (err) {
+      const msg = (err?.message || '').toLowerCase().includes('inactive') ? 'Candidate profile inactive' : (err?.message || 'Unable to create share link');
+      setToastMsg(msg);
+    } finally {
+      setShareBusy(false);
+      if (typeof window !== 'undefined') setTimeout(() => setToastMsg(''), 2500);
+    }
+  }
+
   if (loading) return <div className="text-center">Loading candidates…</div>
   if (!top) return <div className="alert alert-secondary">No more candidates</div>
 
@@ -255,13 +292,45 @@ export default function CandidateSwiper({ initialCandidates }){
             boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
             overflow: 'hidden',
             maxWidth: '800px',
-            margin: '0 auto'
+            margin: '0 auto',
+            position: 'relative'
           }}
           variants={swipeVariants}
           initial="enter"
           animate="center"
           exit={exitDirection === 'right' ? 'exitRight' : exitDirection === 'left' ? 'exitLeft' : undefined}
         >
+
+        {/* Top-right Share button overlay */}
+        <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 5 }}>
+          <button
+            className="btn btn-outline-light d-flex align-items-center gap-1"
+            style={{
+              background: 'rgba(17,24,39,0.25)',
+              color: '#fff',
+              backdropFilter: 'blur(4px)',
+              borderColor: 'rgba(255,255,255,0.35)',
+              padding: '8px 12px',
+              borderRadius: '9999px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+            }}
+            onClick={copyShareLinkForTop}
+            disabled={shareBusy}
+            title="Copy public share link"
+            aria-label="Share profile"
+          >
+            {/* Share icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+            {/* Hide text on extra-small screens, show from sm and up */}
+            <span className="d-none d-sm-inline">{shareBusy ? 'Copying…' : 'Share Profile'}</span>
+          </button>
+        </div>
 
         {/* Top Section - Header (Exact copy from PreviewProfile) */}
         <div className="profile-header" style={{
@@ -568,6 +637,23 @@ export default function CandidateSwiper({ initialCandidates }){
       <div className="text-center mt-3">
         <small className="text-muted">{stack.length} candidate(s) left</small>
       </div>
+
+      {!!toastMsg && (
+        <div style={{
+          position: 'fixed',
+          right: 20,
+          bottom: 20,
+          background: '#111827',
+          color: '#fff',
+          padding: '10px 14px',
+          borderRadius: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          fontSize: 14,
+          zIndex: 2000
+        }}>
+          {toastMsg}
+        </div>
+      )}
     </div>
   )
 }

@@ -12,6 +12,7 @@ using FutureOfTheJobSearch.Server.DTOs;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Linq;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -59,6 +60,64 @@ namespace FutureOfTheJobSearch.Server.Controllers
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             // Default 7 days, configurable via Sharing:SeekerDays or env SHARING__SEEKERDAYS
+            var days = 7;
+            if (int.TryParse(_config["Sharing:SeekerDays"] ?? Environment.GetEnvironmentVariable("SHARING__SEEKERDAYS"), out var cfgDays) && cfgDays > 0)
+                days = cfgDays;
+
+            var claims = new[]
+            {
+                new Claim("typ", "public-seeker"),
+                new Claim("sid", seeker.Id.ToString()),
+            };
+
+            var token = new JwtSecurityToken(
+                issuer: jwtIssuer,
+                audience: null,
+                claims: claims,
+                notBefore: DateTime.UtcNow.AddMinutes(-2),
+                expires: DateTime.UtcNow.AddDays(days),
+                signingCredentials: creds
+            );
+
+            var handler = new JwtSecurityTokenHandler();
+            var t = handler.WriteToken(token);
+
+            var frontendBase = _config["FrontendBaseUrl"] ?? Environment.GetEnvironmentVariable("FRONTEND_BASE_URL") ?? "http://localhost:3000";
+            var url = $"{frontendBase.TrimEnd('/')}/share/seeker?t={Uri.EscapeDataString(t)}";
+            return Ok(new { url, expiresDays = days });
+        }
+
+        // Issue a time-limited share link token for a specific seeker (for employers viewing candidates)
+        [HttpPost("share-link/{seekerId:int}")]
+        [Authorize]
+        public async Task<IActionResult> CreateShareLinkForSeeker([FromRoute] int seekerId)
+        {
+            // Must be an authenticated employer to mint links for candidates
+            var employerClaim = User.Claims.FirstOrDefault(c => c.Type == "employerId");
+            if (employerClaim == null)
+            {
+                return Forbid();
+            }
+
+            var seeker = await _db.Seekers.AsNoTracking().FirstOrDefaultAsync(s => s.Id == seekerId);
+            if (seeker == null) return NotFound(new { error = "Seeker not found" });
+
+            if (!seeker.IsProfileActive)
+            {
+                return BadRequest(new { error = "Profile is inactive. Candidate must activate profile before sharing." });
+            }
+
+            var jwtKey = _config["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
+            var jwtIssuer = _config["Jwt:Issuer"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "futureofthejobsearch";
+            if (string.IsNullOrEmpty(jwtKey))
+            {
+                return StatusCode(500, new { error = "JWT signing key not configured" });
+            }
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            // Default 7 days, configurable via Sharing:SeekerDays
             var days = 7;
             if (int.TryParse(_config["Sharing:SeekerDays"] ?? Environment.GetEnvironmentVariable("SHARING__SEEKERDAYS"), out var cfgDays) && cfgDays > 0)
                 days = cfgDays;
