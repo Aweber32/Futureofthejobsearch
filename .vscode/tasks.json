@@ -19,6 +19,33 @@
 			"args": [],
 			"isBackground": false,
 			"group": "build"
+		},
+		{
+			"label": "Build server after share endpoint",
+			"type": "shell",
+			"command": "dotnet build server/ FutureOfTheJobSearch.Server.csproj",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build server after share endpoint",
+			"type": "shell",
+			"command": "dotnet build server/ FutureOfTheJobSearch.Server.csproj",
+			"args": [],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build server after share endpoint",
+			"type": "shell",
+			"command": "dotnet build server/ FutureOfTheJobSearch.Server.csproj",
+			"args": [],
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

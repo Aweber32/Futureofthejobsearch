@@ -9,6 +9,8 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
   const [loading, setLoading] = useState(!initialPositions);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [exitDirection, setExitDirection] = useState(null); // 'left' | 'right' | null
+  const [shareBusy, setShareBusy] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   const top = stack && stack.length ? stack[0] : null;
   
@@ -18,6 +20,28 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
   const { signedUrl: companyLogo, loading: logoLoading } = useSignedBlobUrl(companyLogoRaw, token);
   const posterVideoRaw = top?.posterVideoUrl ?? top?.PosterVideoUrl ?? null;
   const { signedUrl: posterVideo, loading: videoLoading } = useSignedBlobUrl(posterVideoRaw, token);
+  
+  // Determine if current user is an employer (to allow sharing jobs)
+  function base64UrlDecode(str){
+    try{
+      const pad = (s)=> s + '='.repeat((4 - (s.length % 4)) % 4);
+      const b64 = pad(str.replace(/-/g, '+').replace(/_/g, '/'));
+      const decoded = typeof window !== 'undefined' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary');
+      // Convert binary string to UTF-8
+      if (typeof window === 'undefined') return decoded;
+      const bytes = Uint8Array.from(decoded, c => c.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    }catch{ return null; }
+  }
+  function parseJwt(t){
+    try{
+      if (!t || typeof t !== 'string' || !t.includes('.')) return null;
+      const [, payload] = t.split('.');
+      const json = base64UrlDecode(payload);
+      return json ? JSON.parse(json) : null;
+    }catch{ return null; }
+  }
+  const claims = parseJwt(token);
   
   console.log('[PositionSwiper] Blob URLs:', { 
     companyLogoRaw, 
@@ -235,6 +259,50 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
   // Unique key for the current top card to drive enter/exit animations
   const topKey = (top?.id ?? top?.Id ?? top?.positionId ?? top?.PositionId ?? `idx-${stack.length}`) + '';
 
+  async function copyShareLinkForTopPosition() {
+    if (!top || shareBusy) return;
+    try {
+      let positionId = top.id ?? top.Id ?? top.positionId ?? top.PositionId;
+      positionId = parseInt(positionId, 10);
+      if (!Number.isFinite(positionId)) throw new Error('invalid positionId');
+  const base = API_CONFIG.BASE_URL;
+  const auth = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  if (!auth) { setToastMsg('Sign in to share jobs'); return; }
+      setShareBusy(true);
+      const res = await fetch(`${base}/api/positions/share-link/${encodeURIComponent(positionId)}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth}` }
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        const err = new Error(txt || 'Failed to create share link');
+        err.status = res.status;
+        throw err;
+      }
+      const data = await res.json();
+      const link = data?.url;
+      if (!link) throw new Error('Missing link');
+      try {
+        await navigator.clipboard.writeText(link);
+        setToastMsg('Share link copied');
+      } catch {
+        window.prompt('Copy this link:', link);
+      }
+    } catch (err) {
+      let msg = err?.message || 'Unable to create share link';
+      const lower = (msg || '').toLowerCase();
+      if (err?.status === 403) {
+        msg = 'Sharing not permitted for this job';
+      } else if (lower.includes('unauthorized') || lower.includes('forbid')) {
+        msg = 'Sign in to share jobs';
+      }
+      setToastMsg(msg);
+    } finally {
+      setShareBusy(false);
+      if (typeof window !== 'undefined') setTimeout(() => setToastMsg(''), 2500);
+    }
+  }
+
   return (
     <div className="position-swiper">
       {/* Action bar will now render below the card (sticky within content) */}
@@ -250,6 +318,7 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
           animate="center"
           exit={exitDirection === 'right' ? 'exitRight' : exitDirection === 'left' ? 'exitLeft' : undefined}
         >
+        {/* Share button moved into the card header (solid) */}
         {/* Top Section - Bumble Style Gradient Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
           <div className="row align-items-center">
@@ -289,6 +358,31 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
                 <i className="fas fa-map-marker-alt me-1"></i>
                 {city}, {state}
               </p>
+            </div>
+            {/* Right: Solid Share button inside header */}
+            <div className="col-auto mt-3 mt-md-0">
+              <button
+                className="btn btn-light d-flex align-items-center gap-2"
+                style={{
+                  fontWeight: 600,
+                  padding: '8px 14px',
+                  borderRadius: '9999px',
+                  boxShadow: '0 6px 18px rgba(0,0,0,0.18)'
+                }}
+                onClick={copyShareLinkForTopPosition}
+                disabled={shareBusy}
+                title="Copy public share link"
+                aria-label="Share job"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+                <span className="d-none d-sm-inline">{shareBusy ? 'Copying…' : 'Share Job'}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -480,6 +574,23 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
     </div>
   )}
       <div className="text-muted small mt-2">{stack.length} position(s) left</div>
+
+      {!!toastMsg && (
+        <div style={{
+          position: 'fixed',
+          right: 20,
+          bottom: 20,
+          background: '#111827',
+          color: '#fff',
+          padding: '10px 14px',
+          borderRadius: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          fontSize: 14,
+          zIndex: 2000
+        }}>
+          {toastMsg}
+        </div>
+      )}
     </div>
   )
 }

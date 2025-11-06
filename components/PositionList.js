@@ -1,8 +1,35 @@
 import Link from 'next/link';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Edit2, Users, Search, Calendar } from 'lucide-react';
+import { Edit2, Users, Search, Calendar, Share2 } from 'lucide-react';
+import { API_CONFIG } from '../config/api';
 
 export default function PositionList({ positions = [] }){
+  const [shareBusyId, setShareBusyId] = useState(null);
+  const [toastMsg, setToastMsg] = useState('');
+
+  async function copyShareLink(positionId){
+    if (!positionId || shareBusyId === positionId) return;
+    setShareBusyId(positionId);
+    try{
+      const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+      if (!token){ setToastMsg('Please sign in to share'); return; }
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/positions/share-link/${encodeURIComponent(positionId)}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok){ const txt = await res.text(); throw new Error(txt || 'Failed to create share link'); }
+      const data = await res.json();
+      const link = data?.url;
+      if (!link) throw new Error('Missing link');
+      try { await navigator.clipboard.writeText(link); setToastMsg('Share link copied'); }
+      catch { window.prompt('Copy this link:', link); }
+    }catch(err){ setToastMsg(err?.message || 'Unable to create share link'); }
+    finally{
+      setShareBusyId(null);
+      if (typeof window !== 'undefined') setTimeout(()=>setToastMsg(''), 2500);
+    }
+  }
 
   if (!positions || positions.length === 0) {
     return (
@@ -59,6 +86,7 @@ export default function PositionList({ positions = [] }){
   }
 
   return (
+    <>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {positions.map((p, index) => {
         const isOpen = (p.isOpen ?? p.IsOpen) !== undefined ? (p.isOpen ?? p.IsOpen) : true;
@@ -155,6 +183,29 @@ export default function PositionList({ positions = [] }){
                     </Link>
                     
                     <div className="d-flex gap-2">
+                      {/* Share Job - mobile */}
+                      <button
+                        type="button"
+                        className="btn btn-sm d-flex align-items-center justify-content-center gap-2 flex-fill"
+                        onClick={()=>copyShareLink(p.id)}
+                        disabled={shareBusyId === p.id}
+                        style={{
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          padding: '0.625rem 1rem',
+                          background: 'white',
+                          color: '#374151',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                          transition: 'all 0.2s'
+                        }}
+                        title="Copy public share link"
+                        aria-label="Share position"
+                      >
+                        <Share2 size={16} />
+                        {shareBusyId === p.id ? 'Copying…' : 'Share Job'}
+                      </button>
+
                       <Link 
                         href={`/poster/dashboard/edit-position/${p.id}`}
                         className="btn btn-sm d-flex align-items-center justify-content-center gap-2 flex-fill"
@@ -217,6 +268,36 @@ export default function PositionList({ positions = [] }){
 
                 {/* Desktop Actions */}
                 <div className="d-none d-md-flex gap-2">
+                  <button 
+                    type="button"
+                    className="btn btn-sm d-flex align-items-center gap-1"
+                    onClick={()=>copyShareLink(p.id)}
+                    disabled={shareBusyId === p.id}
+                    style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      padding: '0.5rem 0.875rem',
+                      background: 'white',
+                      color: '#374151',
+                      fontSize: '0.875rem',
+                      fontWeight: '500',
+                      transition: 'all 0.2s',
+                      whiteSpace: 'nowrap'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f9fafb';
+                      e.currentTarget.style.borderColor = '#6E56CF';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                    }}
+                    title="Copy public share link"
+                    aria-label="Share position"
+                  >
+                    <Share2 size={14} />
+                    {shareBusyId === p.id ? 'Copying…' : 'Share'}
+                  </button>
                   <Link 
                     href={`/poster/position/${p.id}/candidates`}
                     className="btn btn-sm d-flex align-items-center gap-1"
@@ -317,5 +398,17 @@ export default function PositionList({ positions = [] }){
         );
       })}
     </div>
+    {/* Toast */}
+    {!!toastMsg && (
+      <div style={{
+        position: 'fixed', right: 20, bottom: 20,
+        background: '#111827', color: '#fff', padding: '10px 14px',
+        borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+        fontSize: 14, zIndex: 2000
+      }}>
+        {toastMsg}
+      </div>
+    )}
+  </>
   );
 }
