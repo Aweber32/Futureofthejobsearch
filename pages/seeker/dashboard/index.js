@@ -15,6 +15,8 @@ export default function SeekerDashboard(){
   const [error, setError] = useState('');
   const [greeting, setGreeting] = useState('');
   const [profileActive, setProfileActive] = useState(true);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   useEffect(()=>{
     // compute a friendly greeting based on local time
@@ -75,6 +77,39 @@ export default function SeekerDashboard(){
     router.push('/seeker/login');
   }
 
+  async function copyShareLink() {
+    if (shareBusy) return;
+    setShareBusy(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+      if (!token) { setToastMsg('Please sign in to create a share link.'); return; }
+      const res = await fetch(`${API}/api/seekers/share-link`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || 'Failed to create share link');
+      }
+      const data = await res.json();
+      const link = data?.url;
+      if (!link) throw new Error('Missing link');
+      try {
+        await navigator.clipboard.writeText(link);
+        setToastMsg('Share link copied to clipboard');
+      } catch {
+        // Fallback prompt if clipboard API not available
+        window.prompt('Copy this link:', link);
+      }
+    } catch (err) {
+      const msg = (err?.message || '').toLowerCase().includes('inactive') ? 'Activate your profile to share' : (err?.message || 'Failed to create share link');
+      setToastMsg(msg);
+    } finally {
+      setShareBusy(false);
+      // Auto-hide toast after a short delay
+      if (typeof window !== 'undefined') {
+        setTimeout(() => setToastMsg(''), 2500);
+      }
+    }
+  }
+
   if (loading) return <Layout title="Seeker Dashboard"><div className="text-center py-5">Loading…</div></Layout>;
   if (error) return <Layout title="Seeker Dashboard"><div className="alert alert-danger mx-auto" style={{maxWidth: '600px'}}>{error}</div></Layout>;
   if (!seeker) return <Layout title="Seeker Dashboard"><div>No seeker data found.</div></Layout>;
@@ -130,6 +165,19 @@ export default function SeekerDashboard(){
           transform: scale(1.05);
           box-shadow: 0 8px 20px rgba(110, 86, 207, 0.3);
         }
+
+        .toast-lite {
+          position: fixed;
+          right: 20px;
+          bottom: 20px;
+          background: #111827;
+          color: #fff;
+          padding: 10px 14px;
+          border-radius: 8px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+          font-size: 14px;
+          z-index: 2000;
+        }
       `}</style>
       
       <div className="mx-auto px-3 px-md-4" style={{maxWidth: '1200px'}}>
@@ -167,25 +215,44 @@ export default function SeekerDashboard(){
             </div>
           </div>
           
-          <div className="dropdown">
-            <button 
-              className="btn btn-outline-secondary dropdown-toggle" 
-              type="button" 
-              id="accountDropdown" 
-              data-bs-toggle="dropdown" 
-              aria-expanded="false"
-              style={{borderRadius: '8px', padding: '10px 20px'}}
+          <div className="d-flex align-items-center gap-2">
+            <button
+              className="btn btn-outline-secondary d-flex align-items-center gap-2"
+              type="button"
+              onClick={copyShareLink}
+              disabled={shareBusy || !profileActive}
+              title={!profileActive ? 'Activate profile to share' : 'Copy a public share link'}
+              style={{ borderRadius: '8px', padding: '10px 16px' }}
             >
-              Account
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v-3a3 3 0 0 1 3-3h3"/>
+                <path d="M20 12v3a3 3 0 0 1-3 3h-3"/>
+                <path d="M8 12h8"/>
+                <path d="M12 8v8"/>
+              </svg>
+              {shareBusy ? 'Copying…' : 'Share Profile'}
             </button>
-            <ul className="dropdown-menu shadow-sm" aria-labelledby="accountDropdown" style={{borderRadius: '8px'}}>
-              <li><span className="dropdown-item-text text-muted small">{email}</span></li>
-              <li><hr className="dropdown-divider" /></li>
-              <li><Link href="/seeker/analytics" className="dropdown-item">My Analytics</Link></li>
-              <li><Link href="/seeker/edit-profile" className="dropdown-item">Edit Profile</Link></li>
-              <li><Link href="/seeker/settings" className="dropdown-item">Settings</Link></li>
-              <li><button className="dropdown-item text-danger" onClick={logout}>Logout</button></li>
-            </ul>
+
+            <div className="dropdown">
+              <button 
+                className="btn btn-outline-secondary dropdown-toggle" 
+                type="button" 
+                id="accountDropdown" 
+                data-bs-toggle="dropdown" 
+                aria-expanded="false"
+                style={{borderRadius: '8px', padding: '10px 20px'}}
+              >
+                Account
+              </button>
+              <ul className="dropdown-menu shadow-sm" aria-labelledby="accountDropdown" style={{borderRadius: '8px'}}>
+                <li><span className="dropdown-item-text text-muted small">{email}</span></li>
+                <li><hr className="dropdown-divider" /></li>
+                <li><Link href="/seeker/analytics" className="dropdown-item">My Analytics</Link></li>
+                <li><Link href="/seeker/edit-profile" className="dropdown-item">Edit Profile</Link></li>
+                <li><Link href="/seeker/settings" className="dropdown-item">Settings</Link></li>
+                <li><button className="dropdown-item text-danger" onClick={logout}>Logout</button></li>
+              </ul>
+            </div>
           </div>
         </motion.div>
 
@@ -212,6 +279,9 @@ export default function SeekerDashboard(){
           <InterestedPositionsList seeker={seeker} />
         </motion.div>
       </div>
+      {!!toastMsg && (
+        <div className="toast-lite" role="status" aria-live="polite">{toastMsg}</div>
+      )}
     </Layout>
   )
 }

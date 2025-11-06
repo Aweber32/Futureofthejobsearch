@@ -9,6 +9,9 @@ using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using FutureOfTheJobSearch.Server.DTOs;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -28,6 +31,126 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _signInManager = signInManager;
             _db = db;
             _config = config;
+        }
+
+        // Issue a time-limited share link token for the current seeker (no DB schema change required)
+        [HttpPost("share-link")]
+        [Authorize]
+        public async Task<IActionResult> CreateShareLink()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            var seeker = await _db.Seekers.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == userId);
+            if (seeker == null) return NotFound(new { error = "Seeker not found" });
+
+            if (!seeker.IsProfileActive)
+            {
+                return BadRequest(new { error = "Profile is inactive. Activate your profile before sharing." });
+            }
+
+            var jwtKey = _config["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
+            var jwtIssuer = _config["Jwt:Issuer"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "futureofthejobsearch";
+            if (string.IsNullOrEmpty(jwtKey))
+            {
+                return StatusCode(500, new { error = "JWT signing key not configured" });
+            }
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            // Default 7 days, configurable via Sharing:SeekerDays or env SHARING__SEEKERDAYS
+            var days = 7;
+            if (int.TryParse(_config["Sharing:SeekerDays"] ?? Environment.GetEnvironmentVariable("SHARING__SEEKERDAYS"), out var cfgDays) && cfgDays > 0)
+                days = cfgDays;
+
+            var claims = new[]
+            {
+                new Claim("typ", "public-seeker"),
+                new Claim("sid", seeker.Id.ToString()),
+            };
+
+            var token = new JwtSecurityToken(
+                issuer: jwtIssuer,
+                audience: null,
+                claims: claims,
+                notBefore: DateTime.UtcNow.AddMinutes(-2),
+                expires: DateTime.UtcNow.AddDays(days),
+                signingCredentials: creds
+            );
+
+            var handler = new JwtSecurityTokenHandler();
+            var t = handler.WriteToken(token);
+
+            var frontendBase = _config["FrontendBaseUrl"] ?? Environment.GetEnvironmentVariable("FRONTEND_BASE_URL") ?? "http://localhost:3000";
+            var url = $"{frontendBase.TrimEnd('/')}/share/seeker?t={Uri.EscapeDataString(t)}";
+            return Ok(new { url, expiresDays = days });
+        }
+
+        // Public, unauthenticated profile preview by share token
+        [HttpGet("public/by-token")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetPublicByToken([FromQuery] string t)
+        {
+            if (string.IsNullOrWhiteSpace(t)) return BadRequest(new { error = "Missing token" });
+
+            var jwtKey = _config["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
+            var jwtIssuer = _config["Jwt:Issuer"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "futureofthejobsearch";
+            if (string.IsNullOrEmpty(jwtKey))
+            {
+                return StatusCode(500, new { error = "JWT signing key not configured" });
+            }
+
+            var handler = new JwtSecurityTokenHandler();
+            try
+            {
+                var principal = handler.ValidateToken(t, new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = jwtIssuer,
+                    ValidateAudience = false,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                    ClockSkew = TimeSpan.FromMinutes(1)
+                }, out var _);
+
+                var typ = principal.FindFirst("typ")?.Value;
+                var sid = principal.FindFirst("sid")?.Value;
+                if (typ != "public-seeker" || string.IsNullOrEmpty(sid)) return Unauthorized(new { error = "Invalid token" });
+                if (!int.TryParse(sid, out var seekerId)) return Unauthorized(new { error = "Invalid token subject" });
+
+                var seeker = await _db.Seekers.AsNoTracking().FirstOrDefaultAsync(s => s.Id == seekerId);
+                if (seeker == null) return NotFound(new { error = "Seeker not found" });
+                if (!seeker.IsProfileActive) return Unauthorized(new { error = "Profile is not publicly available" });
+
+                var dto = new PublicSeekerProfileDto
+                {
+                    Id = seeker.Id,
+                    FirstName = seeker.FirstName,
+                    LastName = seeker.LastName,
+                    City = seeker.City,
+                    State = seeker.State,
+                    ProfessionalSummary = seeker.ProfessionalSummary,
+                    Skills = seeker.Skills,
+                    Languages = seeker.Languages,
+                    Certifications = seeker.Certifications,
+                    Interests = seeker.Interests,
+                    ResumeUrl = seeker.ResumeUrl,
+                    VideoUrl = seeker.VideoUrl,
+                    HeadshotUrl = seeker.HeadshotUrl,
+                    ExperienceJson = seeker.ExperienceJson,
+                    EducationJson = seeker.EducationJson
+                };
+
+                return Ok(dto);
+            }
+            catch (SecurityTokenException ste)
+            {
+                return Unauthorized(new { error = "Invalid or expired token", detail = ste.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Failed to validate token", detail = ex.Message });
+            }
         }
 
         [HttpPost("register")]

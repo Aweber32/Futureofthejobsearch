@@ -218,27 +218,33 @@ const SeekerProfilePreview = ({ seeker, onInterested, onNotInterested }) => {
 
       </div>
 
-      {/* Action Buttons */}
-      <div className="card-footer d-flex justify-content-between" style={{
-        padding: '16px 20px',
-        background: '#f8f9fa',
-        borderTop: '1px solid #dee2e6'
-      }}>
-        <button
-          className="btn btn-outline-danger"
-          onClick={onNotInterested}
-          style={{ minWidth: '120px' }}
-        >
-          <i className="fas fa-times me-2"></i>Not Interested
-        </button>
-        <button
-          className="btn btn-success"
-          onClick={onInterested}
-          style={{ minWidth: '120px' }}
-        >
-          <i className="fas fa-heart me-2"></i>Interested
-        </button>
-      </div>
+      {/* Action Buttons (optional; shown only when handlers provided) */}
+      {(typeof onInterested === 'function' || typeof onNotInterested === 'function') && (
+        <div className="card-footer d-flex justify-content-between" style={{
+          padding: '16px 20px',
+          background: '#f8f9fa',
+          borderTop: '1px solid #dee2e6'
+        }}>
+          {typeof onNotInterested === 'function' && (
+            <button
+              className="btn btn-outline-danger"
+              onClick={onNotInterested}
+              style={{ minWidth: '120px' }}
+            >
+              <i className="fas fa-times me-2"></i>Not Interested
+            </button>
+          )}
+          {typeof onInterested === 'function' && (
+            <button
+              className="btn btn-success"
+              onClick={onInterested}
+              style={{ minWidth: '120px' }}
+            >
+              <i className="fas fa-heart me-2"></i>Interested
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

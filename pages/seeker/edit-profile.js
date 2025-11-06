@@ -688,21 +688,61 @@ export default function EditProfile(){
     finally{ setLoading(false); }
   }
 
+  async function copyShareLink() {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+      if (!token) { window.alert('Please sign in to create a share link.'); return; }
+      const res = await fetch(`${API}/api/seekers/share-link`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || 'Failed to create share link');
+      }
+      const data = await res.json();
+      const link = data.url;
+      await navigator.clipboard.writeText(link);
+      window.alert('Share link copied to clipboard!');
+    } catch (err) {
+      // Fallback prompt
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+        if (!token) return;
+        const res = await fetch(`${API}/api/seekers/share-link`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        const link = data?.url || '';
+        if (link) window.prompt('Copy this link:', link);
+      } catch {}
+    }
+  }
+
   return (
     <Layout title="Edit profile">
-      {/* Fixed Preview Profile Button */}
-      <button 
-        className="btn btn-primary position-fixed"
-        style={{
-          bottom: '20px',
-          right: '20px',
-          zIndex: 1050,
-          boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-        }}
-        onClick={() => setShowPreviewModal(true)}
+      {/* Fixed Quick Actions: Preview & Share */}
+      <div 
+        className="position-fixed d-flex gap-2"
+        style={{ bottom: '20px', right: '20px', zIndex: 1050 }}
       >
-        Preview Profile
-      </button>
+        <button 
+          className="btn btn-primary"
+          style={{ boxShadow: '0 4px 8px rgba(0,0,0,0.2)' }}
+          onClick={() => setShowPreviewModal(true)}
+        >
+          Preview Profile
+        </button>
+        {seekerId && (
+          <button 
+            className="btn btn-outline-secondary"
+            style={{ boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}
+            type="button"
+            onClick={copyShareLink}
+            title="Copy public share link"
+          >
+            Share
+          </button>
+        )}
+      </div>
 
       <h2>Edit profile</h2>
 
