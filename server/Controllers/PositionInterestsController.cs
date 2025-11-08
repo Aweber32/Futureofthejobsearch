@@ -62,7 +62,15 @@ namespace FutureOfTheJobSearch.Server.Controllers
             // Only return position interests for this specific seeker
             var q = _db.PositionInterests
                 .Where(pi => pi.SeekerId == seekerId)
+                // Include Position + nested navigation properties for rich review modal (Employer + collections)
                 .Include(pi => pi.Position)
+                    .ThenInclude(p => p!.Employer)
+                .Include(pi => pi.Position)
+                    .ThenInclude(p => p!.Educations)
+                .Include(pi => pi.Position)
+                    .ThenInclude(p => p!.Experiences)
+                .Include(pi => pi.Position)
+                    .ThenInclude(p => p!.SkillsList)
                 .Include(pi => pi.Seeker)
                 .AsQueryable();
                 

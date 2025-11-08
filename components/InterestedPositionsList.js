@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MessageSquare, FileSearch } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import PositionReviewModal from './PositionReviewModal';
 import ChatButton from './ChatButton';
 import { API_CONFIG } from '../config/api';
 
 const API = API_CONFIG.BASE_URL;
 
-export default function InterestedPositionsList({ seeker }){
+export default function InterestedPositionsList({ seeker, version, setAllInterests, onInterestStateChanged, allInterests }){
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activePosition, setActivePosition] = useState(null);
   const [token, setToken] = useState(null);
   const [fetchingPosition, setFetchingPosition] = useState(false);
+  // employer decision map loaded via seeker-visible endpoint
+  const [employerStatusMap, setEmployerStatusMap] = useState({}); // positionId -> true|false
 
   useEffect(()=>{
     if (!seeker) return;
@@ -29,7 +31,20 @@ export default function InterestedPositionsList({ seeker }){
         if (!res.ok) throw new Error('Failed to load interests');
         const data = await res.json();
         // filter for this seeker and interested=true
-        const my = (data || []).filter(i => (i.seekerId === seeker.id || i.seekerId === seeker.SeekerId || i.seekerId === seeker.seekerId) && i.interested === true);
+        let my = (data || []).filter(i => (i.seekerId === seeker.id || i.seekerId === seeker.SeekerId || i.seekerId === seeker.seekerId) && i.interested === true);
+        // Reconcile with optimistic local state: exclude any position ids already flipped to not interested in allInterests
+        try{
+          const uninterestedSet = new Set((allInterests || [])
+            .filter(r => r?.interested === false || r?.Interested === false)
+            .map(r => r?.positionId ?? r?.PositionId ?? r?.position?.id ?? r?.Position?.Id)
+            .filter(v => v != null)
+            .map(v => String(v))
+          );
+          my = my.filter(i => {
+            const pid = i.positionId ?? i.PositionId ?? i.position?.id ?? i.position?.Id;
+            return !uninterestedSet.has(String(pid));
+          });
+        }catch{}
 
         // try to normalize position details: some APIs may include a nested position
         const normalized = await Promise.all(my.map(async i => {
@@ -45,23 +60,29 @@ export default function InterestedPositionsList({ seeker }){
           return { id: i.positionId ?? i.PositionId ?? i.positionID, title: i.positionTitle ?? 'Position', raw: i };
         }));
 
-        // For each normalized item, fetch poster-side SeekerInterest to determine employer's decision
-        const withStatus = await Promise.all(normalized.map(async it => {
-          try{
-            const pid = it.id;
-            if (!pid) return { ...it, posterStatus: 'Job-Poster Status: Unreviewed' };
-            const sres = await fetch(`${API}/api/seekerinterests?positionId=${pid}`, { headers: { Authorization: `Bearer ${authToken}` } });
-            if (!sres.ok) return { ...it, posterStatus: 'Job-Poster Status: Unreviewed' };
-            const slist = await sres.json();
-            // find record for this seeker
-            const match = (slist || []).find(si => si.seekerId === seeker.id || si.SeekerId === seeker.SeekerId || si.seekerId === seeker.seekerId || si.SeekerId === seeker.id);
-            if (!match) return { ...it, posterStatus: 'Job-Poster Status: Unreviewed' };
-            const status = match.interested === true ? 'Job-Poster Status: Interested' : 'Job-Poster Status: Not-Interested';
-            return { ...it, posterStatus: status };
-          }catch{
-            return { ...it, posterStatus: 'Job-Poster Status: Unreviewed' };
+        // Load employer decisions once via seeker endpoint and map onto items
+        let statusMap = employerStatusMap;
+        try{
+          const sres = await fetch(`${API}/api/seekerinterests/mine`, { headers: { Authorization: `Bearer ${authToken}` } });
+          if (sres.ok){
+            const arr = await sres.json();
+            statusMap = {};
+            (arr || []).forEach(r => {
+              const pid = r.positionId ?? r.PositionId;
+              const interested = (typeof r.employerInterested !== 'undefined') ? r.employerInterested : r.interested;
+              if (pid != null) statusMap[String(pid)] = interested;
+            });
+            setEmployerStatusMap(statusMap);
           }
-        }));
+        }catch{ /* ignore, default to empty map */ }
+
+        const withStatus = normalized.map(it => {
+          const interested = statusMap[String(it.id)];
+          let posterStatus = 'Job-Poster Status: Unreviewed';
+          if (interested === true) posterStatus = 'Job-Poster Status: Interested';
+          else if (interested === false) posterStatus = 'Job-Poster Status: Not-Interested';
+          return { ...it, posterStatus };
+        });
 
         // Some APIs return a nested position object without the related Employer navigation property.
         // For those items, re-fetch the full position (which includes Employer via server Include) so we can reliably derive company name.
@@ -106,7 +127,7 @@ export default function InterestedPositionsList({ seeker }){
       }catch(err){ setError(err?.message || 'Failed to load'); }
       finally{ setLoading(false); }
     })();
-  },[seeker]);
+  },[seeker, version, allInterests]);
 
   if (loading) return <div className="text-center py-5" style={{color: '#6b7280'}}>Loading interested positions…</div>;
   if (error) return <div className="alert alert-danger">{error}</div>;
@@ -121,14 +142,18 @@ export default function InterestedPositionsList({ seeker }){
 
   return (
     <div className="row g-4">
-      {items.map((item, index) => (
-        <motion.div 
-          key={item.id || JSON.stringify(item.raw)} 
-          className="col-12 col-lg-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: index * 0.1 }}
-        >
+      <AnimatePresence initial={false}>
+        {items.map((item, index) => {
+          return (
+            <motion.div 
+              key={item.id || JSON.stringify(item.raw)} 
+              className="col-12 col-lg-6"
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4, delay: index * 0.1 }}
+            >
           <div 
             className="card h-100 border-0 shadow-sm" 
             style={{
@@ -311,8 +336,10 @@ export default function InterestedPositionsList({ seeker }){
               </div>
             </div>
           </div>
-        </motion.div>
-      ))}
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
       {activePosition && (
         <PositionReviewModal 
           position={activePosition} 
@@ -320,10 +347,39 @@ export default function InterestedPositionsList({ seeker }){
           onNotInterested={(pos)=>{
             const pid = pos?.id ?? pos?.Id ?? pos?.positionId ?? pos?.PositionId;
             if (pid != null) {
+              // Remove from interested items list
               setItems(curr => curr.filter(it => {
                 const itId = it.id ?? it.Id ?? it.positionId ?? it.PositionId;
                 return String(itId) !== String(pid);
               }));
+              // Update global allInterests to flip interested -> false
+              if (typeof setAllInterests === 'function') {
+                setAllInterests(curr => {
+                  let found = false;
+                  const next = (curr || []).map(rec => {
+                    const recPid = rec.positionId ?? rec.PositionId ?? rec.position?.id ?? rec.Position?.Id;
+                    if (recPid != null && String(recPid) === String(pid)) {
+                      found = true;
+                      return { ...rec, interested: false, Interested: false };
+                    }
+                    return rec;
+                  });
+                  if (!found) {
+                    // If the current interests list didn't include this record, append a synthetic one so NI table updates instantly
+                    next.push({
+                      positionId: pid,
+                      interested: false,
+                      Interested: false,
+                      position: pos
+                    });
+                  }
+                  return next;
+                });
+              }
+              // Debounce the version bump slightly to let backend persist; prevents flicker
+              if (typeof onInterestStateChanged === 'function') {
+                setTimeout(() => onInterestStateChanged(), 350);
+              }
             }
             setActivePosition(null);
           }}

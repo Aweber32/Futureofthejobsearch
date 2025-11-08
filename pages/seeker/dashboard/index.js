@@ -303,6 +303,7 @@ export default function SeekerDashboard(){
           <InterestedPositionsList 
             seeker={seeker} 
             version={interestVersion}
+            allInterests={allInterests}
             setAllInterests={setAllInterests}
             onInterestStateChanged={()=> setInterestVersion(v=>v+1)}
           />
@@ -330,6 +331,7 @@ function UninterestedPositionsTable({ allInterests, loadingInterests, setAllInte
   const [employerStatuses, setEmployerStatuses] = useState({}); // positionId => 'Interested' | 'Not Interested' | 'Not Reviewed'
   const [open, setOpen] = useState(false); // mobile/collapse state
   const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  const debugCompany = (typeof window !== 'undefined') ? new URLSearchParams(window.location.search).has('debugCompany') : false;
   const notInterested = (allInterests || []).filter(pi => pi?.interested === false || pi?.Interested === false);
 
   const getRowKey = (pi) => (
@@ -367,55 +369,28 @@ function UninterestedPositionsTable({ allInterests, loadingInterests, setAllInte
     }
   }
 
-  // Fetch employer interest statuses for each unique position in the not-interested list
+  // Fetch employer interest statuses for current seeker across all positions once
   useEffect(() => {
     if (!token) return;
     if (!notInterested.length) return;
 
-    // Collect unique position ids needing status
-    const pendingIds = [];
-    const seen = new Set();
-    notInterested.forEach(pi => {
-      const pid = pi.positionId || pi.PositionId || pi.position?.id || pi.Position?.Id;
-      if (!pid) return;
-      if (seen.has(pid)) return;
-      seen.add(pid);
-      if (!employerStatuses[pid]) pendingIds.push(pid);
-    });
-    if (!pendingIds.length) return;
-
     (async () => {
       try {
-        const results = await Promise.all(pendingIds.map(async pid => {
-          try {
-            const res = await fetch(`${API}/api/seekerinterests?positionId=${pid}`, { headers: { Authorization: `Bearer ${token}` } });
-            if (!res.ok) return { pid, status: 'Not Reviewed' };
-            const list = await res.json();
-            // Find a record for the seeker (the seekerId is on each position interest item in notInterested list)
-            // We'll take the first notInterested item that matches this pid to derive seekerId
-            const sample = notInterested.find(pi => (pi.positionId || pi.PositionId || pi.position?.id || pi.Position?.Id) === pid);
-            const seekerId = sample?.seekerId || sample?.SeekerId || null;
-            if (!seekerId) return { pid, status: 'Not Reviewed' };
-            const match = (list || []).find(si => si.seekerId === seekerId || si.SeekerId === seekerId);
-            if (!match) return { pid, status: 'Not Reviewed' };
-            const status = match.interested === true ? 'Interested' : 'Not Interested';
-            return { pid, status };
-          } catch {
-            return { pid, status: 'Not Reviewed' };
-          }
-        }));
-        if (results.length) {
-          setEmployerStatuses(prev => {
-            const next = { ...prev };
-            results.forEach(r => { next[r.pid] = r.status; });
-            return next;
-          });
-        }
+        const res = await fetch(`${API}/api/seekerinterests/mine`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return;
+        const list = await res.json();
+        const map = {};
+        (list || []).forEach(r => {
+          const pid = r.positionId ?? r.PositionId;
+          const interested = (typeof r.employerInterested !== 'undefined') ? r.employerInterested : r.interested;
+          if (pid != null) map[pid] = interested === true ? 'Interested' : 'Not Interested';
+        });
+        setEmployerStatuses(map);
       } catch (e) {
         console.warn('Failed loading employer statuses', e);
       }
     })();
-  }, [token, notInterested, employerStatuses]);
+  }, [token, notInterested.length]);
 
   if (loadingInterests) {
     return (
@@ -473,20 +448,42 @@ function UninterestedPositionsTable({ allInterests, loadingInterests, setAllInte
                             const pos = pi.position || pi.Position || {};
                             const title = pos?.title || pos?.Title || pi?.positionTitle || 'Position Conversation';
                             const companyCandidates = [
+                              // position-level common shapes
                               pos?.companyName,
+                              pos?.CompanyName,
                               pos?.company,
-                              pos?.employer?.companyName,
-                              pos?.employer?.name,
                               pos?.company?.name,
                               pos?.company?.companyName,
+                              pos?.Company?.Name,
+                              pos?.Company?.CompanyName,
+                              // employer navigation (camel & Pascal)
+                              pos?.employer?.companyName,
+                              pos?.employer?.CompanyName,
+                              pos?.employer?.name,
+                              pos?.Employer?.CompanyName,
+                              pos?.Employer?.Name,
+                              // values from the interest payload itself (camel & Pascal)
                               pi?.position?.companyName,
+                              pi?.position?.CompanyName,
+                              pi?.position?.employer?.companyName,
+                              pi?.position?.employer?.CompanyName,
                               pi?.position?.employer?.name,
+                              pi?.Position?.CompanyName,
+                              pi?.Position?.Employer?.CompanyName,
+                              pi?.Position?.Employer?.Name,
                               pi?.companyName,
+                              pi?.CompanyName,
                               pi?.company,
                               pi?.employer?.companyName,
-                              pi?.employer?.name
+                              pi?.employer?.CompanyName,
+                              pi?.employer?.name,
+                              pi?.Employer?.CompanyName,
+                              pi?.Employer?.Name
                             ];
-                            const companyFound = companyCandidates.find(v => v && typeof v === 'string' && v.trim().length > 0);
+                              const companyFound = companyCandidates.find(v => v && typeof v === 'string' && v.trim().length > 0);
+                              if (debugCompany) {
+                                try { console.log('[NI company debug] desktop row', { rowKey, title, companyCandidates, pos, pi }); } catch {}
+                              }
                             const company = companyFound ? companyFound.trim() : 'Unknown company';
                             const reviewedAt = pi.reviewedAt || pi.ReviewedAt || null;
                             const reviewedDisplay = reviewedAt ? new Date(reviewedAt).toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric'}) : '—';
@@ -530,7 +527,23 @@ function UninterestedPositionsTable({ allInterests, loadingInterests, setAllInte
                                   );
                                 })()}
                                 <td className="d-flex flex-wrap gap-2">
-                                  <button className="btn btn-sm btn-outline-primary" style={{borderRadius:'6px'}} onClick={() => setModalPosition(pos)}>View</button>
+                                  <button className="btn btn-sm btn-outline-primary" style={{borderRadius:'6px'}} onClick={async () => {
+                                    try {
+                                      const pid = pos?.id || pos?.Id || pi?.positionId || pi?.PositionId;
+                                      if (!pid) { setModalPosition(pos); return; }
+                                      // If collections already present, use existing object
+                                      const hasCollections = Array.isArray(pos?.educations) || Array.isArray(pos?.Educations) || Array.isArray(pos?.experiences) || Array.isArray(pos?.Experiences) || Array.isArray(pos?.skillsList) || Array.isArray(pos?.SkillsList);
+                                      if (hasCollections) { setModalPosition(pos); return; }
+                                      if (!token) { setModalPosition(pos); return; }
+                                      const res = await fetch(`${API}/api/positions/${pid}`, { headers: { Authorization: `Bearer ${token}` } });
+                                      if (res.ok) {
+                                        const full = await res.json();
+                                        setModalPosition(full);
+                                      } else {
+                                        setModalPosition(pos);
+                                      }
+                                    } catch { setModalPosition(pos); }
+                                  }}>View</button>
                                   <button className="btn btn-sm btn-success" style={{borderRadius:'6px'}} onClick={() => markAsInterested(pi)}>Mark as Intrested</button>
                                   <ChatButton title={title} subtitle={company} otherUserId={employerUserId} positionId={pos?.id || pos?.Id || pi?.positionId || pi?.PositionId} unreadCount={0} />
                                 </td>
@@ -548,20 +561,42 @@ function UninterestedPositionsTable({ allInterests, loadingInterests, setAllInte
                         const pos = pi.position || pi.Position || {};
                         const title = pos?.title || pos?.Title || pi?.positionTitle || 'Position Conversation';
                         const companyCandidates = [
+                          // position-level common shapes
                           pos?.companyName,
+                          pos?.CompanyName,
                           pos?.company,
-                          pos?.employer?.companyName,
-                          pos?.employer?.name,
                           pos?.company?.name,
                           pos?.company?.companyName,
+                          pos?.Company?.Name,
+                          pos?.Company?.CompanyName,
+                          // employer navigation (camel & Pascal)
+                          pos?.employer?.companyName,
+                          pos?.employer?.CompanyName,
+                          pos?.employer?.name,
+                          pos?.Employer?.CompanyName,
+                          pos?.Employer?.Name,
+                          // values from the interest payload itself (camel & Pascal)
                           pi?.position?.companyName,
+                          pi?.position?.CompanyName,
+                          pi?.position?.employer?.companyName,
+                          pi?.position?.employer?.CompanyName,
                           pi?.position?.employer?.name,
+                          pi?.Position?.CompanyName,
+                          pi?.Position?.Employer?.CompanyName,
+                          pi?.Position?.Employer?.Name,
                           pi?.companyName,
+                          pi?.CompanyName,
                           pi?.company,
                           pi?.employer?.companyName,
-                          pi?.employer?.name
+                          pi?.employer?.CompanyName,
+                          pi?.employer?.name,
+                          pi?.Employer?.CompanyName,
+                          pi?.Employer?.Name
                         ];
                         const companyFound = companyCandidates.find(v => v && typeof v === 'string' && v.trim().length > 0);
+                        if (debugCompany) {
+                          try { console.log('[NI company debug] mobile card', { rowKey, title, companyCandidates, pos, pi }); } catch {}
+                        }
                         const company = companyFound ? companyFound.trim() : 'Unknown company';
                         const reviewedAt = pi.reviewedAt || pi.ReviewedAt || null;
                         const reviewedDisplay = reviewedAt ? new Date(reviewedAt).toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric'}) : '—';
@@ -602,7 +637,20 @@ function UninterestedPositionsTable({ allInterests, loadingInterests, setAllInte
                               </div>
                               <div style={{fontSize:'11px', color:'#6b7280'}}>Marked: {reviewedDisplay}</div>
                               <div className="d-flex flex-wrap gap-2 mt-1">
-                                <button className="btn btn-sm btn-outline-primary" style={{borderRadius:'6px'}} onClick={() => setModalPosition(pos)}>View</button>
+                                <button className="btn btn-sm btn-outline-primary" style={{borderRadius:'6px'}} onClick={async () => {
+                                  try {
+                                    const pid = pos?.id || pos?.Id || pi?.positionId || pi?.PositionId;
+                                    if (!pid) { setModalPosition(pos); return; }
+                                    const hasCollections = Array.isArray(pos?.educations) || Array.isArray(pos?.Educations) || Array.isArray(pos?.experiences) || Array.isArray(pos?.Experiences) || Array.isArray(pos?.skillsList) || Array.isArray(pos?.SkillsList);
+                                    if (hasCollections) { setModalPosition(pos); return; }
+                                    if (!token) { setModalPosition(pos); return; }
+                                    const res = await fetch(`${API}/api/positions/${pid}`, { headers: { Authorization: `Bearer ${token}` } });
+                                    if (res.ok) {
+                                      const full = await res.json();
+                                      setModalPosition(full);
+                                    } else { setModalPosition(pos); }
+                                  } catch { setModalPosition(pos); }
+                                }}>View</button>
                                 <button className="btn btn-sm btn-success" style={{borderRadius:'6px'}} onClick={() => markAsInterested(pi)}>Mark as Intrested</button>
                                 <ChatButton title={title} subtitle={company} otherUserId={employerUserId} positionId={pos?.id || pos?.Id || pi?.positionId || pi?.PositionId} unreadCount={0} />
                               </div>

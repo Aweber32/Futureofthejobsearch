@@ -19,6 +19,30 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _logger = logger;
         }
 
+        // GET api/seekerinterests/mine
+        // Seeker view: list employer interest decisions about the current seeker across all positions.
+        // Returns lightweight objects: [{ positionId, employerInterested, reviewedAt }]
+        [HttpGet("mine")]
+        [Authorize]
+        public async Task<IActionResult> Mine()
+        {
+            // verify seeker claim
+            var seekerClaim = User.Claims.FirstOrDefault(c => c.Type == "seekerId");
+            if (seekerClaim == null || !int.TryParse(seekerClaim.Value, out var seekerId))
+                return Unauthorized(new { error = "No seeker associated with this account" });
+
+            var list = await _db.SeekerInterests
+                .Where(si => si.SeekerId == seekerId)
+                .Select(si => new {
+                    positionId = si.PositionId,
+                    employerInterested = si.Interested,
+                    reviewedAt = si.ReviewedAt
+                })
+                .ToListAsync();
+
+            return Ok(list);
+        }
+
         // GET api/seekerinterests?positionId=123
         [HttpGet]
         [Authorize]
