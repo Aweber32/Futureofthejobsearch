@@ -13,8 +13,8 @@ export default function ChatButton({ title = 'Conversation', subtitle = '' , oth
   async function openChat(){
     // fetch token
     const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
-    if (!token) {
-      // open modal to prompt login (the modal UI will handle missing token)
+    // If not authenticated OR we don't yet know who to chat with, just open the modal (no POST) to avoid 4xx spam
+    if (!token || !otherUserId) {
       setOpen(true);
       return;
     }

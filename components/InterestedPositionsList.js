@@ -214,8 +214,15 @@ export default function InterestedPositionsList({ seeker }){
                     const found = tryVals.find(v => v && typeof v === 'string' && v.trim().length > 0);
                     const companyName = found ? found.trim() : 'Unknown company';
                     const positionTitle = item.position?.title ?? item.title ?? 'Position Conversation';
-                    const otherUserId = item.position?.employer?.userId || item.position?.employer?.userId || item.raw?.posterUserId || null;
-                    const posId = item.id || item.position?.id || null;
+                    const otherUserId = (
+                      item.position?.employer?.userId ||
+                      item.position?.employer?.UserId ||
+                      item.raw?.employer?.userId ||
+                      item.raw?.employer?.UserId ||
+                      item.raw?.posterUserId ||
+                      null
+                    );
+                    const posId = item.id || item.position?.id || item.position?.Id || null;
                     
                     return <ChatButton title={positionTitle} subtitle={companyName} otherUserId={otherUserId} positionId={posId} unreadCount={item.unreadCount || 0} />;
                   })()}

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../../../components/Layout';
 import InterestedPositionsList from '../../../components/InterestedPositionsList';
+import ChatButton from '../../../components/ChatButton';
 import { API_CONFIG } from '../../../config/api';
+import PositionReviewModal from '../../../components/PositionReviewModal';
 
 const API = API_CONFIG.BASE_URL;
 
@@ -17,6 +19,9 @@ export default function SeekerDashboard(){
   const [profileActive, setProfileActive] = useState(true);
   const [shareBusy, setShareBusy] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [allInterests, setAllInterests] = useState([]); // all position interests for seeker
+  const [loadingInterests, setLoadingInterests] = useState(true);
+  const [interestVersion, setInterestVersion] = useState(0); // bump to signal refresh to children
 
   useEffect(()=>{
     // compute a friendly greeting based on local time
@@ -41,6 +46,25 @@ export default function SeekerDashboard(){
       finally{ setLoading(false); }
     })();
   },[]);
+
+  // Fetch seeker position interests (both interested & not interested)
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+    if (!token) return; // already redirected above
+    (async () => {
+      try {
+        setLoadingInterests(true);
+        const res = await fetch(`${API}/api/positioninterests`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Failed to load interests');
+        const list = await res.json();
+        setAllInterests(Array.isArray(list) ? list : []);
+      } catch (e) {
+        console.warn('Position interests load failed', e);
+      } finally {
+        setLoadingInterests(false);
+      }
+    })();
+  }, []);
 
   async function updateProfileActiveStatus(isActive) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
@@ -276,12 +300,340 @@ export default function SeekerDashboard(){
             </Link>
           </div>
           
-          <InterestedPositionsList seeker={seeker} />
+          <InterestedPositionsList 
+            seeker={seeker} 
+            version={interestVersion}
+            setAllInterests={setAllInterests}
+            onInterestStateChanged={()=> setInterestVersion(v=>v+1)}
+          />
         </motion.div>
+        {/* Un-Intrested Positions Section */}
+        <UninterestedPositionsTable 
+          allInterests={allInterests} 
+          loadingInterests={loadingInterests} 
+          setAllInterests={setAllInterests}
+          onInterestStateChanged={()=> setInterestVersion(v=>v+1)}
+        />
       </div>
       {!!toastMsg && (
         <div className="toast-lite" role="status" aria-live="polite">{toastMsg}</div>
       )}
     </Layout>
   )
+}
+
+// Local table component for Un-Intrested Positions
+function UninterestedPositionsTable({ allInterests, loadingInterests, setAllInterests, onInterestStateChanged }) {
+  const [modalPosition, setModalPosition] = useState(null);
+  const [fadingIds, setFadingIds] = useState(new Set());
+  const [chatMeta, setChatMeta] = useState(null); // { title, subtitle, otherUserId, positionId }
+  const [employerStatuses, setEmployerStatuses] = useState({}); // positionId => 'Interested' | 'Not Interested' | 'Not Reviewed'
+  const [open, setOpen] = useState(false); // mobile/collapse state
+  const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+  const notInterested = (allInterests || []).filter(pi => pi?.interested === false || pi?.Interested === false);
+
+  const getRowKey = (pi) => (
+    pi?.id ?? pi?.Id ?? pi?.positionId ?? pi?.PositionId ?? pi?.position?.id ?? pi?.Position?.Id ?? pi?.positionTitle ?? Math.random().toString(36).slice(2)
+  );
+
+  async function markAsInterested(pi) {
+    if (!token) return;
+    try {
+      const positionId = pi.positionId || pi.PositionId || pi.position?.id || pi.Position?.Id;
+      if (!positionId) return;
+      const res = await fetch(`${API}/api/positioninterests`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ positionId, interested: true })
+      });
+      if (res.ok) {
+        const rowKey = getRowKey(pi);
+        setFadingIds(prev => {
+          const next = new Set(prev);
+          next.add(rowKey);
+          return next;
+        });
+        // After fade-out animation, update interests so it moves out of this list
+        setTimeout(() => {
+          setAllInterests?.(curr => curr.map(item => {
+            const key = getRowKey(item);
+            return key === rowKey ? { ...item, interested: true, Interested: true } : item;
+          }));
+          onInterestStateChanged?.();
+        }, 220);
+      }
+    } catch (e) {
+      console.warn('Failed to re-mark as interested', e);
+    }
+  }
+
+  // Fetch employer interest statuses for each unique position in the not-interested list
+  useEffect(() => {
+    if (!token) return;
+    if (!notInterested.length) return;
+
+    // Collect unique position ids needing status
+    const pendingIds = [];
+    const seen = new Set();
+    notInterested.forEach(pi => {
+      const pid = pi.positionId || pi.PositionId || pi.position?.id || pi.Position?.Id;
+      if (!pid) return;
+      if (seen.has(pid)) return;
+      seen.add(pid);
+      if (!employerStatuses[pid]) pendingIds.push(pid);
+    });
+    if (!pendingIds.length) return;
+
+    (async () => {
+      try {
+        const results = await Promise.all(pendingIds.map(async pid => {
+          try {
+            const res = await fetch(`${API}/api/seekerinterests?positionId=${pid}`, { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) return { pid, status: 'Not Reviewed' };
+            const list = await res.json();
+            // Find a record for the seeker (the seekerId is on each position interest item in notInterested list)
+            // We'll take the first notInterested item that matches this pid to derive seekerId
+            const sample = notInterested.find(pi => (pi.positionId || pi.PositionId || pi.position?.id || pi.Position?.Id) === pid);
+            const seekerId = sample?.seekerId || sample?.SeekerId || null;
+            if (!seekerId) return { pid, status: 'Not Reviewed' };
+            const match = (list || []).find(si => si.seekerId === seekerId || si.SeekerId === seekerId);
+            if (!match) return { pid, status: 'Not Reviewed' };
+            const status = match.interested === true ? 'Interested' : 'Not Interested';
+            return { pid, status };
+          } catch {
+            return { pid, status: 'Not Reviewed' };
+          }
+        }));
+        if (results.length) {
+          setEmployerStatuses(prev => {
+            const next = { ...prev };
+            results.forEach(r => { next[r.pid] = r.status; });
+            return next;
+          });
+        }
+      } catch (e) {
+        console.warn('Failed loading employer statuses', e);
+      }
+    })();
+  }, [token, notInterested, employerStatuses]);
+
+  if (loadingInterests) {
+    return (
+      <div className="mt-5 pt-4" style={{borderTop: '1px solid #f3f4f6'}}>
+        <h2 style={{fontSize:'1.25rem', fontWeight:'600', color:'#111827'}} className="mb-2">Un-Intrested Positions</h2>
+        <p style={{fontSize:'14px', color:'#6b7280'}} className="mb-3">Positions you previously marked as not interested. You can change your mind at any time.</p>
+        <div className="text-muted">Loading positions…</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 pt-4" style={{borderTop: '1px solid #f3f4f6'}}>
+      <div className="d-flex justify-content-center mb-3">
+        <button
+          className="btn btn-outline-secondary"
+          style={{borderRadius:'8px', minWidth:'260px'}}
+          onClick={() => setOpen(o => !o)}
+          aria-expanded={open}
+          aria-controls="uninterested-collapse"
+        >{open ? 'Hide Not Intrested Positions' : 'Expand to see Not Intrested Postions'}</button>
+      </div>
+      <div id="uninterested-collapse">
+        <AnimatePresence initial={false}>
+          {open && (
+            <motion.div
+              key="uninterested-container"
+              initial={{opacity:0, height:0}}
+              animate={{opacity:1, height:'auto'}}
+              exit={{opacity:0, height:0}}
+              transition={{duration:0.25}}
+              style={{overflow:'hidden'}}
+            >
+              <h2 style={{fontSize:'1.25rem', fontWeight:'600', color:'#111827'}} className="mb-2 text-center">Un-Intrested Positions</h2>
+              <p style={{fontSize:'14px', color:'#6b7280'}} className="mb-3 text-center">Positions you previously marked as not interested.</p>
+              {notInterested.length === 0 ? (
+                <div className="text-muted mb-3 text-center">You have not marked any positions as not interested.</div>
+              ) : (
+                <div>
+                  {/* Desktop table */}
+                  <div className="d-none d-md-block table-responsive mb-3">
+                    <table className="table align-middle">
+                      <thead>
+                        <tr>
+                          <th style={{whiteSpace:'nowrap'}}>Title</th>
+                          <th>Company</th>
+                          <th style={{whiteSpace:'nowrap'}}>Marked At</th>
+                          <th style={{whiteSpace:'nowrap'}}>Employer Intrest</th>
+                          <th style={{whiteSpace:'nowrap'}}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <AnimatePresence initial={false}>
+                          {notInterested.map(pi => {
+                            const pos = pi.position || pi.Position || {};
+                            const title = pos?.title || pos?.Title || pi?.positionTitle || 'Position Conversation';
+                            const companyCandidates = [
+                              pos?.companyName,
+                              pos?.company,
+                              pos?.employer?.companyName,
+                              pos?.employer?.name,
+                              pos?.company?.name,
+                              pos?.company?.companyName,
+                              pi?.position?.companyName,
+                              pi?.position?.employer?.name,
+                              pi?.companyName,
+                              pi?.company,
+                              pi?.employer?.companyName,
+                              pi?.employer?.name
+                            ];
+                            const companyFound = companyCandidates.find(v => v && typeof v === 'string' && v.trim().length > 0);
+                            const company = companyFound ? companyFound.trim() : 'Unknown company';
+                            const reviewedAt = pi.reviewedAt || pi.ReviewedAt || null;
+                            const reviewedDisplay = reviewedAt ? new Date(reviewedAt).toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric'}) : '—';
+                            const rowKey = getRowKey(pi);
+                            const employerUserId = (
+                              pos?.employer?.userId ||
+                              pos?.employer?.UserId ||
+                              pi?.employer?.userId ||
+                              pi?.employer?.UserId ||
+                              pi?.posterUserId ||
+                              null
+                            );
+                            if (fadingIds.has(rowKey)) return null;
+                            return (
+                              <motion.tr
+                                key={rowKey+':ni'}
+                                initial={{ opacity: 0, y: -2 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.2 }}
+                                style={{ display: 'table-row' }}
+                              >
+                                <td>{title}</td>
+                                <td>{company}</td>
+                                <td style={{fontSize:'12px', color:'#6b7280'}}>{reviewedDisplay}</td>
+                                {(() => {
+                                  const pid = pi.positionId || pi.PositionId || pos?.id || pos?.Id;
+                                  const status = employerStatuses[pid] || 'Not Reviewed';
+                                  const lower = status.toLowerCase();
+                                  let badgeClass = 'bg-secondary bg-opacity-10 text-secondary';
+                                  let display = 'Not Reviewed';
+                                  if (lower.includes('not interested')) { badgeClass = 'bg-danger bg-opacity-10 text-danger'; display = 'Not Interested'; }
+                                  else if (lower.includes('interested')) { badgeClass = 'bg-success bg-opacity-10 text-success'; display = 'Interested'; }
+                                  return (
+                                    <td>
+                                      <span className={`badge ${badgeClass}`}
+                                        style={{borderRadius:'9999px', padding:'0.375rem 0.65rem', fontSize:'11px', fontWeight:500}}>
+                                        {display}
+                                      </span>
+                                    </td>
+                                  );
+                                })()}
+                                <td className="d-flex flex-wrap gap-2">
+                                  <button className="btn btn-sm btn-outline-primary" style={{borderRadius:'6px'}} onClick={() => setModalPosition(pos)}>View</button>
+                                  <button className="btn btn-sm btn-success" style={{borderRadius:'6px'}} onClick={() => markAsInterested(pi)}>Mark as Intrested</button>
+                                  <ChatButton title={title} subtitle={company} otherUserId={employerUserId} positionId={pos?.id || pos?.Id || pi?.positionId || pi?.PositionId} unreadCount={0} />
+                                </td>
+                              </motion.tr>
+                            );
+                          })}
+                        </AnimatePresence>
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Mobile card list */}
+                  <div className="d-md-none d-flex flex-column gap-3">
+                    <AnimatePresence initial={false}>
+                      {notInterested.map(pi => {
+                        const pos = pi.position || pi.Position || {};
+                        const title = pos?.title || pos?.Title || pi?.positionTitle || 'Position Conversation';
+                        const companyCandidates = [
+                          pos?.companyName,
+                          pos?.company,
+                          pos?.employer?.companyName,
+                          pos?.employer?.name,
+                          pos?.company?.name,
+                          pos?.company?.companyName,
+                          pi?.position?.companyName,
+                          pi?.position?.employer?.name,
+                          pi?.companyName,
+                          pi?.company,
+                          pi?.employer?.companyName,
+                          pi?.employer?.name
+                        ];
+                        const companyFound = companyCandidates.find(v => v && typeof v === 'string' && v.trim().length > 0);
+                        const company = companyFound ? companyFound.trim() : 'Unknown company';
+                        const reviewedAt = pi.reviewedAt || pi.ReviewedAt || null;
+                        const reviewedDisplay = reviewedAt ? new Date(reviewedAt).toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric'}) : '—';
+                        const rowKey = getRowKey(pi);
+                        const employerUserId = (
+                          pos?.employer?.userId ||
+                          pos?.employer?.UserId ||
+                          pi?.employer?.userId ||
+                          pi?.employer?.UserId ||
+                          pi?.posterUserId ||
+                          null
+                        );
+                        if (fadingIds.has(rowKey)) return null;
+                        const pid = pi.positionId || pi.PositionId || pos?.id || pos?.Id;
+                        const status = employerStatuses[pid] || 'Not Reviewed';
+                        const lower = status.toLowerCase();
+                        let badgeClass = 'bg-secondary bg-opacity-10 text-secondary';
+                        let display = 'Not Reviewed';
+                        if (lower.includes('not interested')) { badgeClass = 'bg-danger bg-opacity-10 text-danger'; display = 'Not Interested'; }
+                        else if (lower.includes('interested')) { badgeClass = 'bg-success bg-opacity-10 text-success'; display = 'Interested'; }
+                        return (
+                          <motion.div
+                            key={rowKey+':ni-mobile'}
+                            initial={{opacity:0, y: -4}}
+                            animate={{opacity:1, y:0}}
+                            exit={{opacity:0, y:-6}}
+                            transition={{duration:0.2}}
+                            className="card shadow-sm border-0"
+                            style={{borderRadius:'12px'}}
+                          >
+                            <div className="card-body d-flex flex-column gap-2">
+                              <div className="d-flex justify-content-between align-items-start gap-2">
+                                <div>
+                                  <h6 style={{fontWeight:600, marginBottom:'4px'}}>{title}</h6>
+                                  <div style={{fontSize:'12px', color:'#6b7280'}}>{company}</div>
+                                </div>
+                                <span className={`badge ${badgeClass}`} style={{borderRadius:'9999px', padding:'0.375rem 0.65rem', fontSize:'10px', fontWeight:500}}>{display}</span>
+                              </div>
+                              <div style={{fontSize:'11px', color:'#6b7280'}}>Marked: {reviewedDisplay}</div>
+                              <div className="d-flex flex-wrap gap-2 mt-1">
+                                <button className="btn btn-sm btn-outline-primary" style={{borderRadius:'6px'}} onClick={() => setModalPosition(pos)}>View</button>
+                                <button className="btn btn-sm btn-success" style={{borderRadius:'6px'}} onClick={() => markAsInterested(pi)}>Mark as Intrested</button>
+                                <ChatButton title={title} subtitle={company} otherUserId={employerUserId} positionId={pos?.id || pos?.Id || pi?.positionId || pi?.PositionId} unreadCount={0} />
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      {modalPosition && (
+        <PositionReviewModal
+          position={modalPosition}
+          onClose={() => setModalPosition(null)}
+          onInterested={(position)=>{
+            const pid = position?.id ?? position?.Id ?? position?.positionId ?? position?.PositionId;
+            setAllInterests(curr => curr.map(ci => {
+              const ciPid = ci.positionId ?? ci.PositionId ?? ci.position?.id ?? ci.Position?.Id;
+              return String(ciPid) === String(pid) ? { ...ci, interested:true, Interested:true } : ci;
+            }));
+            onInterestStateChanged?.();
+            setModalPosition(null);
+          }}
+          onNotInterested={()=>{}}
+        />
+      )}
+    </div>
+  );
 }
