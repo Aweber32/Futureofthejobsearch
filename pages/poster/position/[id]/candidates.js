@@ -39,27 +39,76 @@ export default function PositionCandidates(){
           }
         }catch(e){ /* ignore */ }
         
-        // Fetch all candidates (seeker interests) - now requires authentication
-        const res = await fetch(`${base}/api/seekerinterests?positionId=${id}`, {
+        // Fetch employer review records (SeekerInterests)
+        const reviewRes = await fetch(`${base}/api/seekerinterests?positionId=${id}`, {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
-        if (!res.ok) { 
-          console.error('Failed to fetch candidates:', res.status, res.statusText);
-          setCandidates([]);
-          setLoading(false);
-          return;
+        let employerReviews = [];
+        if (reviewRes.ok){
+          employerReviews = await reviewRes.json();
+        } else {
+          console.warn('[pipeline] failed to fetch seekerinterests', reviewRes.status);
         }
-        const data = await res.json();
-        
-        if (!cancelled) {
-          // Add pipeline stage to all candidates
-          const allCandidates = (data || []).map(r => ({
-            ...r,
-            pipelineStage: r.pipelineStage || 'Interested' // Default to Interested if not set
-          }));
-          
-          setCandidates(allCandidates);
-          setLoading(false);
+
+        // Fetch candidate self-declared interests (PositionInterests)
+        const selfRes = await fetch(`${base}/api/positioninterests/for-position?positionId=${id}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        let selfInterests = [];
+        if (selfRes.ok){
+          selfInterests = await selfRes.json();
+        } else {
+          console.warn('[pipeline] failed to fetch positioninterests self list', selfRes.status);
+        }
+
+        if (!cancelled){
+          // Index employer reviews by seekerId
+            const reviewMap = new Map();
+            (employerReviews || []).forEach(r => {
+              const seekerObj = r.seeker ?? r.Seeker ?? {};
+              const sid = seekerObj.id ?? seekerObj.Id;
+              if (sid) reviewMap.set(sid, r);
+            });
+
+            // Build combined candidate list: include self-declared that don't have employer review yet
+            const combined = [];
+            (employerReviews || []).forEach(r => {
+              combined.push({ ...r, _candidateRaisedHand: false });
+            });
+            (selfInterests || []).forEach(pi => {
+              const seekerObj = pi.seeker ?? pi.Seeker ?? {};
+              const sid = seekerObj.id ?? seekerObj.Id;
+              if (!sid) return;
+              if (!reviewMap.has(sid)){
+                // Create pseudo candidate record so it appears in Interested column
+                combined.push({
+                  id: pi.id ?? pi.Id, // unique
+                  seeker: seekerObj,
+                  Interested: true,
+                  interested: true,
+                  reviewedAt: null,
+                  pipelineStage: 'Interested',
+                  _candidateRaisedHand: true,
+                  _selfInterest: pi
+                });
+              } else {
+                // Mark existing employer review as raised hand
+                const idx = combined.findIndex(c => (c.seeker?.id ?? c.seeker?.Id) === sid);
+                if (idx >= 0) combined[idx]._candidateRaisedHand = true;
+              }
+            });
+
+            // Normalize pipelineStage default
+            const allCandidates = combined.map(r => ({
+              ...r,
+              pipelineStage: r.pipelineStage || 'Interested'
+            }));
+
+            setCandidates(allCandidates);
+            try {
+              console.debug('[pipeline] employerReviews:', employerReviews.length, 'selfInterests:', selfInterests.length, 'combined:', allCandidates.length);
+            } catch {}
+            setLoading(false);
         }
       }catch(e){ 
         if (!cancelled) {
@@ -274,6 +323,13 @@ export default function PositionCandidates(){
     }
   };
 
+  // Show a blocking popup when trying to chat with a Not Interested candidate
+  const handleBlockedChat = () => {
+    if (typeof window !== 'undefined') {
+      window.alert('Mark this canidate as intrested to chat');
+    }
+  };
+
   const renderCandidateCard = (candidate) => {
     const seeker = candidate.seeker ?? candidate.Seeker ?? {};
     const firstName = seeker.firstName ?? seeker.FirstName ?? '';
@@ -306,6 +362,10 @@ export default function PositionCandidates(){
                        stageLabel === 'Interviewed' ? 'Interviewed' :
                        stageLabel === 'Offer' ? 'Offer' : 'Hired';
 
+    // Employer review status badge logic
+  // Employer review badge removed per request; retain only candidate self-interest marker
+    const candidateRaisedHand = !!candidate._candidateRaisedHand;
+
     return (
       <div
         key={candidate.id ?? candidate.Id}
@@ -325,22 +385,29 @@ export default function PositionCandidates(){
         onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'}
         onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'}
       >
-        {/* Name and AI Score */}
-        <div className="d-flex justify-content-between align-items-start mb-2">
-          <h6 className="mb-0" style={{ fontWeight: '600', fontSize: '13px', color: '#111827', lineHeight: '1.2' }}>
-            {name}
-          </h6>
-          <div 
-            style={{
-              color: '#10b981',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-            title="Coming Soon"
-          >
-            <Bot size={18} />
+        {/* Name + badges */}
+        <div className="mb-2" style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
+          <div className="d-flex justify-content-between align-items-start">
+            <h6 className="mb-0" style={{ fontWeight: '600', fontSize: '13px', color: '#111827', lineHeight: '1.2' }}>
+              {name}
+            </h6>
+            <div 
+              style={{
+                color: '#10b981',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              title="Coming Soon"
+            >
+              <Bot size={18} />
+            </div>
           </div>
+          {candidateRaisedHand && (
+            <div className="d-flex flex-wrap gap-1">
+              <span className="badge" style={{ background:'#e0f2fe', color:'#0369a1', fontWeight:500 }}>Candidate Interested</span>
+            </div>
+          )}
         </div>
 
         {/* Timestamp */}
@@ -565,14 +632,19 @@ export default function PositionCandidates(){
                             >
                               View Profile
                             </Link>
+                            {/* Chat is blocked for Not Interested candidates */}
                             <button 
                               className="btn btn-sm"
                               style={{
                                 border: '1px solid #10b981',
                                 color: '#10b981',
-                                background: 'white'
+                                background: 'white',
+                                opacity: 0.6,
+                                cursor: 'not-allowed'
                               }}
-                              onClick={() => handleOpenChat(candidate)}
+                              onClick={handleBlockedChat}
+                              title="Chat disabled for Not Interested candidates"
+                              aria-disabled="true"
                             >
                               <MessageCircle size={14} className="me-1" style={{ display: 'inline' }} />
                               Chat

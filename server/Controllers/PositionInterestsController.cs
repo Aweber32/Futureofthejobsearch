@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using FutureOfTheJobSearch.Server.Data;
 using FutureOfTheJobSearch.Server.Models;
 using Microsoft.AspNetCore.Authorization;
+using System.Linq;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -17,6 +18,35 @@ namespace FutureOfTheJobSearch.Server.Controllers
         {
             _db = db;
             _logger = logger;
+        }
+
+        // GET api/positioninterests/for-position?positionId=123
+        // Employer view: list all candidate self-declared interests (Interested=true) for a position the employer owns.
+        [HttpGet("for-position")]
+        [Authorize]
+        public async Task<IActionResult> ListForPosition([FromQuery] int positionId)
+        {
+            if (positionId <= 0) return BadRequest(new { error = "positionId required" });
+
+            // Verify employer
+            var employerClaim = User.Claims.FirstOrDefault(c => c.Type == "employerId");
+            if (employerClaim == null || string.IsNullOrEmpty(employerClaim.Value))
+                return Unauthorized(new { error = "No employer associated with this account" });
+            if (!int.TryParse(employerClaim.Value, out var employerId))
+                return Unauthorized(new { error = "Invalid employer id" });
+
+            // Ensure position belongs to employer
+            var position = await _db.Positions.FirstOrDefaultAsync(p => p.Id == positionId && p.EmployerId == employerId);
+            if (position == null)
+                return Forbid();
+
+            var list = await _db.PositionInterests
+                .Where(pi => pi.PositionId == positionId && pi.Interested == true)
+                .Include(pi => pi.Seeker)
+                .OrderByDescending(pi => pi.ReviewedAt)
+                .ToListAsync();
+
+            return Ok(list);
         }
 
         // GET api/positioninterests?positionId=123
