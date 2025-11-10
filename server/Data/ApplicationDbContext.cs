@@ -19,6 +19,8 @@ namespace FutureOfTheJobSearch.Server.Data
     public DbSet<Conversation> Conversations { get; set; }
     public DbSet<ConversationParticipant> ConversationParticipants { get; set; }
     public DbSet<Message> Messages { get; set; }
+    public DbSet<SeekerEmbedding> SeekerEmbeddings { get; set; }
+    public DbSet<PositionEmbedding> PositionEmbeddings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -114,6 +116,32 @@ namespace FutureOfTheJobSearch.Server.Data
                 eb.HasOne(m => m.Conversation).WithMany(c => c.Messages).HasForeignKey(m => m.ConversationId).OnDelete(DeleteBehavior.Cascade);
                 eb.HasIndex(m => new { m.ConversationId, m.CreatedAt });
             });
+
+            // SeekerEmbedding configuration
+            builder.Entity<SeekerEmbedding>()
+                .HasOne(se => se.Seeker)
+                .WithMany()
+                .HasForeignKey(se => se.SeekerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<SeekerEmbedding>()
+                .HasIndex(se => se.SeekerId);
+
+            builder.Entity<SeekerEmbedding>()
+                .HasIndex(se => se.ModelVersion);
+
+            // PositionEmbedding configuration
+            builder.Entity<PositionEmbedding>()
+                .HasOne(pe => pe.Position)
+                .WithMany()
+                .HasForeignKey(pe => pe.PositionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<PositionEmbedding>()
+                .HasIndex(pe => pe.PositionId);
+
+            builder.Entity<PositionEmbedding>()
+                .HasIndex(pe => pe.ModelVersion);
         }
     }
 }

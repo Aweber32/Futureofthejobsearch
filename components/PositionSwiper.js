@@ -20,6 +20,7 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
   const { signedUrl: companyLogo, loading: logoLoading } = useSignedBlobUrl(companyLogoRaw, token);
   const posterVideoRaw = top?.posterVideoUrl ?? top?.PosterVideoUrl ?? null;
   const { signedUrl: posterVideo, loading: videoLoading } = useSignedBlobUrl(posterVideoRaw, token);
+  const [videoWH, setVideoWH] = useState(null); // { w, h }
   
   // Determine if current user is an employer (to allow sharing jobs)
   function base64UrlDecode(str){
@@ -496,16 +497,37 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
                 <i className="fas fa-video me-2 text-danger"></i>
                 Company Video
               </h5>
-              <div className="ratio ratio-16x9 bg-light rounded-3 overflow-hidden shadow-sm">
-                <video
-                  controls
-                  className="w-100 h-100"
-                  style={{ objectFit: 'contain' }}
-                >
-                  <source src={posterVideo} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-              </div>
+              {/* Responsive video container: portrait gets a centered narrower box; landscape fills width with preserved ratio. */}
+              {(() => {
+                const isPortrait = videoWH ? (videoWH.h > videoWH.w) : false;
+                const aspect = videoWH ? `${videoWH.w} / ${videoWH.h}` : '16 / 9';
+                // Slightly reduce overall footprint: shorter maxHeight and narrower portrait width
+                const containerStyle = isPortrait
+                  ? { width: '100%', maxWidth: '420px', maxHeight: '55vh' }
+                  : { width: '100%', aspectRatio: aspect, maxHeight: '55vh', maxWidth: '960px' };
+                const videoStyle = isPortrait
+                  ? { width: '100%', height: 'auto', objectFit: 'contain' }
+                  : { width: '100%', height: '100%', objectFit: 'contain' };
+                return (
+                  <div
+                    className="bg-light rounded-3 overflow-hidden shadow-sm mx-auto"
+                    style={containerStyle}
+                  >
+                    <video
+                      controls
+                      playsInline
+                      className="d-block"
+                      style={videoStyle}
+                      onLoadedMetadata={e => {
+                        try { setVideoWH({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight }); } catch {}
+                      }}
+                    >
+                      <source src={posterVideo} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
