@@ -76,6 +76,12 @@ builder.Services.AddSwaggerGen();
 // Email service registration
 builder.Services.AddTransient<IEmailService, EmailService>();
 
+// Embedding queue service registration
+builder.Services.AddSingleton<IEmbeddingQueueService, EmbeddingQueueService>();
+
+// Geocoding service registration
+builder.Services.AddHttpClient<IGeocodingService, GeocodingService>();
+
 // DbContext - connection string must come from appsettings or environment (use Azure DefaultConnection)
 // var conn already defined above for SAS job
 if (string.IsNullOrEmpty(conn))

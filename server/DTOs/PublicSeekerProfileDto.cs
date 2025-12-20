@@ -10,6 +10,7 @@ namespace FutureOfTheJobSearch.Server.DTOs
         [JsonPropertyName("city")] public string? City { get; set; }
         [JsonPropertyName("state")] public string? State { get; set; }
         [JsonPropertyName("professionalSummary")] public string? ProfessionalSummary { get; set; }
+        [JsonPropertyName("jobCategory")] public string? JobCategory { get; set; }
 
         [JsonPropertyName("skills")] public string? Skills { get; set; }
         [JsonPropertyName("languages")] public string? Languages { get; set; }

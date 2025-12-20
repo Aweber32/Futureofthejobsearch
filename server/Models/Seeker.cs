@@ -71,6 +71,13 @@ namespace FutureOfTheJobSearch.Server.Models
     [MaxLength(2000)]
     public string? ProfessionalSummary { get; set; }
 
+    [MaxLength(200)]
+    public string? JobCategory { get; set; }
+
+    // Geolocation for distance calculations
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

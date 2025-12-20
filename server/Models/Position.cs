@@ -29,6 +29,10 @@ namespace FutureOfTheJobSearch.Server.Models
 
     public string? PosterVideoUrl { get; set; }
 
+    // Geolocation from Employer for distance calculations
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
     // whether the position is open for applications
     public bool IsOpen { get; set; } = true;
 

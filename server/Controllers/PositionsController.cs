@@ -11,6 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System;
 using System.Linq;
+using FutureOfTheJobSearch.Server.Services;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -21,12 +22,16 @@ namespace FutureOfTheJobSearch.Server.Controllers
         private readonly ApplicationDbContext _db;
         private readonly ILogger<PositionsController> _logger;
         private readonly IConfiguration _config;
+        private readonly IEmbeddingQueueService _embeddingQueue;
+        private readonly IGeocodingService _geocodingService;
 
-        public PositionsController(ApplicationDbContext db, ILogger<PositionsController> logger, IConfiguration config)
+        public PositionsController(ApplicationDbContext db, ILogger<PositionsController> logger, IConfiguration config, IEmbeddingQueueService embeddingQueue, IGeocodingService geocodingService)
         {
             _db = db;
             _logger = logger;
             _config = config;
+            _embeddingQueue = embeddingQueue;
+            _geocodingService = geocodingService;
         }
 
         [HttpPost]
@@ -84,6 +89,14 @@ namespace FutureOfTheJobSearch.Server.Controllers
                     SkillsList = new List<PositionSkill>()
                 };
 
+                // Copy employer's geolocation to position
+                var employer = await _db.Employers.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employerId);
+                if (employer != null)
+                {
+                    pos.Latitude = employer.Latitude;
+                    pos.Longitude = employer.Longitude;
+                }
+
                 // map nested lists to normalized child entities
                 if (req.EducationLevels != null && req.EducationLevels.Any())
                 {
@@ -111,6 +124,17 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
                 _db.Positions.Add(pos);
                 await _db.SaveChangesAsync();
+
+                // Queue embedding generation request
+                try
+                {
+                    await _embeddingQueue.QueueEmbeddingRequestAsync("Position", pos.Id);
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't block position creation on queue failure
+                    _logger.LogWarning(ex, "Failed to queue embedding for Position {PositionId}", pos.Id);
+                }
 
                 return Ok(new { message = "Position created", id = pos.Id });
             }
@@ -243,6 +267,18 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 }
 
                 await _db.SaveChangesAsync();
+
+                // Queue embedding generation request
+                try
+                {
+                    await _embeddingQueue.QueueEmbeddingRequestAsync("Position", id);
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't block position update on queue failure
+                    _logger.LogWarning(ex, "Failed to queue embedding for Position {PositionId}", id);
+                }
+
                 return Ok(new { message = "Position updated" });
             }
             catch (Exception ex)

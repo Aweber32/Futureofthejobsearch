@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Identity;
 using FutureOfTheJobSearch.Server.Models;
 using Microsoft.AspNetCore.Authentication;
+using FutureOfTheJobSearch.Server.Services;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -25,14 +26,16 @@ namespace FutureOfTheJobSearch.Server.Controllers
         private readonly ILogger<EmployersController> _logger;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly IGeocodingService _geocodingService;
 
-        public EmployersController(ApplicationDbContext db, IConfiguration config, ILogger<EmployersController> logger, UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
+        public EmployersController(ApplicationDbContext db, IConfiguration config, ILogger<EmployersController> logger, UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IGeocodingService geocodingService)
         {
             _db = db;
             _config = config;
             _logger = logger;
             _userManager = userManager;
             _signInManager = signInManager;
+            _geocodingService = geocodingService;
         }
 
         private async Task DeleteLogoBlobAsync(string logoUrl)
@@ -230,6 +233,29 @@ namespace FutureOfTheJobSearch.Server.Controllers
             emp.City = req.City ?? emp.City;
             emp.State = req.State ?? emp.State;
             if (!string.IsNullOrWhiteSpace(req.CompanySize) && Enum.TryParse<CompanySize>(req.CompanySize, true, out var size)) emp.CompanySize = size;
+
+            // Update geocoding if city or state changed
+            if (!string.IsNullOrEmpty(req.City) || !string.IsNullOrEmpty(req.State))
+            {
+                try
+                {
+                    var (lat, lon) = await _geocodingService.GetCoordinatesAsync(emp.City, emp.State);
+                    emp.Latitude = lat;
+                    emp.Longitude = lon;
+                    
+                    // Update all positions for this employer with new coordinates
+                    var positions = await _db.Positions.Where(p => p.EmployerId == emp.Id).ToListAsync();
+                    foreach (var pos in positions)
+                    {
+                        pos.Latitude = lat;
+                        pos.Longitude = lon;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Geocoding failed for {City}, {State}", emp.City, emp.State);
+                }
+            }
 
             await _db.SaveChangesAsync();
             return Ok(new { message = "Employer updated", employer = emp });

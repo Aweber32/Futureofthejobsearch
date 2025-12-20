@@ -13,6 +13,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Linq;
+using FutureOfTheJobSearch.Server.Services;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -25,13 +26,17 @@ namespace FutureOfTheJobSearch.Server.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ApplicationDbContext _db;
         private readonly IConfiguration _config;
+        private readonly IEmbeddingQueueService _embeddingQueue;
+        private readonly IGeocodingService _geocodingService;
 
-        public SeekersController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, ApplicationDbContext db, IConfiguration config)
+        public SeekersController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, ApplicationDbContext db, IConfiguration config, IEmbeddingQueueService embeddingQueue, IGeocodingService geocodingService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _db = db;
             _config = config;
+            _embeddingQueue = embeddingQueue;
+            _geocodingService = geocodingService;
         }
 
         // Issue a time-limited share link token for the current seeker (no DB schema change required)
@@ -189,6 +194,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
                     City = seeker.City,
                     State = seeker.State,
                     ProfessionalSummary = seeker.ProfessionalSummary,
+                    JobCategory = seeker.JobCategory,
                     Skills = seeker.Skills,
                     Languages = seeker.Languages,
                     Certifications = seeker.Certifications,
@@ -254,8 +260,33 @@ namespace FutureOfTheJobSearch.Server.Controllers
             if (!string.IsNullOrEmpty(req.City)) seeker.City = req.City;
             if (!string.IsNullOrEmpty(req.State)) seeker.State = req.State;
             if (!string.IsNullOrEmpty(req.ProfessionalSummary)) seeker.ProfessionalSummary = req.ProfessionalSummary;
+            if (!string.IsNullOrEmpty(req.JobCategory)) seeker.JobCategory = req.JobCategory;
+            
+            // Geocode city/state to get coordinates
+            try
+            {
+                var (lat, lon) = await _geocodingService.GetCoordinatesAsync(seeker.City, seeker.State);
+                seeker.Latitude = lat;
+                seeker.Longitude = lon;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Warn] Geocoding failed for {seeker.City}, {seeker.State}: {ex.Message}");
+            }
+            
             _db.Seekers.Add(seeker);
             await _db.SaveChangesAsync();
+
+            // Queue embedding generation request
+            try
+            {
+                await _embeddingQueue.QueueEmbeddingRequestAsync("Candidate", seeker.Id);
+            }
+            catch (Exception ex)
+            {
+                // Log but don't block registration on queue failure
+                Console.WriteLine($"[Warn] Failed to queue embedding for Candidate {seeker.Id}: {ex.Message}");
+            }
 
             // create JWT like AuthController
             var jwtKey = _config["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
@@ -387,8 +418,36 @@ namespace FutureOfTheJobSearch.Server.Controllers
             seeker.City = req.City ?? seeker.City;
             seeker.State = req.State ?? seeker.State;
             seeker.ProfessionalSummary = req.ProfessionalSummary ?? seeker.ProfessionalSummary;
+            seeker.JobCategory = req.JobCategory ?? seeker.JobCategory;
+
+            // Update geocoding if city or state changed
+            if (!string.IsNullOrEmpty(req.City) || !string.IsNullOrEmpty(req.State))
+            {
+                try
+                {
+                    var (lat, lon) = await _geocodingService.GetCoordinatesAsync(seeker.City, seeker.State);
+                    seeker.Latitude = lat;
+                    seeker.Longitude = lon;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Warn] Geocoding failed for {seeker.City}, {seeker.State}: {ex.Message}");
+                }
+            }
 
             await _db.SaveChangesAsync();
+
+            // Queue embedding generation request
+            try
+            {
+                await _embeddingQueue.QueueEmbeddingRequestAsync("Candidate", id);
+            }
+            catch (Exception ex)
+            {
+                // Log but don't block update on queue failure
+                Console.WriteLine($"[Warn] Failed to queue embedding for Candidate {id}: {ex.Message}");
+            }
+
             return Ok(new { message = "Seeker updated", seeker });
         }
 
@@ -583,6 +642,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
         public string? City { get; set; }
         public string? State { get; set; }
         public string? ProfessionalSummary { get; set; }
+        public string? JobCategory { get; set; }
     }
 
     public class UpdateSeekerRequest{
@@ -609,6 +669,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
         public string? City { get; set; }
         public string? State { get; set; }
         public string? ProfessionalSummary { get; set; }
+        public string? JobCategory { get; set; }
     }
 
 }

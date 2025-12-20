@@ -7,6 +7,8 @@ import SkillAutocomplete from '../../components/SkillAutocomplete';
 import DegreeAutocomplete from '../../components/DegreeAutocomplete';
 import UniversityAutocomplete from '../../components/UniversityAutocomplete';
 import PreviewProfile from '../../components/PreviewProfile';
+import Select from 'react-select';
+import { State, City } from 'country-state-city';
 import { API_CONFIG } from '../../config/api';
 import { useSignedBlobUrl } from '../../utils/blobHelpers';
 import { sanitizeUrl } from '../../utils/sanitize';
@@ -18,7 +20,7 @@ export default function EditProfile(){
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phoneNumber: '',
     visaStatus: '', preferredSalary: '', travel: '', relocate: '',
-    professionalSummary: '', city: '', state: ''
+    professionalSummary: '', city: '', state: '', jobCategory: ''
   });
   const [skills, setSkills] = useState([]);
   const [skillInput, setSkillInput] = useState('');
@@ -49,6 +51,8 @@ export default function EditProfile(){
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [seekerId, setSeekerId] = useState(null);
+  const [stateOptions, setStateOptions] = useState([]);
+  const [cityOptions, setCityOptions] = useState([]);
 
   // Modal states for interactive editing
   const [showExpModal, setShowExpModal] = useState(false);
@@ -71,6 +75,68 @@ export default function EditProfile(){
   
   // Education modal fields
   const EDUCATION_LEVELS = ["High School","Associate's","Bachelor's","Master's","Doctorate","None"];
+  
+  // Job categories grouped by related fields
+  const JOB_CATEGORIES = [
+    // Technology & Data (Group 1)
+    ['Software Engineering', 1],
+    ['Data Engineering', 1],
+    ['Data Science & Machine Learning', 1],
+    ['Analytics & Business Intelligence', 1],
+    ['Cloud & DevOps', 1],
+    ['Cybersecurity', 1],
+    ['IT Infrastructure & Networking', 1],
+    ['QA & Test Engineering', 1],
+    ['Mobile Development', 1],
+    ['Game Development', 1],
+    // Product, Design & Project (Group 2)
+    ['Product Management', 2],
+    ['Program & Project Management', 2],
+    ['UX / UI Design', 2],
+    ['User Research', 2],
+    ['Technical Product Management', 2],
+    // Business, Finance & Operations (Group 3)
+    ['Business Operations', 3],
+    ['Strategy & Management Consulting', 3],
+    ['Finance & Accounting', 3],
+    ['Risk, Compliance & Audit', 3],
+    ['Supply Chain & Logistics', 3],
+    ['Procurement & Vendor Management', 3],
+    // Sales, Marketing & Revenue (Group 4)
+    ['Sales (B2B / Enterprise)', 4],
+    ['Sales (SMB / Mid-Market)', 4],
+    ['Sales Operations & Enablement', 4],
+    ['Marketing (Brand & Content)', 4],
+    ['Marketing (Performance & Growth)', 4],
+    ['Product Marketing', 4],
+    ['Customer Success', 4],
+    ['Account Management', 4],
+    ['Revenue Operations', 4],
+    // People, Legal & Admin (Group 5)
+    ['Human Resources & People Operations', 5],
+    ['Talent Acquisition & Recruiting', 5],
+    ['Learning & Development', 5],
+    ['Legal & Contracts', 5],
+    ['Office Administration', 5],
+    // Healthcare & Life Sciences (Group 6)
+    ['Clinical Healthcare', 6],
+    ['Healthcare Administration', 6],
+    ['Health Informatics & Analytics', 6],
+    ['Biomedical Engineering', 6],
+    ['Pharmaceuticals & Research', 6],
+    // Creative, Media & Communications (Group 7)
+    ['Creative & Visual Design', 7],
+    ['Content Writing & Editing', 7],
+    ['Media Production (Video / Audio)', 7],
+    ['Public Relations & Communications', 7],
+    // Industry-Specific & Field Roles (Group 8)
+    ['Manufacturing & Industrial Engineering', 8],
+    ['Construction & Facilities Management', 8],
+    ['Energy & Utilities', 8],
+    ['Environmental & Sustainability', 8],
+    ['Government & Public Sector', 8],
+    ['Education & Training', 8]
+  ];
   const [newEduLevel, setNewEduLevel] = useState(EDUCATION_LEVELS[0]);
     const [newEduDegree, setNewEduDegree] = useState('');
     const [degreeInput, setDegreeInput] = useState('');
@@ -175,7 +241,8 @@ export default function EditProfile(){
           relocate: s?.relocate ?? s?.Relocate ?? '',
           professionalSummary: s?.professionalSummary ?? s?.ProfessionalSummary ?? '',
           city: s?.city ?? s?.City ?? '',
-          state: s?.state ?? s?.State ?? ''
+          state: s?.state ?? s?.State ?? '',
+          jobCategory: s?.jobCategory ?? s?.JobCategory ?? ''
         });
         
         // Load current resume and video URLs
@@ -318,6 +385,22 @@ export default function EditProfile(){
       }catch(err){ console.error(err); router.push('/seeker/login'); }
     })();
   },[]);
+
+  useEffect(()=>{
+    // load US states
+    const states = State.getStatesOfCountry('US').map(s=>({ value: s.isoCode, label: s.name }));
+    setStateOptions(states);
+  },[]);
+
+  useEffect(()=>{
+    // load cities for selected state
+    if (form.state) {
+      const cities = City.getCitiesOfState('US', form.state).map(c=>({ value: c.name, label: c.name }));
+      setCityOptions(cities);
+    } else {
+      setCityOptions([]);
+    }
+  },[form.state]);
 
   // Signed URLs for current media (used by preview modals)
   const tokenForSign = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
@@ -647,7 +730,8 @@ export default function EditProfile(){
         PreferredSalary: combinedSalary || form.preferredSalary,
         Travel: form.travel,
         Relocate: form.relocate,
-        ProfessionalSummary: form.professionalSummary
+        ProfessionalSummary: form.professionalSummary,
+        JobCategory: form.jobCategory
       };
       
       // Add array fields
@@ -758,8 +842,46 @@ export default function EditProfile(){
         </div>
 
         <div className="row">
-          <div className="col-md-6 mb-3"><label className="form-label">City</label><input className="form-control" value={form.city} onChange={e=>setForm({...form, city: e.target.value})} placeholder="Enter your city" /></div>
-          <div className="col-md-6 mb-3"><label className="form-label">State</label><input className="form-control" value={form.state} onChange={e=>setForm({...form, state: e.target.value})} placeholder="Enter your state" /></div>
+          <div className="col-md-6 mb-3">
+            <label className="form-label">State</label>
+            <Select
+              options={stateOptions}
+              value={stateOptions.find(option => option.value === form.state) || null}
+              onChange={(selectedOption) => {
+                setForm({...form, state: selectedOption ? selectedOption.value : '', city: ''});
+                setCityOptions([]);
+                if (selectedOption) {
+                  const cities = City.getCitiesOfState('US', selectedOption.value);
+                  setCityOptions(cities.map(city => ({ value: city.name, label: city.name })));
+                }
+              }}
+              placeholder="Select your state"
+              isClearable
+            />
+          </div>
+          <div className="col-md-6 mb-3">
+            <label className="form-label">City</label>
+            <Select
+              options={cityOptions}
+              value={cityOptions.find(option => option.value === form.city) || null}
+              onChange={(selectedOption) => setForm({...form, city: selectedOption ? selectedOption.value : ''})}
+              placeholder="Select your city"
+              isClearable
+              isDisabled={!form.state}
+            />
+          </div>
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label">Job Category / Function</label>
+          <select 
+            className="form-select" 
+            value={form.jobCategory || ''} 
+            onChange={e => setForm({...form, jobCategory: e.target.value})}
+          >
+            <option value="">Select a category</option>
+            {JOB_CATEGORIES.map(c => <option key={c[0]} value={c[0]}>{c[0]}</option>)}
+          </select>
         </div>
 
         <div className="mb-3">

@@ -48,6 +48,10 @@ namespace FutureOfTheJobSearch.Server.Models
     [MaxLength(64)]
     public string? State { get; set; }
 
+    // Geolocation for distance calculations
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
     [MaxLength(512)]
     public string? Address { get; set; }
 
