@@ -148,15 +148,129 @@ namespace FutureOfTheJobSearch.Server.Controllers
         [HttpGet]
         public async Task<IActionResult> List()
         {
-            var positions = await _db.Positions
+            // Get seeker ID from claims if authenticated
+            int? seekerId = null;
+            var seekerClaim = User.Claims.FirstOrDefault(c => c.Type == "seekerId");
+            if (seekerClaim != null && int.TryParse(seekerClaim.Value, out var sid))
+            {
+                seekerId = sid;
+            }
+
+            // Start with base query
+            IQueryable<Position> query = _db.Positions
                 .Include(p => p.Employer)
                 .Include(p => p.Educations)
                 .Include(p => p.Experiences)
-                .Include(p => p.SkillsList)
+                .Include(p => p.SkillsList);
+
+            // Apply pre-filtering based on seeker preferences if seeker is authenticated
+            if (seekerId.HasValue)
+            {
+                var prefs = await _db.SeekerPreferences
+                    .FirstOrDefaultAsync(sp => sp.SeekerId == seekerId.Value);
+
+                if (prefs != null)
+                {
+                    query = ApplyPreferences(query, prefs);
+                }
+            }
+
+            var positions = await query
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
             return Ok(positions);
+        }
+
+        private IQueryable<Position> ApplyPreferences(IQueryable<Position> query, SeekerPreferences prefs)
+        {
+            // Job Category filtering
+            if (!string.IsNullOrEmpty(prefs.JobCategory) && prefs.JobCategoryPriority == "DealBreaker")
+            {
+                query = query.Where(p => p.Category == prefs.JobCategory);
+            }
+
+            // Work Setting filtering
+            if (!string.IsNullOrEmpty(prefs.WorkSetting) && prefs.WorkSettingPriority == "DealBreaker")
+            {
+                var workSettings = prefs.WorkSetting.Split(',').Select(s => s.Trim()).ToList();
+                query = query.Where(p => workSettings.Contains(p.WorkSetting));
+            }
+
+            // Employment Type filtering
+            if (!string.IsNullOrEmpty(prefs.EmploymentType) && prefs.EmploymentTypePriority == "DealBreaker")
+            {
+                query = query.Where(p => p.EmploymentType == prefs.EmploymentType);
+            }
+
+            // Travel Requirements filtering
+            if (!string.IsNullOrEmpty(prefs.TravelRequirements) && prefs.TravelRequirementsPriority == "DealBreaker")
+            {
+                query = query.Where(p => p.TravelRequirements == prefs.TravelRequirements);
+            }
+
+            // Company Size filtering (requires join with Employer)
+            if (!string.IsNullOrEmpty(prefs.CompanySize) && prefs.CompanySizePriority == "DealBreaker")
+            {
+                // Parse string to enum
+                if (Enum.TryParse<CompanySize>(prefs.CompanySize, out var companySizeEnum))
+                {
+                    query = query.Where(p => p.Employer != null && p.Employer.CompanySize == companySizeEnum);
+                }
+            }
+
+            // Salary filtering - only apply if Deal Breaker
+            // This is complex as we need to parse salary strings, so we'll do basic filtering
+            if (!string.IsNullOrEmpty(prefs.Salary) && prefs.SalaryPriority == "DealBreaker")
+            {
+                // Try to extract min salary from preferences (e.g., "$100,000 - $120,000")
+                var salaryMatch = System.Text.RegularExpressions.Regex.Match(prefs.Salary, @"\$?([\d,]+)");
+                if (salaryMatch.Success && decimal.TryParse(salaryMatch.Groups[1].Value.Replace(",", ""), out var minSalary))
+                {
+                    // Filter positions where SalaryMin or SalaryMax is >= preferred minimum
+                    query = query.Where(p => 
+                        (p.SalaryMin.HasValue && p.SalaryMin >= minSalary) ||
+                        (p.SalaryMax.HasValue && p.SalaryMax >= minSalary) ||
+                        (p.SalaryValue.HasValue && p.SalaryValue >= minSalary)
+                    );
+                }
+            }
+
+            // Location/City filtering - only if preferences include cities and Work Setting includes Hybrid or In-Person
+            if (!string.IsNullOrEmpty(prefs.PreferredCities) && 
+                !string.IsNullOrEmpty(prefs.WorkSetting) &&
+                (prefs.WorkSetting.Contains("Hybrid") || prefs.WorkSetting.Contains("In-Person")))
+            {
+                try
+                {
+                    var cityCoords = System.Text.Json.JsonSerializer.Deserialize<List<DTOs.CityCoordinates>>(prefs.CityLatLongs ?? "[]");
+                    if (cityCoords != null && cityCoords.Any(c => c.Latitude.HasValue && c.Longitude.HasValue))
+                    {
+                        // For now, we'll do a simple coordinate-based filter
+                        // In production, you'd want to calculate distance using Haversine formula
+                        // This filters positions that have coordinates within a reasonable range
+                        var validCoords = cityCoords.Where(c => c.Latitude.HasValue && c.Longitude.HasValue).ToList();
+                        if (validCoords.Any())
+                        {
+                            // Simple bounding box filter (within ~50 miles = ~0.75 degrees latitude/longitude)
+                            const double rangeDegrees = 0.75;
+                            query = query.Where(p => 
+                                p.Latitude.HasValue && p.Longitude.HasValue &&
+                                validCoords.Any(coord =>
+                                    Math.Abs(p.Latitude.Value - coord.Latitude!.Value) <= rangeDegrees &&
+                                    Math.Abs(p.Longitude.Value - coord.Longitude!.Value) <= rangeDegrees
+                                )
+                            );
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to parse city coordinates for filtering");
+                }
+            }
+
+            return query;
         }
 
         [HttpGet("{id}")]

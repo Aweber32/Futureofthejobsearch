@@ -295,9 +295,14 @@ export default function SeekerDashboard(){
                 Track your job applications and connect with employers
               </p>
             </div>
-            <Link href="/seeker/find-positions" className="btn btn-primary gradient-btn text-white border-0" style={{borderRadius: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: '500'}}>
-              Find Positions
-            </Link>
+            <div className="d-flex gap-2">
+              <Link href="/seeker/preferences" className="btn btn-outline-primary" style={{borderRadius: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: '500'}}>
+                Set Preferences
+              </Link>
+              <Link href="/seeker/find-positions" className="btn btn-primary gradient-btn text-white border-0" style={{borderRadius: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: '500'}}>
+                Find Positions
+              </Link>
+            </div>
           </div>
           
           <InterestedPositionsList 

@@ -1,0 +1,229 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Text.Json;
+using FutureOfTheJobSearch.Server.Data;
+using FutureOfTheJobSearch.Server.Models;
+using FutureOfTheJobSearch.Server.DTOs;
+using FutureOfTheJobSearch.Server.Services;
+
+namespace FutureOfTheJobSearch.Server.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+    public class SeekerPreferencesController : ControllerBase
+    {
+        private readonly ApplicationDbContext _db;
+        private readonly IGeocodingService _geocodingService;
+        private readonly ILogger<SeekerPreferencesController> _logger;
+
+        public SeekerPreferencesController(
+            ApplicationDbContext db,
+            IGeocodingService geocodingService,
+            ILogger<SeekerPreferencesController> logger)
+        {
+            _db = db;
+            _geocodingService = geocodingService;
+            _logger = logger;
+        }
+
+        // GET: api/SeekerPreferences
+        [HttpGet]
+        public async Task<IActionResult> GetPreferences()
+        {
+            var seekerIdClaim = User.Claims.FirstOrDefault(c => c.Type == "seekerId");
+            if (seekerIdClaim == null || !int.TryParse(seekerIdClaim.Value, out var seekerId))
+            {
+                return Unauthorized(new { error = "Not a job seeker" });
+            }
+
+            var prefs = await _db.SeekerPreferences
+                .FirstOrDefaultAsync(sp => sp.SeekerId == seekerId);
+
+            if (prefs == null)
+            {
+                // Return default preferences
+                return Ok(new PreferencesResponse
+                {
+                    JobCategoryPriority = "None",
+                    WorkSettingPriority = "None",
+                    SalaryPriority = "None",
+                    TravelRequirementsPriority = "None",
+                    CompanySizePriority = "None",
+                    EmploymentTypePriority = "None"
+                });
+            }
+
+            // Deserialize JSON fields
+            List<string>? cities = null;
+            List<CityCoordinates>? cityCoords = null;
+
+            if (!string.IsNullOrEmpty(prefs.PreferredCities))
+            {
+                try
+                {
+                    cities = JsonSerializer.Deserialize<List<string>>(prefs.PreferredCities);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error deserializing PreferredCities");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(prefs.CityLatLongs))
+            {
+                try
+                {
+                    cityCoords = JsonSerializer.Deserialize<List<CityCoordinates>>(prefs.CityLatLongs);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error deserializing CityLatLongs");
+                }
+            }
+
+            return Ok(new PreferencesResponse
+            {
+                Id = prefs.Id,
+                JobCategory = prefs.JobCategory,
+                JobCategoryPriority = prefs.JobCategoryPriority,
+                WorkSetting = prefs.WorkSetting,
+                WorkSettingPriority = prefs.WorkSettingPriority,
+                PreferredCities = cities,
+                CityLatLongs = cityCoords,
+                Salary = prefs.Salary,
+                SalaryPriority = prefs.SalaryPriority,
+                TravelRequirements = prefs.TravelRequirements,
+                TravelRequirementsPriority = prefs.TravelRequirementsPriority,
+                CompanySize = prefs.CompanySize,
+                CompanySizePriority = prefs.CompanySizePriority,
+                EmploymentType = prefs.EmploymentType,
+                EmploymentTypePriority = prefs.EmploymentTypePriority,
+                CreatedAt = prefs.CreatedAt,
+                UpdatedAt = prefs.UpdatedAt
+            });
+        }
+
+        // POST: api/SeekerPreferences
+        [HttpPost]
+        public async Task<IActionResult> SavePreferences([FromBody] SavePreferencesRequest request)
+        {
+            var seekerIdClaim = User.Claims.FirstOrDefault(c => c.Type == "seekerId");
+            if (seekerIdClaim == null || !int.TryParse(seekerIdClaim.Value, out var seekerId))
+            {
+                return Unauthorized(new { error = "Not a job seeker" });
+            }
+
+            var seeker = await _db.Seekers.FindAsync(seekerId);
+            if (seeker == null)
+            {
+                return NotFound(new { error = "Seeker not found" });
+            }
+
+            // Geocode cities if provided
+            List<CityCoordinates>? cityCoordinates = null;
+            if (request.PreferredCities != null && request.PreferredCities.Any())
+            {
+                // Limit to 3 cities
+                var citiesToGeocode = request.PreferredCities.Take(3).ToList();
+                cityCoordinates = new List<CityCoordinates>();
+
+                foreach (var cityName in citiesToGeocode)
+                {
+                    if (string.IsNullOrWhiteSpace(cityName)) continue;
+
+                    try
+                    {
+                        // Extract city and state if format is "City, State"
+                        var parts = cityName.Split(',');
+                        var city = parts[0].Trim();
+                        var state = parts.Length > 1 ? parts[1].Trim() : seeker.State;
+
+                        var (lat, lon) = await _geocodingService.GetCoordinatesAsync(city, state);
+                        
+                        cityCoordinates.Add(new CityCoordinates
+                        {
+                            City = cityName,
+                            Latitude = lat,
+                            Longitude = lon
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"Failed to geocode city: {cityName}");
+                        // Add city without coordinates
+                        cityCoordinates.Add(new CityCoordinates
+                        {
+                            City = cityName,
+                            Latitude = null,
+                            Longitude = null
+                        });
+                    }
+                }
+            }
+
+            // Find existing preferences or create new
+            var prefs = await _db.SeekerPreferences
+                .FirstOrDefaultAsync(sp => sp.SeekerId == seekerId);
+
+            if (prefs == null)
+            {
+                // Create new preferences
+                prefs = new SeekerPreferences
+                {
+                    SeekerId = seekerId,
+                    JobCategory = request.JobCategory,
+                    JobCategoryPriority = request.JobCategoryPriority,
+                    WorkSetting = request.WorkSetting,
+                    WorkSettingPriority = request.WorkSettingPriority,
+                    PreferredCities = request.PreferredCities != null && request.PreferredCities.Any() 
+                        ? JsonSerializer.Serialize(request.PreferredCities.Take(3)) 
+                        : null,
+                    CityLatLongs = cityCoordinates != null && cityCoordinates.Any() 
+                        ? JsonSerializer.Serialize(cityCoordinates) 
+                        : null,
+                    Salary = request.Salary,
+                    SalaryPriority = request.SalaryPriority,
+                    TravelRequirements = request.TravelRequirements,
+                    TravelRequirementsPriority = request.TravelRequirementsPriority,
+                    CompanySize = request.CompanySize,
+                    CompanySizePriority = request.CompanySizePriority,
+                    EmploymentType = request.EmploymentType,
+                    EmploymentTypePriority = request.EmploymentTypePriority,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.SeekerPreferences.Add(prefs);
+            }
+            else
+            {
+                // Update existing preferences
+                prefs.JobCategory = request.JobCategory;
+                prefs.JobCategoryPriority = request.JobCategoryPriority;
+                prefs.WorkSetting = request.WorkSetting;
+                prefs.WorkSettingPriority = request.WorkSettingPriority;
+                prefs.PreferredCities = request.PreferredCities != null && request.PreferredCities.Any() 
+                    ? JsonSerializer.Serialize(request.PreferredCities.Take(3)) 
+                    : null;
+                prefs.CityLatLongs = cityCoordinates != null && cityCoordinates.Any() 
+                    ? JsonSerializer.Serialize(cityCoordinates) 
+                    : null;
+                prefs.Salary = request.Salary;
+                prefs.SalaryPriority = request.SalaryPriority;
+                prefs.TravelRequirements = request.TravelRequirements;
+                prefs.TravelRequirementsPriority = request.TravelRequirementsPriority;
+                prefs.CompanySize = request.CompanySize;
+                prefs.CompanySizePriority = request.CompanySizePriority;
+                prefs.EmploymentType = request.EmploymentType;
+                prefs.EmploymentTypePriority = request.EmploymentTypePriority;
+                prefs.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Preferences saved successfully", id = prefs.Id });
+        }
+    }
+}
