@@ -376,10 +376,72 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
         // Public endpoint to list seekers for posters to review
         [HttpGet]
-        public async Task<IActionResult> GetAllSeekers()
+        public async Task<IActionResult> GetAllSeekers([FromQuery] int? positionId, [FromQuery] int? limit)
         {
-            var seekers = await _db.Seekers.ToListAsync();
+            var seekersQuery = _db.Seekers.Where(s => s.IsProfileActive == true); // Only active profiles
+
+            // If positionId is provided, apply SQL-level pre-filtering based on position preferences
+            if (positionId.HasValue)
+            {
+                var prefs = await _db.PositionPreferences.FirstOrDefaultAsync(pp => pp.PositionId == positionId.Value);
+                if (prefs != null)
+                {
+                    seekersQuery = ApplySqlFilters(seekersQuery, prefs);
+                }
+            }
+
+            // Apply reasonable limit (default 100, max 500)
+            var takeCount = limit.HasValue ? Math.Min(limit.Value, 500) : 100;
+            var seekers = await seekersQuery.Take(takeCount).ToListAsync();
+            
             return Ok(seekers);
+        }
+
+        private IQueryable<Seeker> ApplySqlFilters(IQueryable<Seeker> seekers, PositionPreferences prefs)
+        {
+            // Only apply filters that can translate to SQL efficiently
+            
+            // Job Category (Deal Breaker)
+            if (prefs.JobCategoryPriority == "DealBreaker" && !string.IsNullOrEmpty(prefs.JobCategory))
+            {
+                seekers = seekers.Where(s => s.JobCategory == prefs.JobCategory);
+            }
+
+            // Education Level (Deal Breaker) - simple string contains
+            if (prefs.EducationLevelPriority == "DealBreaker" && !string.IsNullOrEmpty(prefs.EducationLevel))
+            {
+                seekers = seekers.Where(s => 
+                    !string.IsNullOrEmpty(s.EducationJson) && 
+                    s.EducationJson.Contains(prefs.EducationLevel));
+            }
+
+            // Work Setting (Deal Breaker)
+            if (prefs.WorkSettingPriority == "DealBreaker" && !string.IsNullOrEmpty(prefs.WorkSetting))
+            {
+                var preferredSettings = prefs.WorkSetting.Split(',').Select(s => s.Trim()).ToList();
+                seekers = seekers.Where(s => 
+                    !string.IsNullOrEmpty(s.WorkSetting) &&
+                    preferredSettings.Any(ps => s.WorkSetting.Contains(ps)));
+            }
+
+            // Travel Requirements (Deal Breaker)
+            if (prefs.TravelRequirementsPriority == "DealBreaker" && !string.IsNullOrEmpty(prefs.TravelRequirements))
+            {
+                if (prefs.TravelRequirements == "No")
+                {
+                    seekers = seekers.Where(s => s.Travel == "Yes" || s.Travel == "Maybe");
+                }
+                else if (prefs.TravelRequirements == "Yes")
+                {
+                    seekers = seekers.Where(s => s.Travel == "Yes");
+                }
+            }
+
+            // Note: Years Experience and Salary filtering skipped at SQL level for performance
+            // These would require JSON parsing which can't be efficiently translated to SQL
+            // Consider adding these as separate database columns if filtering is critical
+
+            return seekers;
         }
 
         [HttpPatch("{id}")]

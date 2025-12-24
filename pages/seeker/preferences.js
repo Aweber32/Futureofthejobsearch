@@ -490,9 +490,9 @@ export default function SeekerPreferences() {
                       onChange={e => setPreferences({ ...preferences, travelRequirements: e.target.value })}
                     >
                       <option value="">Select travel preference</option>
-                      <option value="Yes">Willing to Travel</option>
-                      <option value="No">Not Willing to Travel</option>
-                      <option value="Maybe">Open to Travel (Flexible)</option>
+                      <option value="No">No travel required</option>
+                      <option value="Maybe">Occasional travel</option>
+                      <option value="Yes">Frequent travel required</option>
                     </select>
                   </div>
                   <PriorityButtons

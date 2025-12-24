@@ -948,9 +948,9 @@ export default function EditProfile(){
             <label className="form-label">Travel</label>
             <select className="form-select" value={form.travel} onChange={e=>setForm({...form, travel: e.target.value})}>
               <option value="">Select</option>
-              <option value="Yes">Yes</option>
-              <option value="No">No</option>
-              <option value="Maybe">Maybe</option>
+              <option value="No">No travel required</option>
+              <option value="Maybe">Occasional travel</option>
+              <option value="Yes">Frequent travel required</option>
             </select>
           </div>
           <div className="col-md-6 mb-3">

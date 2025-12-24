@@ -22,6 +22,7 @@ namespace FutureOfTheJobSearch.Server.Data
     public DbSet<SeekerEmbedding> SeekerEmbeddings { get; set; }
     public DbSet<PositionEmbedding> PositionEmbeddings { get; set; }
     public DbSet<SeekerPreferences> SeekerPreferences { get; set; }
+    public DbSet<PositionPreferences> PositionPreferences { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -143,6 +144,17 @@ namespace FutureOfTheJobSearch.Server.Data
 
             builder.Entity<PositionEmbedding>()
                 .HasIndex(pe => pe.ModelVersion);
+
+            // PositionPreferences configuration
+            builder.Entity<PositionPreferences>()
+                .HasOne(pp => pp.Position)
+                .WithMany()
+                .HasForeignKey(pp => pp.PositionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<PositionPreferences>()
+                .HasIndex(pp => pp.PositionId)
+                .IsUnique();
         }
     }
 }

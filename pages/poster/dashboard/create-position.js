@@ -90,7 +90,7 @@ export default function CreatePosition(){
   const [videoProgress, setVideoProgress] = useState(0);
   const [employmentType, setEmploymentType] = useState('Full-time');
   const [workSetting, setWorkSetting] = useState('Remote');
-  const [travel, setTravel] = useState('None');
+  const [travel, setTravel] = useState('');
   const [education, setEducation] = useState([]);
   const [experienceInput, setExperienceInput] = useState('');
   const [experiences, setExperiences] = useState([]);
@@ -278,7 +278,12 @@ export default function CreatePosition(){
           </div>
           <div className="col-md-6 mb-3">
             <label className="form-label">Travel Requirements</label>
-            <input className="form-control" value={travel} onChange={e=>setTravel(e.target.value)} placeholder="e.g., None, Up to 20%" />
+            <select className="form-select" value={travel} onChange={e=>setTravel(e.target.value)}>
+              <option value="">Select</option>
+              <option value="No">No travel required</option>
+              <option value="Maybe">Occasional travel</option>
+              <option value="Yes">Frequent travel required</option>
+            </select>
           </div>
         </div>
 

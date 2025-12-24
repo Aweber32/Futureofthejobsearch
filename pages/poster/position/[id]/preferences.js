@@ -1,0 +1,685 @@
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../../../../components/Layout';
+import { API_CONFIG } from '../../../../config/api';
+
+const API = API_CONFIG.BASE_URL;
+
+export default function PositionPreferences() {
+  const router = useRouter();
+  const { id: positionId } = router.query;
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [position, setPosition] = useState(null);
+
+  // Job categories grouped by related fields - matching create-position.js format
+  const JOB_CATEGORIES = [
+    // Technology & Data (Group 1)
+    ['Software Engineering', 1],
+    ['Data Engineering', 1],
+    ['Data Science & Machine Learning', 1],
+    ['Analytics & Business Intelligence', 1],
+    ['Cloud & DevOps', 1],
+    ['Cybersecurity', 1],
+    ['IT Infrastructure & Networking', 1],
+    ['QA & Test Engineering', 1],
+    ['Mobile Development', 1],
+    ['Game Development', 1],
+    
+    // Product, Design & Project (Group 2)
+    ['Product Management', 2],
+    ['Program & Project Management', 2],
+    ['UX / UI Design', 2],
+    ['User Research', 2],
+    ['Technical Product Management', 2],
+    
+    // Business, Finance & Operations (Group 3)
+    ['Business Operations', 3],
+    ['Strategy & Management Consulting', 3],
+    ['Finance & Accounting', 3],
+    ['Risk, Compliance & Audit', 3],
+    ['Supply Chain & Logistics', 3],
+    ['Procurement & Vendor Management', 3],
+    
+    // Sales, Marketing & Revenue (Group 4)
+    ['Sales (B2B / Enterprise)', 4],
+    ['Sales (SMB / Mid-Market)', 4],
+    ['Sales Operations & Enablement', 4],
+    ['Marketing (Brand & Content)', 4],
+    ['Marketing (Performance & Growth)', 4],
+    ['Product Marketing', 4],
+    ['Customer Success', 4],
+    ['Account Management', 4],
+    ['Revenue Operations', 4],
+    
+    // People, Legal & Admin (Group 5)
+    ['Human Resources & People Operations', 5],
+    ['Talent Acquisition & Recruiting', 5],
+    ['Learning & Development', 5],
+    ['Legal & Contracts', 5],
+    ['Office Administration', 5],
+    
+    // Healthcare & Life Sciences (Group 6)
+    ['Clinical Healthcare', 6],
+    ['Healthcare Administration', 6],
+    ['Health Informatics & Analytics', 6],
+    ['Biomedical Engineering', 6],
+    ['Pharmaceuticals & Research', 6],
+    
+    // Creative, Media & Communications (Group 7)
+    ['Creative & Visual Design', 7],
+    ['Content Writing & Editing', 7],
+    ['Media Production (Video / Audio)', 7],
+    ['Public Relations & Communications', 7],
+    
+    // Industry-Specific & Field Roles (Group 8)
+    ['Manufacturing & Industrial Engineering', 8],
+    ['Construction & Facilities Management', 8],
+    ['Energy & Utilities', 8],
+    ['Environmental & Sustainability', 8],
+    ['Government & Public Sector', 8],
+    ['Education & Training', 8]
+  ];
+
+  const EDUCATION_LEVELS = ["High School","Associate's","Bachelor's","Master's","Doctorate","None"];
+
+  // Salary state variables (matching seeker preferences format)
+  const [salaryType, setSalaryType] = useState('None');
+  const [salaryMin, setSalaryMin] = useState('');
+  const [salaryMax, setSalaryMax] = useState('');
+
+  // Helper functions for salary formatting
+  function formatWithCommas(val) {
+    if (val === null || val === undefined || val === "") return "";
+    const s = String(val);
+    const parts = s.split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    if (parts.length > 1) return parts[0] + '.' + parts[1].slice(0,2);
+    return parts[0];
+  }
+
+  function unformatInput(str) {
+    if (!str && str !== 0) return "";
+    const cleaned = String(str).replace(/,/g, "").replace(/[^0-9.]/g, "");
+    const firstDot = cleaned.indexOf(".");
+    if (firstDot === -1) return cleaned;
+    const before = cleaned.slice(0, firstDot + 1);
+    const after = cleaned.slice(firstDot + 1).replace(/\./g, "");
+    return before + after;
+  }
+
+  // Form state
+  const [preferences, setPreferences] = useState({
+    jobCategory: '',
+    jobCategoryPriority: 'None',
+    educationLevel: [],
+    educationLevelPriority: 'None',
+    yearsExpMin: '',
+    yearsExpMax: '',
+    yearsExpPriority: 'None',
+    workSetting: [],
+    workSettingPriority: 'None',
+    travelRequirements: '',
+    travelRequirementsPriority: 'None',
+    preferredSalaryMin: '',
+    preferredSalaryMax: '',
+    preferredSalaryPriority: 'None'
+  });
+
+  // Load position and preferences
+  useEffect(() => {
+    if (!positionId) return;
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+    if (!token) {
+      router.push('/poster/login');
+      return;
+    }
+
+    (async () => {
+      try {
+        // Load position details
+        const posRes = await fetch(`${API}/api/positions/${positionId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!posRes.ok) throw new Error('Failed to load position');
+        const posData = await posRes.json();
+        setPosition(posData);
+
+        // Load preferences
+        const prefRes = await fetch(`${API}/api/positionpreferences/${positionId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (prefRes.ok) {
+          const data = await prefRes.json();
+          
+          // Check if this is actually saved preferences or just defaults (no Id means no saved prefs)
+          const hasSavedPrefs = data.id || data.Id;
+          
+          // Always extract position data to use as fallback defaults
+          const posCategory = posData.category || posData.Category || '';
+          const posWorkSetting = posData.workSetting || posData.WorkSetting || '';
+          let posTravel = posData.travelRequirements || posData.TravelRequirements || '';
+          if (posTravel === 'None') posTravel = '';
+          
+          // Extract education levels from position's Educations collection
+          const posEducations = posData.educations || posData.Educations || [];
+          const posEducationLevels = posEducations.map(e => e.education || e.Education).filter(Boolean);
+          
+          const posSalaryType = posData.salaryType || posData.SalaryType || 'None';
+          const posSalaryMin = posData.salaryMin || posData.SalaryMin || null;
+          const posSalaryMax = posData.salaryMax || posData.SalaryMax || null;
+          
+          if (!hasSavedPrefs) {
+            // No saved preferences - use position data as defaults with "Flexible" priorities
+            console.log('No saved prefs - using position data as defaults');
+            
+            if (posSalaryType && posSalaryType !== 'None') {
+              setSalaryType(posSalaryType);
+              setSalaryMin(posSalaryMin ? posSalaryMin.toString() : '');
+              setSalaryMax(posSalaryMax ? posSalaryMax.toString() : '');
+            }
+            
+            setPreferences({
+              jobCategory: posCategory,
+              jobCategoryPriority: posCategory ? 'Flexible' : 'None',
+              educationLevel: posEducationLevels,
+              educationLevelPriority: posEducationLevels.length > 0 ? 'Flexible' : 'None',
+              yearsExpMin: '',
+              yearsExpMax: '',
+              yearsExpPriority: 'None',
+              workSetting: posWorkSetting ? posWorkSetting.split(',').map(s => s.trim()).filter(Boolean) : [],
+              workSettingPriority: posWorkSetting ? 'Flexible' : 'None',
+              travelRequirements: posTravel,
+              travelRequirementsPriority: posTravel ? 'Flexible' : 'None',
+              preferredSalaryPriority: (posSalaryType && posSalaryType !== 'None') ? 'Flexible' : 'None'
+            });
+          } else {
+            // Has saved preferences - use them, but fall back to position data for empty fields
+            console.log('Has saved prefs - using saved values with position fallbacks');
+            
+            // Parse salary from saved preferences or fall back to position data
+            const savedSalaryStr = data.preferredSalary || '';
+            if (savedSalaryStr) {
+              // Parse format: "Type: $min - $max"
+              const rangeMatch = savedSalaryStr.match(/^(\w+):\s*\$?([\d,]+)\s*-\s*\$?([\d,]+)/);
+              if (rangeMatch) {
+                setSalaryType(rangeMatch[1] || 'None');
+                setSalaryMin(rangeMatch[2].replace(/,/g, ''));
+                setSalaryMax(rangeMatch[3].replace(/,/g, ''));
+              } else {
+                // Try "Type: $min+"
+                const minMatch = savedSalaryStr.match(/^(\w+):\s*\$?([\d,]+)\+/);
+                if (minMatch) {
+                  setSalaryType(minMatch[1] || 'None');
+                  setSalaryMin(minMatch[2].replace(/,/g, ''));
+                  setSalaryMax('');
+                } else {
+                  // Try "Type: Up to $max"
+                  const maxMatch = savedSalaryStr.match(/^(\w+):\s*Up to\s*\$?([\d,]+)/);
+                  if (maxMatch) {
+                    setSalaryType(maxMatch[1] || 'None');
+                    setSalaryMin('');
+                    setSalaryMax(maxMatch[2].replace(/,/g, ''));
+                  }
+                }
+              }
+            } else if (posSalaryType && posSalaryType !== 'None') {
+              // Fall back to position data when no saved salary
+              setSalaryType(posSalaryType);
+              setSalaryMin(posSalaryMin ? posSalaryMin.toString() : '');
+              setSalaryMax(posSalaryMax ? posSalaryMax.toString() : '');
+            }
+            
+            // For each field: if priority is "None", use position data with "Flexible" priority
+            const useJobCategory = (data.jobCategoryPriority && data.jobCategoryPriority !== 'None') 
+              ? data.jobCategory 
+              : posCategory;
+            const useJobCategoryPriority = (data.jobCategoryPriority && data.jobCategoryPriority !== 'None')
+              ? data.jobCategoryPriority
+              : (posCategory ? 'Flexible' : 'None');
+            
+            const useEducationLevel = (data.educationLevelPriority && data.educationLevelPriority !== 'None')
+              ? (data.educationLevel ? data.educationLevel.split(',').map(s => s.trim()).filter(Boolean) : [])
+              : posEducationLevels;
+            const useEducationLevelPriority = (data.educationLevelPriority && data.educationLevelPriority !== 'None')
+              ? data.educationLevelPriority
+              : (posEducationLevels.length > 0 ? 'Flexible' : 'None');
+            
+            const useWorkSetting = (data.workSettingPriority && data.workSettingPriority !== 'None')
+              ? data.workSetting
+              : posWorkSetting;
+            const useWorkSettingPriority = (data.workSettingPriority && data.workSettingPriority !== 'None')
+              ? data.workSettingPriority
+              : (posWorkSetting ? 'Flexible' : 'None');
+            
+            const useTravel = (data.travelRequirementsPriority && data.travelRequirementsPriority !== 'None')
+              ? data.travelRequirements
+              : posTravel;
+            const useTravelPriority = (data.travelRequirementsPriority && data.travelRequirementsPriority !== 'None')
+              ? data.travelRequirementsPriority
+              : (posTravel ? 'Flexible' : 'None');
+            
+            const useSalaryPriority = (data.preferredSalaryPriority && data.preferredSalaryPriority !== 'None')
+              ? data.preferredSalaryPriority
+              : ((posSalaryType && posSalaryType !== 'None') ? 'Flexible' : 'None');
+            
+            setPreferences({
+              jobCategory: useJobCategory,
+              jobCategoryPriority: useJobCategoryPriority,
+              educationLevel: useEducationLevel,
+              educationLevelPriority: useEducationLevelPriority,
+              yearsExpMin: data.yearsExpMin || '',
+              yearsExpMax: data.yearsExpMax || '',
+              yearsExpPriority: data.yearsExpPriority || 'None',
+              workSetting: useWorkSetting ? useWorkSetting.split(',').map(s => s.trim()).filter(Boolean) : [],
+              workSettingPriority: useWorkSettingPriority,
+              travelRequirements: useTravel,
+              travelRequirementsPriority: useTravelPriority,
+              preferredSalaryPriority: useSalaryPriority
+            });
+          }
+        } else {
+          // Pre-fill ALL fields from position data when no saved preferences exist
+          // Set all priorities to "Flexible" as defaults
+          const posCategory = posData.category || posData.Category || '';
+          const posWorkSetting = posData.workSetting || posData.WorkSetting || '';
+          let posTravel = posData.travelRequirements || posData.TravelRequirements || '';
+          // Convert old "None" value to empty string to match dropdown
+          if (posTravel === 'None') posTravel = '';
+          
+          console.log('No saved prefs - using position data:', {
+            posCategory,
+            posWorkSetting,
+            posTravel,
+            salaryType: posData.salaryType,
+            salaryMin: posData.salaryMin,
+            salaryMax: posData.salaryMax
+          });
+          
+          if ((posData.salaryType || posData.SalaryType) && (posData.salaryType || posData.SalaryType) !== 'None') {
+            setSalaryType(posData.salaryType || posData.SalaryType || 'None');
+            setSalaryMin((posData.salaryMin || posData.SalaryMin) ? (posData.salaryMin || posData.SalaryMin).toString() : '');
+            setSalaryMax((posData.salaryMax || posData.SalaryMax) ? (posData.salaryMax || posData.SalaryMax).toString() : '');
+          }
+          
+          const newPrefs = {
+            jobCategory: posCategory,
+            jobCategoryPriority: posCategory ? 'Flexible' : 'None',
+            educationLevel: '',
+            educationLevelPriority: 'None',
+            yearsExpMin: '',
+            yearsExpMax: '',
+            yearsExpPriority: 'None',
+            workSetting: posWorkSetting ? posWorkSetting.split(',').map(s => s.trim()).filter(Boolean) : [],
+            workSettingPriority: posWorkSetting ? 'Flexible' : 'None',
+            travelRequirements: posTravel,
+            travelRequirementsPriority: posTravel ? 'Flexible' : 'None',
+            preferredSalaryPriority: (posData.salaryType && posData.salaryType !== 'None') ? 'Flexible' : 'None'
+          };
+          
+          console.log('Setting new preferences:', newPrefs);
+          setPreferences(newPrefs);
+        }
+      } catch (err) {
+        console.error(err);
+        setError('Failed to load preferences');
+      }
+    })();
+  }, [positionId]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+    if (!token) {
+      router.push('/poster/login');
+      return;
+    }
+
+    try {
+      // Format salary like seeker preferences
+      let formattedSalary = '';
+      if (salaryType !== 'None') {
+        if (salaryMin && salaryMax) {
+          formattedSalary = `${salaryType}: $${formatWithCommas(salaryMin)} - $${formatWithCommas(salaryMax)}`;
+        } else if (salaryMin) {
+          formattedSalary = `${salaryType}: $${formatWithCommas(salaryMin)}+`;
+        } else if (salaryMax) {
+          formattedSalary = `${salaryType}: Up to $${formatWithCommas(salaryMax)}`;
+        }
+      }
+      
+      const res = await fetch(`${API}/api/positionpreferences/${positionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          jobCategory: preferences.jobCategory,
+          jobCategoryPriority: preferences.jobCategoryPriority,
+          educationLevel: preferences.educationLevel.join(', '),
+          educationLevelPriority: preferences.educationLevelPriority,
+          yearsExpMin: preferences.yearsExpMin ? parseInt(preferences.yearsExpMin) : null,
+          yearsExpMax: preferences.yearsExpMax ? parseInt(preferences.yearsExpMax) : null,
+          yearsExpPriority: preferences.yearsExpPriority,
+          workSetting: preferences.workSetting.join(', '),
+          workSettingPriority: preferences.workSettingPriority,
+          travelRequirements: preferences.travelRequirements,
+          travelRequirementsPriority: preferences.travelRequirementsPriority,
+          preferredSalary: formattedSalary,
+          preferredSalaryPriority: preferences.preferredSalaryPriority
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to save preferences');
+      }
+
+      setSuccess('Preferences saved successfully!');
+      setTimeout(() => {
+        router.push(`/poster/find-candidates?positionId=${positionId}`);
+      }, 1500);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWorkSettingChange = (setting) => {
+    setPreferences(prev => {
+      const current = prev.workSetting;
+      if (current.includes(setting)) {
+        return { ...prev, workSetting: current.filter(s => s !== setting) };
+      } else {
+        return { ...prev, workSetting: [...current, setting] };
+      }
+    });
+  };
+
+  const PriorityButtons = ({ value, onChange }) => (
+    <div className="d-flex gap-2">
+      {['None', 'Flexible', 'DealBreaker'].map(priority => (
+        <button
+          key={priority}
+          type="button"
+          onClick={() => onChange(priority)}
+          className="btn btn-sm"
+          style={{
+            background: value === priority ? '#6E56CF' : 'white',
+            color: value === priority ? 'white' : '#6b7280',
+            border: `1px solid ${value === priority ? '#6E56CF' : '#e5e7eb'}`,
+            borderRadius: '8px',
+            padding: '0.375rem 0.75rem',
+            fontSize: '0.875rem',
+            fontWeight: '500'
+          }}
+        >
+          {priority === 'DealBreaker' ? 'Deal Breaker' : priority}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (!positionId) {
+    return <Layout title="Set Preferences"><div>Loading...</div></Layout>;
+  }
+
+  return (
+    <Layout title="Set Candidate Preferences">
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem 1rem' }}>
+        <div className="mb-4">
+          <h2 style={{ fontSize: '1.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+            Candidate Preferences
+          </h2>
+          {position && (
+            <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
+              Set your preferences for <strong>{position.title}</strong> to pre-filter candidates
+            </p>
+          )}
+          <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+            <strong>Priority Levels:</strong> <em>None</em> (no filtering), <em>Flexible</em> (stored for future ranking), <em>Deal Breaker</em> (hard filter applied)
+          </p>
+        </div>
+
+        {error && (
+          <div className="alert alert-danger" role="alert">{error}</div>
+        )}
+
+        {success && (
+          <div className="alert alert-success" role="alert">{success}</div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {/* Job Category */}
+          <div className="card mb-3" style={{ border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+            <div className="card-body">
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Job Category</h5>
+              <select
+                className="form-control mb-3"
+                value={preferences.jobCategory}
+                onChange={(e) => setPreferences({ ...preferences, jobCategory: e.target.value })}
+              >
+                <option value="">Select category</option>
+                {JOB_CATEGORIES.map(cat => (
+                  <option key={cat[0]} value={cat[0]}>{cat[0]}</option>
+                ))}
+              </select>
+              <PriorityButtons
+                value={preferences.jobCategoryPriority}
+                onChange={(val) => setPreferences({ ...preferences, jobCategoryPriority: val })}
+              />
+            </div>
+          </div>
+
+          {/* Education Level */}
+          <div className="card mb-3" style={{ border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+            <div className="card-body">
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Education Level</h5>
+              <div className="mb-3">
+                {EDUCATION_LEVELS.map(level => (
+                  <div key={level} className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id={`educationLevel-${level}`}
+                      checked={preferences.educationLevel.includes(level)}
+                      onChange={() => {
+                        setPreferences(prev => {
+                          const current = prev.educationLevel;
+                          if (current.includes(level)) {
+                            return { ...prev, educationLevel: current.filter(l => l !== level) };
+                          } else {
+                            return { ...prev, educationLevel: [...current, level] };
+                          }
+                        });
+                      }}
+                    />
+                    <label className="form-check-label" htmlFor={`educationLevel-${level}`}>
+                      {level}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <PriorityButtons
+                value={preferences.educationLevelPriority}
+                onChange={(val) => setPreferences({ ...preferences, educationLevelPriority: val })}
+              />
+            </div>
+          </div>
+
+          {/* Years Experience */}
+          <div className="card mb-3" style={{ border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+            <div className="card-body">
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Years of Experience</h5>
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <label className="form-label">Minimum Years</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    min="0"
+                    value={preferences.yearsExpMin}
+                    onChange={(e) => setPreferences({ ...preferences, yearsExpMin: e.target.value })}
+                    placeholder="e.g., 3"
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label">Maximum Years</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    min="0"
+                    value={preferences.yearsExpMax}
+                    onChange={(e) => setPreferences({ ...preferences, yearsExpMax: e.target.value })}
+                    placeholder="e.g., 10"
+                  />
+                </div>
+              </div>
+              <PriorityButtons
+                value={preferences.yearsExpPriority}
+                onChange={(val) => setPreferences({ ...preferences, yearsExpPriority: val })}
+              />
+            </div>
+          </div>
+
+          {/* Work Setting */}
+          <div className="card mb-3" style={{ border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+            <div className="card-body">
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Work Setting</h5>
+              <div className="mb-3">
+                {['Remote', 'In-office', 'Hybrid', 'On-site'].map(setting => (
+                  <div key={setting} className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id={`workSetting-${setting}`}
+                      checked={preferences.workSetting.includes(setting)}
+                      onChange={() => handleWorkSettingChange(setting)}
+                    />
+                    <label className="form-check-label" htmlFor={`workSetting-${setting}`}>
+                      {setting}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <PriorityButtons
+                value={preferences.workSettingPriority}
+                onChange={(val) => setPreferences({ ...preferences, workSettingPriority: val })}
+              />
+            </div>
+          </div>
+
+          {/* Travel Requirements */}
+          <div className="card mb-3" style={{ border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+            <div className="card-body">
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Travel Requirements</h5>
+              <select
+                className="form-control mb-3"
+                value={preferences.travelRequirements}
+                onChange={(e) => setPreferences({ ...preferences, travelRequirements: e.target.value })}
+              >
+                <option value="">Select travel requirement</option>
+                <option value="No">No travel required</option>
+                <option value="Maybe">Occasional travel</option>
+                <option value="Yes">Frequent travel required</option>
+              </select>
+              <PriorityButtons
+                value={preferences.travelRequirementsPriority}
+                onChange={(val) => setPreferences({ ...preferences, travelRequirementsPriority: val })}
+              />
+            </div>
+          </div>
+
+          {/* Preferred Salary */}
+          <div className="card mb-3" style={{ border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+            <div className="card-body">
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Salary Expectations</h5>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+                Pre-loaded from the position. Select type and enter min/max range.
+              </p>
+              <div className="mb-3">
+                <div className="row g-2 align-items-center">
+                  <div className="col-md-3">
+                    <select 
+                      className="form-select" 
+                      value={salaryType} 
+                      onChange={e => { 
+                        setSalaryType(e.target.value); 
+                        setSalaryMin(''); 
+                        setSalaryMax(''); 
+                      }}
+                    >
+                      <option value="None">None</option>
+                      <option value="Hourly">Hourly</option>
+                      <option value="Monthly">Monthly</option>
+                      <option value="Annual">Annual</option>
+                    </select>
+                  </div>
+                  <div className="col-md-9">
+                    {salaryType !== 'None' ? (
+                      <div className="d-flex gap-2">
+                        <input 
+                          className="form-control" 
+                          placeholder="Min" 
+                          value={formatWithCommas(salaryMin)} 
+                          onChange={e => setSalaryMin(unformatInput(e.target.value))} 
+                        />
+                        <input 
+                          className="form-control" 
+                          placeholder="Max" 
+                          value={formatWithCommas(salaryMax)} 
+                          onChange={e => setSalaryMax(unformatInput(e.target.value))} 
+                        />
+                      </div>
+                    ) : (
+                      <div className="small text-muted">No salary specified</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <PriorityButtons
+                value={preferences.preferredSalaryPriority}
+                onChange={(val) => setPreferences({ ...preferences, preferredSalaryPriority: val })}
+              />
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="d-flex gap-2 justify-content-end">
+            <button
+              type="button"
+              className="btn btn-outline-secondary"
+              onClick={() => router.push(`/poster/find-candidates?positionId=${positionId}`)}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn"
+              disabled={loading}
+              style={{
+                background: 'linear-gradient(135deg, #6E56CF 0%, #8b5cf6 100%)',
+                color: 'white',
+                border: 'none',
+                fontWeight: '500'
+              }}
+            >
+              {loading ? 'Saving...' : 'Save Preferences'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </Layout>
+  );
+}

@@ -4,16 +4,19 @@ using FutureOfTheJobSearch.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace FutureOfTheJobSearch.Server.Migrations
+namespace FutureOfTheJobSearch.Server.Migrations.Chat
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251222210051_AddPositionPreferencesTable")]
+    partial class AddPositionPreferencesTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -467,7 +470,10 @@ namespace FutureOfTheJobSearch.Server.Migrations
                     b.Property<int>("PositionId")
                         .HasColumnType("int");
 
-                    b.Property<string>("PreferredSalary")
+                    b.Property<string>("PreferredSalaryMax")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PreferredSalaryMin")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PreferredSalaryPriority")
