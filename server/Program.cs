@@ -79,6 +79,9 @@ builder.Services.AddTransient<IEmailService, EmailService>();
 // Embedding queue service registration
 builder.Services.AddSingleton<IEmbeddingQueueService, EmbeddingQueueService>();
 
+// Embedding similarity service registration
+builder.Services.AddSingleton<IEmbeddingSimilarityService, EmbeddingSimilarityService>();
+
 // Geocoding service registration
 builder.Services.AddHttpClient<IGeocodingService, GeocodingService>();
 

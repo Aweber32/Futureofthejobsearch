@@ -1,5 +1,6 @@
 import Layout from '../../components/Layout'
 import PositionSwiper from '../../components/PositionSwiper'
+import AILoadingScreen from '../../components/AILoadingScreen'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { API_CONFIG } from '../../config/api'
@@ -54,7 +55,7 @@ export default function FindPositions(){
       </div>
 
       <div className="mb-3">
-        {positions === null ? <div>Loading…</div> : <PositionSwiper initialPositions={positions} />}
+        {positions === null ? <AILoadingScreen /> : <PositionSwiper initialPositions={positions} />}
       </div>
     </Layout>
   )

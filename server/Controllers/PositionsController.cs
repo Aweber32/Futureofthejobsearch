@@ -73,14 +73,16 @@ namespace FutureOfTheJobSearch.Server.Controllers
         private readonly IConfiguration _config;
         private readonly IEmbeddingQueueService _embeddingQueue;
         private readonly IGeocodingService _geocodingService;
+        private readonly IEmbeddingSimilarityService _embeddingSimilarity;
 
-        public PositionsController(ApplicationDbContext db, ILogger<PositionsController> logger, IConfiguration config, IEmbeddingQueueService embeddingQueue, IGeocodingService geocodingService)
+        public PositionsController(ApplicationDbContext db, ILogger<PositionsController> logger, IConfiguration config, IEmbeddingQueueService embeddingQueue, IGeocodingService geocodingService, IEmbeddingSimilarityService embeddingSimilarity)
         {
             _db = db;
             _logger = logger;
             _config = config;
             _embeddingQueue = embeddingQueue;
             _geocodingService = geocodingService;
+            _embeddingSimilarity = embeddingSimilarity;
         }
 
         [HttpPost]
@@ -251,6 +253,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
             var positions = await query
                 .OrderByDescending(p => p.CreatedAt)
+                .Take(10000)  // Cap at 10k positions to avoid excessive memory/payload
                 .ToListAsync();
             
             _logger.LogInformation("=== POSITIONS FROM DATABASE ===");
@@ -270,7 +273,79 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 _logger.LogInformation("Positions after geo filter: {Count}", positions.Count);
             }
 
+            // Rank positions by embedding similarity to seeker if authenticated
+            if (seekerId.HasValue && positions.Any())
+            {
+                _logger.LogInformation("=== RANKING BY EMBEDDING SIMILARITY ===");
+                positions = await RankPositionsBySimilarity(positions, seekerId.Value);
+            }
+
             return Ok(positions);
+        }
+
+        /// <summary>
+        /// Rank filtered positions by cosine similarity to seeker's embedding.
+        /// Positions without embeddings ranked after those with embeddings (score = 0).
+        /// </summary>
+        private async Task<List<Position>> RankPositionsBySimilarity(List<Position> positions, int seekerId)
+        {
+            try
+            {
+                // Fetch seeker's embedding
+                var seekerEmbed = await _db.SeekerEmbeddings
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.SeekerId == seekerId);
+
+                if (seekerEmbed?.Embedding == null || seekerEmbed.Embedding.Length == 0)
+                {
+                    _logger.LogInformation("[Ranking] No seeker embedding found for ID {SeekerId} - returning positions in original order", seekerId);
+                    return positions;
+                }
+
+                _logger.LogInformation("[Ranking] Found seeker embedding (ModelVersion: {Version}, {Bytes} bytes)", 
+                    seekerEmbed.ModelVersion, seekerEmbed.Embedding.Length);
+
+                // Fetch position embeddings for all positions in batch
+                var positionIds = positions.Select(p => p.Id).ToList();
+                var positionEmbeds = await _db.PositionEmbeddings
+                    .AsNoTracking()
+                    .Where(e => positionIds.Contains(e.PositionId))
+                    .ToDictionaryAsync(e => e.PositionId, e => e.Embedding);
+
+                _logger.LogInformation("[Ranking] Found embeddings for {Count} of {Total} positions", 
+                    positionEmbeds.Count, positions.Count);
+
+                // Calculate similarity scores and sort
+                var ranked = positions
+                    .Select(pos => new
+                    {
+                        Position = pos,
+                        SimilarityScore = positionEmbeds.TryGetValue(pos.Id, out var embed)
+                            ? _embeddingSimilarity.CalculateSimilarity(seekerEmbed.Embedding, embed)
+                            : 0.0
+                    })
+                    .OrderByDescending(x => x.SimilarityScore)  // Highest score first
+                    .ThenByDescending(x => x.Position.CreatedAt) // Tiebreaker: newer first
+                    .Select(x => x.Position)
+                    .ToList();
+
+                _logger.LogInformation("[Ranking] Sorted {Count} positions by similarity", ranked.Count);
+                foreach (var p in ranked.Take(5))
+                {
+                    var score = positionEmbeds.TryGetValue(p.Id, out var e)
+                        ? _embeddingSimilarity.CalculateSimilarity(seekerEmbed.Embedding, e)
+                        : 0.0;
+                    _logger.LogInformation("  [Ranking] ID={Id}, Title={Title}, Score={Score:F4}", 
+                        p.Id, p.Title, score);
+                }
+
+                return ranked;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Ranking] Failed to rank positions by similarity - returning original order");
+                return positions; // Fail gracefully; return unranked
+            }
         }
 
         private IQueryable<Position> ApplyPreferences(IQueryable<Position> query, SeekerPreferences prefs)
