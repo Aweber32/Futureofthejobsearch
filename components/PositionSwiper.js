@@ -54,12 +54,16 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
   });
 
   useEffect(()=>{
-    if (initialPositions && initialPositions.length>0) return;
+    // Skip fetch if parent provided data (even if empty array from filtered query)
+    if (Array.isArray(initialPositions)) return;
     let cancelled = false;
     async function load(){
       try{
         const base = API_CONFIG.BASE_URL;
-        const res = await fetch(`${base}/api/positions`);
+        const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+        const res = await fetch(`${base}/api/positions`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+        });
         if (!res.ok) { setStack([]); return; }
         const data = await res.json();
         if (cancelled) return;

@@ -38,17 +38,17 @@ export default function SeekerPreferences() {
   // Form state
   const [preferences, setPreferences] = useState({
     jobCategory: '',
-    jobCategoryPriority: 'None',
+    jobCategoryPriority: 'Flexible',
     workSetting: [],
-    workSettingPriority: 'None',
+    workSettingPriority: 'Flexible',
     preferredCities: ['', '', ''],
-    salaryPriority: 'None',
+    salaryPriority: 'Flexible',
     travelRequirements: '',
-    travelRequirementsPriority: 'None',
+    travelRequirementsPriority: 'Flexible',
     companySize: '',
-    companySizePriority: 'None',
+    companySizePriority: 'Flexible',
     employmentType: '',
-    employmentTypePriority: 'None'
+    employmentTypePriority: 'Flexible'
   });
 
   // Salary state variables (matching edit-profile format)
@@ -217,16 +217,15 @@ export default function SeekerPreferences() {
     }
   };
 
-  const handleCityChange = (index, value) => {
-    const newCities = [...preferences.preferredCities];
-    newCities[index] = value;
-    setPreferences({ ...preferences, preferredCities: newCities });
-  };
-
   const handleStateChange = (index, stateCode) => {
     const newStates = [...selectedStates];
     newStates[index] = stateCode;
     setSelectedStates(newStates);
+
+    // Reset city when state changes
+    const newCities = [...preferences.preferredCities];
+    newCities[index] = '';
+    setPreferences({ ...preferences, preferredCities: newCities });
 
     // Load cities for the selected state
     if (stateCode) {
@@ -240,6 +239,46 @@ export default function SeekerPreferences() {
       if (index === 2) setCityOptions3([]);
     }
   };
+
+  const handleCitySelect = (index, option) => {
+    const cityVal = option ? option.value : '';
+    const stateCode = selectedStates[index];
+    const cityString = cityVal && stateCode ? `${cityVal}, ${stateCode}` : '';
+    const newCities = [...preferences.preferredCities];
+    newCities[index] = cityString;
+    setPreferences({ ...preferences, preferredCities: newCities });
+  };
+
+  // When preferences load, hydrate state/city selectors for existing values
+  useEffect(() => {
+    const cities = preferences.preferredCities || [];
+    const newStates = [...selectedStates];
+
+    cities.forEach((cityStr, idx) => {
+      if (!cityStr) return;
+      const parts = cityStr.split(',');
+      if (parts.length < 2) return;
+      const city = parts[0].trim();
+      const state = parts[1].trim();
+      if (!state) return;
+
+      newStates[idx] = state;
+      const cityOptions = City.getCitiesOfState('US', state).map(c => ({ value: c.name, label: c.name }));
+      if (idx === 0) setCityOptions1(cityOptions);
+      if (idx === 1) setCityOptions2(cityOptions);
+      if (idx === 2) setCityOptions3(cityOptions);
+
+      // Ensure city appears in the options list
+      if (!cityOptions.find(o => o.value === city)) {
+        const extended = [...cityOptions, { value: city, label: city }];
+        if (idx === 0) setCityOptions1(extended);
+        if (idx === 1) setCityOptions2(extended);
+        if (idx === 2) setCityOptions3(extended);
+      }
+    });
+
+    setSelectedStates(newStates);
+  }, [preferences.preferredCities]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -409,19 +448,41 @@ export default function SeekerPreferences() {
                   <div className="card-body">
                     <h5 className="card-title">Preferred Cities (Max 3)</h5>
                     <p className="text-muted small">Enter cities for location-based filtering when Hybrid or In-Person is selected</p>
-                    
-                    {[0, 1, 2].map(index => (
-                      <div key={index} className="mb-3">
-                        <label className="form-label">City {index + 1} {index === 0 && '(defaults to your profile city)'}</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="e.g., Seattle, WA"
-                          value={preferences.preferredCities[index]}
-                          onChange={e => handleCityChange(index, e.target.value)}
-                        />
-                      </div>
-                    ))}
+                    {[0, 1, 2].map(index => {
+                      const cityOptions = index === 0 ? cityOptions1 : index === 1 ? cityOptions2 : cityOptions3;
+                      const stateValue = selectedStates[index];
+                      const cityValue = preferences.preferredCities[index]
+                        ? preferences.preferredCities[index].split(',')[0].trim()
+                        : '';
+                      const cityOptionValue = cityOptions.find(o => o.value === cityValue) || (cityValue ? { value: cityValue, label: cityValue } : null);
+                      return (
+                        <div key={index} className="mb-3">
+                          <label className="form-label">City {index + 1} {index === 0 && '(defaults to your profile city)'}</label>
+                          <div className="row g-2">
+                            <div className="col-md-4">
+                              <Select
+                                options={stateOptions}
+                                isClearable
+                                placeholder="Select state"
+                                value={stateOptions.find(o => o.value === stateValue) || null}
+                                onChange={opt => handleStateChange(index, opt ? opt.value : '')}
+                              />
+                            </div>
+                            <div className="col-md-8">
+                              <Select
+                                options={cityOptions}
+                                isClearable
+                                isSearchable
+                                placeholder={stateValue ? "Select city" : "Choose state first"}
+                                value={cityOptionValue}
+                                onChange={opt => handleCitySelect(index, opt)}
+                                isDisabled={!stateValue}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

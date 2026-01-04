@@ -116,6 +116,12 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 return Unauthorized(new { error = "Not a job seeker" });
             }
 
+            _logger.LogInformation("=== SAVING SEEKER PREFERENCES ===");
+            _logger.LogInformation("SeekerId: {SeekerId}", seekerId);
+            _logger.LogInformation("Request: JobCat={Cat} (Pri={CatPri}), WorkSetting={Work} (Pri={WorkPri}), Cities={Cities}", 
+                request.JobCategory, request.JobCategoryPriority, request.WorkSetting, request.WorkSettingPriority, 
+                request.PreferredCities != null ? string.Join("|", request.PreferredCities) : "null");
+
             var seeker = await _db.Seekers.FindAsync(seekerId);
             if (seeker == null)
             {
@@ -222,6 +228,10 @@ namespace FutureOfTheJobSearch.Server.Controllers
             }
 
             await _db.SaveChangesAsync();
+
+            _logger.LogInformation("=== PREFERENCES SAVED SUCCESSFULLY ===");
+            _logger.LogInformation("Stored: JobCat={Cat} (Pri={CatPri}), WorkSetting={Work} (Pri={WorkPri}), CityLatLongs={Cities}",
+                prefs.JobCategory, prefs.JobCategoryPriority, prefs.WorkSetting, prefs.WorkSettingPriority, prefs.CityLatLongs);
 
             return Ok(new { message = "Preferences saved successfully", id = prefs.Id });
         }

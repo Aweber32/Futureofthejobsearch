@@ -28,8 +28,9 @@ namespace FutureOfTheJobSearch.Server.Controllers
         private readonly IConfiguration _config;
         private readonly IEmbeddingQueueService _embeddingQueue;
         private readonly IGeocodingService _geocodingService;
+        private readonly ILogger<SeekersController> _logger;
 
-        public SeekersController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, ApplicationDbContext db, IConfiguration config, IEmbeddingQueueService embeddingQueue, IGeocodingService geocodingService)
+        public SeekersController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, ApplicationDbContext db, IConfiguration config, IEmbeddingQueueService embeddingQueue, IGeocodingService geocodingService, ILogger<SeekersController> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -37,6 +38,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _config = config;
             _embeddingQueue = embeddingQueue;
             _geocodingService = geocodingService;
+            _logger = logger;
         }
 
         // Issue a time-limited share link token for the current seeker (no DB schema change required)
@@ -384,9 +386,10 @@ namespace FutureOfTheJobSearch.Server.Controllers
             if (positionId.HasValue)
             {
                 var prefs = await _db.PositionPreferences.FirstOrDefaultAsync(pp => pp.PositionId == positionId.Value);
-                if (prefs != null)
+                var position = await _db.Positions.FirstOrDefaultAsync(p => p.Id == positionId.Value);
+                if (prefs != null && position != null)
                 {
-                    seekersQuery = ApplySqlFilters(seekersQuery, prefs);
+                    seekersQuery = ApplySqlFilters(seekersQuery, prefs, position);
                 }
             }
 
@@ -397,35 +400,92 @@ namespace FutureOfTheJobSearch.Server.Controllers
             return Ok(seekers);
         }
 
-        private IQueryable<Seeker> ApplySqlFilters(IQueryable<Seeker> seekers, PositionPreferences prefs)
+        private record BoundingBox(double MinLat, double MaxLat, double MinLon, double MaxLon);
+
+        private IQueryable<Seeker> ApplySqlFilters(IQueryable<Seeker> seekers, PositionPreferences prefs, Position position)
         {
             // Only apply filters that can translate to SQL efficiently
+            // Apply filter if priority is not "None" (i.e., "Flexible" or "DealBreaker")
             
-            // Job Category (Deal Breaker)
-            if (prefs.JobCategoryPriority == "DealBreaker" && !string.IsNullOrEmpty(prefs.JobCategory))
+            // Job Category
+            if (prefs.JobCategoryPriority != "None" && !string.IsNullOrEmpty(prefs.JobCategory))
             {
                 seekers = seekers.Where(s => s.JobCategory == prefs.JobCategory);
             }
 
-            // Education Level (Deal Breaker) - simple string contains
-            if (prefs.EducationLevelPriority == "DealBreaker" && !string.IsNullOrEmpty(prefs.EducationLevel))
+            // Education Level - simple string contains
+            if (prefs.EducationLevelPriority != "None" && !string.IsNullOrEmpty(prefs.EducationLevel))
             {
                 seekers = seekers.Where(s => 
                     !string.IsNullOrEmpty(s.EducationJson) && 
                     s.EducationJson.Contains(prefs.EducationLevel));
             }
 
-            // Work Setting (Deal Breaker)
-            if (prefs.WorkSettingPriority == "DealBreaker" && !string.IsNullOrEmpty(prefs.WorkSetting))
+            // Work Setting - Apply geo filtering for In-Person/Hybrid when position has location
+            if (prefs.WorkSettingPriority != "None" && !string.IsNullOrEmpty(prefs.WorkSetting))
             {
                 var preferredSettings = prefs.WorkSetting.Split(',').Select(s => s.Trim()).ToList();
-                seekers = seekers.Where(s => 
-                    !string.IsNullOrEmpty(s.WorkSetting) &&
-                    preferredSettings.Any(ps => s.WorkSetting.Contains(ps)));
+                
+                var wantsRemote = preferredSettings.Any(ps => ps.Equals("Remote", StringComparison.OrdinalIgnoreCase));
+                var wantsHybrid = preferredSettings.Any(ps => ps.Equals("Hybrid", StringComparison.OrdinalIgnoreCase));
+                var wantsInPerson = preferredSettings.Any(ps => 
+                    ps.Equals("In-Person", StringComparison.OrdinalIgnoreCase) ||
+                    ps.Equals("In Person", StringComparison.OrdinalIgnoreCase) ||
+                    ps.Equals("In-Office", StringComparison.OrdinalIgnoreCase) ||
+                    ps.Equals("On-Site", StringComparison.OrdinalIgnoreCase) ||
+                    ps.Equals("On-site", StringComparison.OrdinalIgnoreCase));
+
+                var inPersonSettings = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "In-Office", "On-site", "On-Site", "In-Person", "In Person" };
+
+                // If position has coordinates and Hybrid/In-Person is requested, apply geo filtering
+                if ((wantsHybrid || wantsInPerson) && position.Latitude.HasValue && position.Longitude.HasValue)
+                {
+                    const double maxMiles = 90.0; // ~1.5 hour radius
+                    var lat = position.Latitude.Value;
+                    var lon = position.Longitude.Value;
+
+                    var latDelta = maxMiles / 69.0; // ~69 miles per degree latitude
+                    var cosLat = Math.Cos(lat * Math.PI / 180.0);
+                    var lonDelta = cosLat > 0.0001 ? maxMiles / (69.172 * cosLat) : 180.0;
+
+                    var box = new BoundingBox(
+                        MinLat: lat - latDelta,
+                        MaxLat: lat + latDelta,
+                        MinLon: lon - lonDelta,
+                        MaxLon: lon + lonDelta
+                    );
+
+                    _logger.LogInformation($"Created bounding box for position at [{lat:F2}, {lon:F2}]: Lat [{box.MinLat:F2} to {box.MaxLat:F2}], Lon [{box.MinLon:F2} to {box.MaxLon:F2}]");
+
+                    seekers = seekers.Where(s =>
+                        // Remote seekers if Remote is requested
+                        (wantsRemote && s.WorkSetting != null && s.WorkSetting.Contains("Remote"))
+                        ||
+                        // Hybrid/In-Person seekers must be within bounding box and have coordinates
+                        (
+                            (wantsHybrid || wantsInPerson)
+                            && s.Latitude.HasValue && s.Longitude.HasValue
+                            && s.Latitude.Value >= box.MinLat && s.Latitude.Value <= box.MaxLat
+                            && s.Longitude.Value >= box.MinLon && s.Longitude.Value <= box.MaxLon
+                            && (
+                                (wantsHybrid && s.WorkSetting != null && s.WorkSetting.Contains("Hybrid"))
+                                || (wantsInPerson && s.WorkSetting != null && inPersonSettings.Any(ps => s.WorkSetting.Contains(ps)))
+                            )
+                        )
+                    );
+                }
+                else
+                {
+                    // No geo-filtering, just match work setting types
+                    seekers = seekers.Where(s => 
+                        !string.IsNullOrEmpty(s.WorkSetting) &&
+                        preferredSettings.Any(ps => s.WorkSetting.Contains(ps)));
+                }
             }
 
-            // Travel Requirements (Deal Breaker)
-            if (prefs.TravelRequirementsPriority == "DealBreaker" && !string.IsNullOrEmpty(prefs.TravelRequirements))
+            // Travel Requirements
+            if (prefs.TravelRequirementsPriority != "None" && !string.IsNullOrEmpty(prefs.TravelRequirements))
             {
                 if (prefs.TravelRequirements == "No")
                 {

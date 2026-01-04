@@ -19,6 +19,55 @@ namespace FutureOfTheJobSearch.Server.Controllers
     [Route("api/[controller]")]
     public class PositionsController : ControllerBase
     {
+        // Grouped job categories to support "Flexible" matching by related category bucket
+        private static readonly Dictionary<string, int> JobCategoryGroups = new(StringComparer.OrdinalIgnoreCase)
+        {
+            // Software / Data / Engineering (1)
+            ["Software Engineering"] = 1, ["Data Engineering"] = 1, ["Data Science & Machine Learning"] = 1,
+            ["Analytics & Business Intelligence"] = 1, ["Cloud & DevOps"] = 1, ["Cybersecurity"] = 1,
+            ["IT Infrastructure & Networking"] = 1, ["QA & Test Engineering"] = 1, ["Mobile Development"] = 1,
+            ["Game Development"] = 1,
+
+            // Product / Design (2)
+            ["Product Management"] = 2, ["Program & Project Management"] = 2, ["UX / UI Design"] = 2,
+            ["User Research"] = 2, ["Technical Product Management"] = 2,
+
+            // Strategy / Ops / Finance (3)
+            ["Business Operations"] = 3, ["Strategy & Management Consulting"] = 3, ["Finance & Accounting"] = 3,
+            ["Risk, Compliance & Audit"] = 3, ["Supply Chain & Logistics"] = 3, ["Procurement & Vendor Management"] = 3,
+
+            // Sales / Marketing / Growth (4)
+            ["Sales & Business Development"] = 4, ["Account Management & Customer Success"] = 4,
+            ["Marketing & Growth"] = 4, ["Digital Marketing & SEO"] = 4, ["Content Marketing & Brand"] = 4,
+
+            // People / Legal / Admin (5)
+            ["Human Resources & Recruiting"] = 5, ["People Operations & Culture"] = 5, ["Legal & Corporate Affairs"] = 5,
+            ["Office Administration"] = 5, ["Legal & Contracts"] = 5,
+
+            // Healthcare & Life Sciences (6)
+            ["Clinical Healthcare"] = 6, ["Clinical & Patient Care"] = 6, ["Healthcare Administration"] = 6,
+            ["Health Informatics & Analytics"] = 6, ["Biomedical Engineering"] = 6,
+            ["Pharmaceuticals & Research"] = 6, ["Medical Research & Biotech"] = 6,
+            ["Pharmaceutical & Life Sciences"] = 6,
+
+            // Creative / Media / Communications (7)
+            ["Creative & Visual Design"] = 7, ["Creative Direction & Brand Design"] = 7,
+            ["Content Writing & Editing"] = 7, ["Content Creation & Copywriting"] = 7,
+            ["Media Production (Video / Audio)"] = 7, ["Media Production & Editing"] = 7,
+            ["Public Relations & Communications"] = 7, ["Entertainment & Gaming"] = 7,
+
+            // Industry / Field Roles (8)
+            ["Manufacturing & Industrial Engineering"] = 8, ["Manufacturing & Engineering"] = 8,
+            ["Construction & Facilities Management"] = 8, ["Construction & Real Estate"] = 8,
+            ["Energy & Utilities"] = 8, ["Environmental & Sustainability"] = 8, ["Government & Public Sector"] = 8,
+            ["Education & Training"] = 8,
+
+            // Additional mapped categories used elsewhere in the app
+            ["Retail & E-commerce"] = 8, ["Hospitality & Tourism"] = 8, ["Transportation & Logistics"] = 8,
+            ["Agriculture & Food Services"] = 8, ["Nonprofit & Social Services"] = 8
+        };
+
+        private record BoundingBox(double MinLat, double MaxLat, double MinLon, double MaxLon);
         private readonly ApplicationDbContext _db;
         private readonly ILogger<PositionsController> _logger;
         private readonly IConfiguration _config;
@@ -156,6 +205,11 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 seekerId = sid;
             }
 
+            _logger.LogInformation("=== POSITIONS LIST REQUEST ===");
+            _logger.LogInformation("User authenticated: {IsAuth}", User.Identity?.IsAuthenticated ?? false);
+            _logger.LogInformation("SeekerId from claims: {SeekerId}", seekerId);
+            _logger.LogInformation("All claims: {Claims}", string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}")));
+
             // Start with base query
             IQueryable<Position> query = _db.Positions
                 .Include(p => p.Employer)
@@ -164,113 +218,312 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 .Include(p => p.SkillsList);
 
             // Apply pre-filtering based on seeker preferences if seeker is authenticated
+            SeekerPreferences? prefs = null;
             if (seekerId.HasValue)
             {
-                var prefs = await _db.SeekerPreferences
+                prefs = await _db.SeekerPreferences
                     .FirstOrDefaultAsync(sp => sp.SeekerId == seekerId.Value);
 
                 if (prefs != null)
                 {
+                    _logger.LogInformation("=== SEEKER PREFERENCES FOR ID {SeekerId} ===", seekerId);
+                    _logger.LogInformation("JobCategory: {Cat} (Priority: {CatPri})", prefs.JobCategory, prefs.JobCategoryPriority);
+                    _logger.LogInformation("WorkSetting: {Work} (Priority: {WorkPri})", prefs.WorkSetting, prefs.WorkSettingPriority);
+                    _logger.LogInformation("CityLatLongs: {Cities}", prefs.CityLatLongs);
+                    _logger.LogInformation("Salary: {Sal} (Priority: {SalPri})", prefs.Salary, prefs.SalaryPriority);
+                    _logger.LogInformation("TravelRequirements: {Travel} (Priority: {TravelPri})", prefs.TravelRequirements, prefs.TravelRequirementsPriority);
+                    
                     query = ApplyPreferences(query, prefs);
                 }
+                else
+                {
+                    _logger.LogInformation("No preferences found for SeekerId {SeekerId}", seekerId);
+                }
             }
+            else
+            {
+                _logger.LogInformation("No seekerId in claims - returning unfiltered positions");
+            }
+
+            // Log the SQL query BEFORE executing it
+            _logger.LogInformation("=== EXECUTING SQL QUERY ===");
+            _logger.LogInformation("Final SQL: {Query}", query.ToQueryString());
 
             var positions = await query
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
+            
+            _logger.LogInformation("=== POSITIONS FROM DATABASE ===");
+            _logger.LogInformation("Count returned from DB: {Count}", positions.Count);
+            foreach (var p in positions.Take(5))
+            {
+                _logger.LogInformation("  ID: {Id}, Title: {Title}, WorkSetting: {Work}, Lat: {Lat}, Lon: {Lon}", 
+                    p.Id, p.Title, p.WorkSetting, p.Latitude, p.Longitude);
+            }
+
+            // Fail-closed in-memory geo filter to ensure Hybrid / In-Person respect preferred cities
+            if (prefs != null && prefs.WorkSettingPriority != "None")
+            {
+                _logger.LogInformation("=== APPLYING GEO POST-FILTER ===");
+                _logger.LogInformation("Positions before geo filter: {Count}", positions.Count);
+                positions = ApplyGeoPostFilter(positions, prefs);
+                _logger.LogInformation("Positions after geo filter: {Count}", positions.Count);
+            }
 
             return Ok(positions);
         }
 
         private IQueryable<Position> ApplyPreferences(IQueryable<Position> query, SeekerPreferences prefs)
         {
-            // Job Category filtering
-            if (!string.IsNullOrEmpty(prefs.JobCategory) && prefs.JobCategoryPriority == "DealBreaker")
+            // Normalize work settings list (comma-separated in DB)
+            var workSettings = (prefs.WorkSetting ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+
+            var wantsRemote = workSettings.Any(ws => ws.Equals("Remote", StringComparison.OrdinalIgnoreCase));
+            var wantsHybrid = workSettings.Any(ws => ws.Equals("Hybrid", StringComparison.OrdinalIgnoreCase));
+            var wantsInPerson = workSettings.Any(ws =>
+                ws.Equals("In-Person", StringComparison.OrdinalIgnoreCase) ||
+                ws.Equals("In Person", StringComparison.OrdinalIgnoreCase) ||
+                ws.Equals("In-Office", StringComparison.OrdinalIgnoreCase) ||
+                ws.Equals("On-site", StringComparison.OrdinalIgnoreCase) ||
+                ws.Equals("On-Site", StringComparison.OrdinalIgnoreCase));
+
+            // JOB CATEGORY
+            if (!string.IsNullOrEmpty(prefs.JobCategory))
             {
-                query = query.Where(p => p.Category == prefs.JobCategory);
+                if (prefs.JobCategoryPriority == "DealBreaker")
+                {
+                    query = query.Where(p => p.Category == prefs.JobCategory);
+                }
+                else if (prefs.JobCategoryPriority == "Flexible")
+                {
+                    if (JobCategoryGroups.TryGetValue(prefs.JobCategory, out var groupId))
+                    {
+                        var sameGroupCategories = JobCategoryGroups
+                            .Where(kvp => kvp.Value == groupId)
+                            .Select(kvp => kvp.Key)
+                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                        query = query.Where(p => sameGroupCategories.Contains(p.Category));
+                    }
+                }
+                // Priority "None" = no filter
             }
 
-            // Work Setting filtering
-            if (!string.IsNullOrEmpty(prefs.WorkSetting) && prefs.WorkSettingPriority == "DealBreaker")
+            // WORK SETTING - Skip entirely when priority is None
+            // DealBreaker/Flexible: constrain to selected work settings; geo radius handled in post-filter
+            _logger.LogInformation("WorkSetting filter: priority={Priority}, settings=[{Settings}]",
+                prefs.WorkSettingPriority, prefs.WorkSetting);
+
+            if (prefs.WorkSettingPriority != "None" && workSettings.Any())
             {
-                var workSettings = prefs.WorkSetting.Split(',').Select(s => s.Trim()).ToList();
-                query = query.Where(p => workSettings.Contains(p.WorkSetting));
+                query = query.Where(p =>
+                    (wantsRemote && p.WorkSetting == "Remote")
+                    || (wantsHybrid && p.WorkSetting == "Hybrid")
+                    || (wantsInPerson && (p.WorkSetting == "In-Person" || p.WorkSetting == "In Person" ||
+                                          p.WorkSetting == "In-Office" || p.WorkSetting == "On-site" ||
+                                          p.WorkSetting == "On-Site"))
+                );
+
+                _logger.LogInformation("Applied work setting SQL filter: Remote={Remote}, Hybrid={Hybrid}, InPerson={InPerson}",
+                    wantsRemote, wantsHybrid, wantsInPerson);
             }
 
-            // Employment Type filtering
+            // EMPLOYMENT TYPE (DealBreaker only)
             if (!string.IsNullOrEmpty(prefs.EmploymentType) && prefs.EmploymentTypePriority == "DealBreaker")
             {
                 query = query.Where(p => p.EmploymentType == prefs.EmploymentType);
             }
 
-            // Travel Requirements filtering
+            // TRAVEL (DealBreaker only)
             if (!string.IsNullOrEmpty(prefs.TravelRequirements) && prefs.TravelRequirementsPriority == "DealBreaker")
             {
                 query = query.Where(p => p.TravelRequirements == prefs.TravelRequirements);
             }
 
-            // Company Size filtering (requires join with Employer)
+            // COMPANY SIZE (DealBreaker only)
             if (!string.IsNullOrEmpty(prefs.CompanySize) && prefs.CompanySizePriority == "DealBreaker")
             {
-                // Parse string to enum
                 if (Enum.TryParse<CompanySize>(prefs.CompanySize, out var companySizeEnum))
                 {
                     query = query.Where(p => p.Employer != null && p.Employer.CompanySize == companySizeEnum);
                 }
             }
 
-            // Salary filtering - only apply if Deal Breaker
-            // This is complex as we need to parse salary strings, so we'll do basic filtering
-            if (!string.IsNullOrEmpty(prefs.Salary) && prefs.SalaryPriority == "DealBreaker")
+            // SALARY (normalize all amounts to annual for comparison)
+            decimal? preferredMin = ParseSalaryMinimum(prefs.Salary);
+            if (preferredMin.HasValue)
             {
-                // Try to extract min salary from preferences (e.g., "$100,000 - $120,000")
-                var salaryMatch = System.Text.RegularExpressions.Regex.Match(prefs.Salary, @"\$?([\d,]+)");
-                if (salaryMatch.Success && decimal.TryParse(salaryMatch.Groups[1].Value.Replace(",", ""), out var minSalary))
+                var minAnnual = preferredMin.Value;
+
+                if (prefs.SalaryPriority == "DealBreaker")
                 {
-                    // Filter positions where SalaryMin or SalaryMax is >= preferred minimum
-                    query = query.Where(p => 
-                        (p.SalaryMin.HasValue && p.SalaryMin >= minSalary) ||
-                        (p.SalaryMax.HasValue && p.SalaryMax >= minSalary) ||
-                        (p.SalaryValue.HasValue && p.SalaryValue >= minSalary)
+                    query = query.Where(p =>
+                        (p.SalaryMin.HasValue && (
+                            ((p.SalaryType == null || p.SalaryType == "Annual") && p.SalaryMin.Value >= minAnnual) ||
+                            (p.SalaryType == "Monthly" && p.SalaryMin.Value * 12m >= minAnnual) ||
+                            (p.SalaryType == "Hourly" && p.SalaryMin.Value * 2080m >= minAnnual)
+                        )) ||
+                        (p.SalaryValue.HasValue && (
+                            ((p.SalaryType == null || p.SalaryType == "Annual") && p.SalaryValue.Value >= minAnnual) ||
+                            (p.SalaryType == "Monthly" && p.SalaryValue.Value * 12m >= minAnnual) ||
+                            (p.SalaryType == "Hourly" && p.SalaryValue.Value * 2080m >= minAnnual)
+                        )) ||
+                        (p.SalaryMax.HasValue && (
+                            ((p.SalaryType == null || p.SalaryType == "Annual") && p.SalaryMax.Value >= minAnnual) ||
+                            (p.SalaryType == "Monthly" && p.SalaryMax.Value * 12m >= minAnnual) ||
+                            (p.SalaryType == "Hourly" && p.SalaryMax.Value * 2080m >= minAnnual)
+                        ))
                     );
                 }
+                else if (prefs.SalaryPriority == "Flexible")
+                {
+                    var flexibleFloor = Math.Max(0, minAnnual - 30000m);
+                    query = query.Where(p =>
+                        (p.SalaryMin.HasValue && (
+                            ((p.SalaryType == null || p.SalaryType == "Annual") && p.SalaryMin.Value >= flexibleFloor) ||
+                            (p.SalaryType == "Monthly" && p.SalaryMin.Value * 12m >= flexibleFloor) ||
+                            (p.SalaryType == "Hourly" && p.SalaryMin.Value * 2080m >= flexibleFloor)
+                        )) ||
+                        (p.SalaryValue.HasValue && (
+                            ((p.SalaryType == null || p.SalaryType == "Annual") && p.SalaryValue.Value >= flexibleFloor) ||
+                            (p.SalaryType == "Monthly" && p.SalaryValue.Value * 12m >= flexibleFloor) ||
+                            (p.SalaryType == "Hourly" && p.SalaryValue.Value * 2080m >= flexibleFloor)
+                        )) ||
+                        (p.SalaryMax.HasValue && (
+                            ((p.SalaryType == null || p.SalaryType == "Annual") && p.SalaryMax.Value >= flexibleFloor) ||
+                            (p.SalaryType == "Monthly" && p.SalaryMax.Value * 12m >= flexibleFloor) ||
+                            (p.SalaryType == "Hourly" && p.SalaryMax.Value * 2080m >= flexibleFloor)
+                        ))
+                    );
+                }
+                // None = no salary filter
             }
 
-            // Location/City filtering - only if preferences include cities and Work Setting includes Hybrid or In-Person
-            if (!string.IsNullOrEmpty(prefs.PreferredCities) && 
-                !string.IsNullOrEmpty(prefs.WorkSetting) &&
-                (prefs.WorkSetting.Contains("Hybrid") || prefs.WorkSetting.Contains("In-Person")))
+            return query;
+        }
+
+        // In-memory safeguard to ensure Hybrid/In-Person positions are within preferred city radius
+        private List<Position> ApplyGeoPostFilter(List<Position> positions, SeekerPreferences prefs)
+        {
+            // If priority is None, skip geo filtering entirely
+            if (string.Equals(prefs.WorkSettingPriority, "None", StringComparison.OrdinalIgnoreCase))
+                return positions;
+
+            var workSettings = (prefs.WorkSetting ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+
+            var wantsRemote = workSettings.Any(ws => ws.Equals("Remote", StringComparison.OrdinalIgnoreCase));
+            var wantsHybrid = workSettings.Any(ws => ws.Equals("Hybrid", StringComparison.OrdinalIgnoreCase));
+            var wantsInPerson = workSettings.Any(ws =>
+                ws.Equals("In-Person", StringComparison.OrdinalIgnoreCase) ||
+                ws.Equals("In Person", StringComparison.OrdinalIgnoreCase) ||
+                ws.Equals("In-Office", StringComparison.OrdinalIgnoreCase) ||
+                ws.Equals("On-site", StringComparison.OrdinalIgnoreCase) ||
+                ws.Equals("On-Site", StringComparison.OrdinalIgnoreCase));
+
+            if (!wantsRemote && !wantsHybrid && !wantsInPerson)
+                return positions; // nothing to do
+
+            // Radius depends on priority: DealBreaker => 50mi, Flexible => 300mi
+            double radiusMiles = 90.0;
+            if (string.Equals(prefs.WorkSettingPriority, "DealBreaker", StringComparison.OrdinalIgnoreCase)) radiusMiles = 50.0;
+            else if (string.Equals(prefs.WorkSettingPriority, "Flexible", StringComparison.OrdinalIgnoreCase)) radiusMiles = 300.0;
+
+            var inPersonSettings = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "In-Office", "On-site", "On-Site", "In-Person", "In Person" };
+
+            List<BoundingBox> cityBoxes = new();
+            if ((wantsHybrid || wantsInPerson) && !string.IsNullOrEmpty(prefs.CityLatLongs))
             {
                 try
                 {
-                    var cityCoords = System.Text.Json.JsonSerializer.Deserialize<List<DTOs.CityCoordinates>>(prefs.CityLatLongs ?? "[]");
-                    if (cityCoords != null && cityCoords.Any(c => c.Latitude.HasValue && c.Longitude.HasValue))
+                    var cityCoords = System.Text.Json.JsonSerializer.Deserialize<List<DTOs.CityCoordinates>>(prefs.CityLatLongs ?? "[]")
+                        ?? new List<DTOs.CityCoordinates>();
+
+                    foreach (var coord in cityCoords.Where(c => c.Latitude.HasValue && c.Longitude.HasValue))
                     {
-                        // For now, we'll do a simple coordinate-based filter
-                        // In production, you'd want to calculate distance using Haversine formula
-                        // This filters positions that have coordinates within a reasonable range
-                        var validCoords = cityCoords.Where(c => c.Latitude.HasValue && c.Longitude.HasValue).ToList();
-                        if (validCoords.Any())
-                        {
-                            // Simple bounding box filter (within ~50 miles = ~0.75 degrees latitude/longitude)
-                            const double rangeDegrees = 0.75;
-                            query = query.Where(p => 
-                                p.Latitude.HasValue && p.Longitude.HasValue &&
-                                validCoords.Any(coord =>
-                                    Math.Abs(p.Latitude.Value - coord.Latitude!.Value) <= rangeDegrees &&
-                                    Math.Abs(p.Longitude.Value - coord.Longitude!.Value) <= rangeDegrees
-                                )
-                            );
-                        }
+                        var lat = coord.Latitude!.Value;
+                        var lon = coord.Longitude!.Value;
+
+                        var latDelta = radiusMiles / 69.0;
+                        var cosLat = Math.Cos(lat * Math.PI / 180.0);
+                        var lonDelta = cosLat > 0.0001 ? radiusMiles / (69.172 * cosLat) : 180.0;
+
+                        var box = new BoundingBox(
+                            MinLat: lat - latDelta,
+                            MaxLat: lat + latDelta,
+                            MinLon: lon - lonDelta,
+                            MaxLon: lon + lonDelta
+                        );
+                        cityBoxes.Add(box);
+
+                        _logger.LogInformation($"[PostFilter] Box for {coord.City}: Lat [{box.MinLat:F2}-{box.MaxLat:F2}], Lon [{box.MinLon:F2}-{box.MaxLon:F2}]");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to parse city coordinates for filtering");
+                    _logger.LogWarning(ex, "[PostFilter] Failed to parse city coordinates for filtering");
                 }
             }
 
-            return query;
+            var hasGeoBoxes = cityBoxes.Any();
+
+            // If hybrid/in-person requested but no geocoded cities, fail closed (cannot satisfy distance rule)
+            if ((wantsHybrid || wantsInPerson) && !hasGeoBoxes && !wantsRemote)
+            {
+                _logger.LogWarning("[PostFilter] No geo boxes available for Hybrid/In-Person filter - returning empty");
+                return new List<Position>();
+            }
+
+            _logger.LogInformation("[PostFilter] Filtering {Count} positions with wantsRemote={Remote}, wantsHybrid={Hybrid}, wantsInPerson={InPerson}, boxes={Boxes}",
+                positions.Count, wantsRemote, wantsHybrid, wantsInPerson, cityBoxes.Count);
+
+            var filtered = positions.Where(p =>
+                // Remote allowed regardless of geo (if selected)
+                (wantsRemote && string.Equals(p.WorkSetting, "Remote", StringComparison.OrdinalIgnoreCase))
+                ||
+                // Hybrid / In-Person must be within one of the preferred city boxes
+                (
+                    (wantsHybrid || wantsInPerson)
+                    && hasGeoBoxes
+                    && p.Latitude.HasValue && p.Longitude.HasValue
+                    && cityBoxes.Any(b =>
+                        p.Latitude!.Value >= b.MinLat && p.Latitude!.Value <= b.MaxLat &&
+                        p.Longitude!.Value >= b.MinLon && p.Longitude!.Value <= b.MaxLon
+                    )
+                    && (
+                        (wantsHybrid && string.Equals(p.WorkSetting, "Hybrid", StringComparison.OrdinalIgnoreCase))
+                        || (wantsInPerson && inPersonSettings.Contains(p.WorkSetting ?? string.Empty))
+                    )
+                )
+            ).ToList();
+
+            _logger.LogInformation("[PostFilter] Result: {FilteredCount} positions after geo filter", filtered.Count);
+            foreach (var p in filtered.Take(5))
+            {
+                _logger.LogInformation("  [PostFilter] Kept: ID={Id}, Title={Title}, WorkSetting={Work}, Lat={Lat}, Lon={Lon}",
+                    p.Id, p.Title, p.WorkSetting, p.Latitude, p.Longitude);
+            }
+
+            return filtered;
+        }
+
+        private static decimal? ParseSalaryMinimum(string? salary)
+        {
+            if (string.IsNullOrWhiteSpace(salary)) return null;
+
+            // Accept formats like "Annual: $100,000 - $120,000", "Hourly: $40+", "Monthly: Up to $8,000"
+            var match = System.Text.RegularExpressions.Regex.Match(salary, @"\$?([\d,]+)");
+            if (!match.Success) return null;
+            if (!decimal.TryParse(match.Groups[1].Value.Replace(",", ""), out var minVal)) return null;
+            return minVal;
         }
 
         [HttpGet("{id}")]

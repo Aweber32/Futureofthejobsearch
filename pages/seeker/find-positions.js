@@ -12,7 +12,10 @@ export default function FindPositions(){
     async function load(){
       try{
         const base = API_CONFIG.BASE_URL;
-        const res = await fetch(`${base}/api/positions`);
+        const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+        const res = await fetch(`${base}/api/positions`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+        });
         if (!res.ok){ setPositions([]); return; }
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.positions || data);
@@ -20,7 +23,9 @@ export default function FindPositions(){
         // try to fetch any existing seeker-side interests so the swiper can PATCH instead of creating duplicates
         try{
           const q = new URLSearchParams(window.location.search).get('positionId');
-          const r2 = await fetch(`${base}/api/positioninterests?`);
+          const r2 = await fetch(`${base}/api/positioninterests?`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined
+          });
           if (r2.ok){
             const ints = await r2.json();
             const interests = Array.isArray(ints) ? ints : (ints.positionInterests || ints);
