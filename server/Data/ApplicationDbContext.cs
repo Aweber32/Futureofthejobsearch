@@ -23,6 +23,7 @@ namespace FutureOfTheJobSearch.Server.Data
     public DbSet<PositionEmbedding> PositionEmbeddings { get; set; }
     public DbSet<SeekerPreferences> SeekerPreferences { get; set; }
     public DbSet<PositionPreferences> PositionPreferences { get; set; }
+    public DbSet<Feedback> Feedback { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

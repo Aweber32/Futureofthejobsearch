@@ -200,6 +200,78 @@ a { text-decoration: none; }
   }
 }
 
+/* Floating feedback widget */
+.feedback-fab {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  z-index: 1050;
+  background: var(--elev8r-primary);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.75rem 1.25rem;
+  font-weight: 700;
+  box-shadow: 0 10px 30px rgba(99,102,241,0.25);
+}
+
+.feedback-fab:hover {
+  background: var(--elev8r-primary-dark);
+}
+
+.feedback-panel {
+  position: fixed;
+  bottom: 90px;
+  right: 18px;
+  width: 320px;
+  max-width: calc(100% - 32px);
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  z-index: 1050;
+  border: 1px solid #e5e7eb;
+}
+
+.feedback-stars {
+  display: flex;
+  gap: 6px;
+}
+
+.star-btn {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  line-height: 1;
+  color: #9ca3af;
+}
+
+.star-btn.filled {
+  background: #fef3c7;
+  color: #d97706;
+  border-color: #facc15;
+}
+
+.star-btn:focus {
+  outline: 2px solid var(--elev8r-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 576px) {
+  .feedback-panel {
+    right: 12px;
+    left: 12px;
+    width: auto;
+    bottom: 80px;
+  }
+  .feedback-fab {
+    right: 12px;
+    bottom: 12px;
+  }
+}
+
 /* Signup multi-step slider styles */
 .signup-step-pane {
   transition: transform 320ms cubic-bezier(.2,.9,.3,1), opacity 220ms ease-in-out;

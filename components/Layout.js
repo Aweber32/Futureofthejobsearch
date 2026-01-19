@@ -2,6 +2,7 @@ import Head from 'next/head';
 import AnnouncementBanner from './AnnouncementBanner';
 import BackButton from './BackButton';
 import Footer from './Footer';
+import FeedbackWidget from './FeedbackWidget';
 
 export default function Layout({ children, title = 'ELEV8R - Elevating into the right hire' }) {
   return (
@@ -19,6 +20,7 @@ export default function Layout({ children, title = 'ELEV8R - Elevating into the 
         {children}
       </main>
       <Footer />
+      <FeedbackWidget />
     </>
   );
 }
