@@ -9,21 +9,21 @@ namespace FutureOfTheJobSearch.Server.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         public DbSet<Employer> Employers { get; set; }
-    public DbSet<Seeker> Seekers { get; set; }
-    public DbSet<Position> Positions { get; set; }
-    public DbSet<PositionSkill> PositionSkills { get; set; }
-    public DbSet<PositionExperience> PositionExperiences { get; set; }
-    public DbSet<PositionEducation> PositionEducations { get; set; }
-    public DbSet<SeekerInterest> SeekerInterests { get; set; }
-    public DbSet<PositionInterest> PositionInterests { get; set; }
-    public DbSet<Conversation> Conversations { get; set; }
-    public DbSet<ConversationParticipant> ConversationParticipants { get; set; }
-    public DbSet<Message> Messages { get; set; }
-    public DbSet<SeekerEmbedding> SeekerEmbeddings { get; set; }
-    public DbSet<PositionEmbedding> PositionEmbeddings { get; set; }
-    public DbSet<SeekerPreferences> SeekerPreferences { get; set; }
-    public DbSet<PositionPreferences> PositionPreferences { get; set; }
-    public DbSet<Feedback> Feedback { get; set; }
+        public DbSet<Seeker> Seekers { get; set; }
+        public DbSet<Position> Positions { get; set; }
+        public DbSet<PositionSkill> PositionSkills { get; set; }
+        public DbSet<PositionExperience> PositionExperiences { get; set; }
+        public DbSet<PositionEducation> PositionEducations { get; set; }
+        public DbSet<SeekerInterest> SeekerInterests { get; set; }
+        public DbSet<PositionInterest> PositionInterests { get; set; }
+        public DbSet<Conversation> Conversations { get; set; }
+        public DbSet<ConversationParticipant> ConversationParticipants { get; set; }
+        public DbSet<Message> Messages { get; set; }
+        public DbSet<SeekerEmbedding> SeekerEmbeddings { get; set; }
+        public DbSet<PositionEmbedding> PositionEmbeddings { get; set; }
+        public DbSet<SeekerPreferences> SeekerPreferences { get; set; }
+        public DbSet<PositionPreferences> PositionPreferences { get; set; }
+        public DbSet<Feedback> Feedback { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
