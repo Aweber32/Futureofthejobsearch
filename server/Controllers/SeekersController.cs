@@ -14,6 +14,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Linq;
 using FutureOfTheJobSearch.Server.Services;
+using Azure.Storage.Blobs;
+using Azure.Identity;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -103,6 +105,23 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _geocodingService = geocodingService;
             _embeddingSimilarity = embeddingSimilarity;
             _logger = logger;
+        }
+
+        private BlobServiceClient CreateBlobServiceClient()
+        {
+            var endpoint = _config["BlobEndpoint"] ?? Environment.GetEnvironmentVariable("BLOB_ENDPOINT");
+            if (!string.IsNullOrWhiteSpace(endpoint))
+            {
+                return new BlobServiceClient(new Uri(endpoint), new DefaultAzureCredential());
+            }
+
+            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
+            if (!string.IsNullOrWhiteSpace(conn))
+            {
+                return new BlobServiceClient(conn);
+            }
+
+            throw new InvalidOperationException("Blob storage not configured");
         }
 
         // Issue a time-limited share link token for the current seeker (no DB schema change required)
@@ -973,15 +992,12 @@ namespace FutureOfTheJobSearch.Server.Controllers
             // delete resume/video blobs if possible
             // similar to employers delete logic - best effort
             try{
-                var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
-                if (!string.IsNullOrEmpty(conn)){
-                    // resume
-                    if (!string.IsNullOrEmpty(seeker.ResumeUrl)){
-                        try{ var blob = new Azure.Storage.Blobs.BlobClient(conn, _config["ResumeContainer"] ?? "qaresumes", seeker.ResumeUrl.TrimStart('/')); await blob.DeleteIfExistsAsync(); } catch {}
-                    }
-                    if (!string.IsNullOrEmpty(seeker.VideoUrl)){
-                        try{ var blob = new Azure.Storage.Blobs.BlobClient(conn, _config["SeekerVideoContainer"] ?? "qaseekervideo", seeker.VideoUrl.TrimStart('/')); await blob.DeleteIfExistsAsync(); } catch {}
-                    }
+                var blobService = CreateBlobServiceClient();
+                if (!string.IsNullOrEmpty(seeker.ResumeUrl)){
+                    try{ var blob = blobService.GetBlobContainerClient(_config["ResumeContainer"] ?? "qaresumes").GetBlobClient(seeker.ResumeUrl.TrimStart('/')); await blob.DeleteIfExistsAsync(); } catch {}
+                }
+                if (!string.IsNullOrEmpty(seeker.VideoUrl)){
+                    try{ var blob = blobService.GetBlobContainerClient(_config["SeekerVideoContainer"] ?? "qaseekervideo").GetBlobClient(seeker.VideoUrl.TrimStart('/')); await blob.DeleteIfExistsAsync(); } catch {}
                 }
             } catch {}
 

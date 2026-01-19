@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Identity;
 using FutureOfTheJobSearch.Server.Models;
 using Microsoft.AspNetCore.Authentication;
 using FutureOfTheJobSearch.Server.Services;
+using Azure.Identity;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -38,43 +39,44 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _geocodingService = geocodingService;
         }
 
+        private BlobServiceClient CreateBlobServiceClient()
+        {
+            var endpoint = _config["BlobEndpoint"] ?? Environment.GetEnvironmentVariable("BLOB_ENDPOINT");
+            if (!string.IsNullOrWhiteSpace(endpoint))
+            {
+                return new BlobServiceClient(new Uri(endpoint), new DefaultAzureCredential());
+            }
+
+            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
+            if (!string.IsNullOrWhiteSpace(conn))
+            {
+                return new BlobServiceClient(conn);
+            }
+
+            throw new InvalidOperationException("Blob storage not configured");
+        }
+
         private async Task DeleteLogoBlobAsync(string logoUrl)
         {
             if (string.IsNullOrEmpty(logoUrl)) return;
 
             try
             {
-                var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
                 var containerName = _config["BlobContainer"] ?? Environment.GetEnvironmentVariable("BLOB_CONTAINER") ?? "qalogos";
-                if (!string.IsNullOrEmpty(conn))
+                // try to derive container/blob from stored URL
+                string blobName;
+                if (Uri.IsWellFormedUriString(logoUrl, UriKind.Absolute))
                 {
-                    // try to derive container/blob from stored URL
-                    string blobName;
-                    if (Uri.IsWellFormedUriString(logoUrl, UriKind.Absolute))
-                    {
-                        var uri = new Uri(logoUrl);
-                        var segments = uri.AbsolutePath.Trim('/').Split('/');
-                        if (segments.Length >= 2) { containerName = segments[0]; blobName = string.Join('/', segments.Skip(1)); }
-                        else blobName = string.Join('/', segments);
-                    }
-                    else blobName = logoUrl.TrimStart('/');
-
-                    var parts = conn.Split(';', StringSplitOptions.RemoveEmptyEntries);
-                    var acctName = string.Empty; var acctKey = string.Empty;
-                    foreach (var p in parts)
-                    {
-                        var kv = p.Split('=', 2);
-                        if (kv.Length != 2) continue;
-                        var k = kv[0].Trim(); var v = kv[1].Trim();
-                        if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
-                        if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
-                    }
-                    if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
-                    {
-                        var blobClient = new BlobClient(conn, containerName, blobName);
-                        await blobClient.DeleteIfExistsAsync();
-                    }
+                    var uri = new Uri(logoUrl);
+                    var segments = uri.AbsolutePath.Trim('/').Split('/');
+                    if (segments.Length >= 2) { containerName = segments[0]; blobName = string.Join('/', segments.Skip(1)); }
+                    else blobName = string.Join('/', segments);
                 }
+                else blobName = logoUrl.TrimStart('/');
+
+                var blobService = CreateBlobServiceClient();
+                var blobClient = blobService.GetBlobContainerClient(containerName).GetBlobClient(blobName);
+                await blobClient.DeleteIfExistsAsync();
             }
             catch (Exception ex)
             {
@@ -129,7 +131,6 @@ namespace FutureOfTheJobSearch.Server.Controllers
             if (emp.LogoUrl.Contains("?")) return Ok(new { url = emp.LogoUrl });
 
             // Try to construct a SAS based on the stored URL or blob path
-            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
             var defaultContainer = _config["BlobContainer"] ?? Environment.GetEnvironmentVariable("BLOB_CONTAINER") ?? "qalogos";
 
             // Determine container and blob name from LogoUrl
@@ -163,53 +164,32 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 return Ok(new { url = emp.LogoUrl });
             }
 
-            if (string.IsNullOrEmpty(conn))
-            {
-                // No connection string available; return stored url (may not be accessible)
-                return Ok(new { url = emp.LogoUrl });
-            }
-
             try
             {
-                // parse account name/key from connection string
-                var acctName = string.Empty;
-                var acctKey = string.Empty;
-                var parts = conn.Split(';', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var p in parts)
-                {
-                    var kv = p.Split('=', 2);
-                    if (kv.Length != 2) continue;
-                    var k = kv[0].Trim();
-                    var v = kv[1].Trim();
-                    if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
-                    if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
-                }
+                var blobService = CreateBlobServiceClient();
+                var blobClient = blobService.GetBlobContainerClient(containerName).GetBlobClient(blobName);
 
-                var blobClient = new BlobClient(conn, containerName, blobName);
-
-                if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
+                var startsOn = DateTimeOffset.UtcNow.AddMinutes(-5);
+                var expiresOn = DateTimeOffset.UtcNow.AddHours(1);
+                var delegationKey = await blobService.GetUserDelegationKeyAsync(startsOn, expiresOn);
+                var sasBuilder = new BlobSasBuilder
                 {
-                    var credential = new StorageSharedKeyCredential(acctName, acctKey);
-                    var sasBuilder = new BlobSasBuilder
-                    {
-                        BlobContainerName = containerName,
-                        BlobName = blobName,
-                        Resource = "b",
-                        ExpiresOn = DateTimeOffset.UtcNow.AddHours(1)
-                    };
-                    sasBuilder.SetPermissions(BlobSasPermissions.Read);
-                    var sasToken = sasBuilder.ToSasQueryParameters(credential).ToString();
-                    var resultUrl = blobClient.Uri + "?" + sasToken;
-                    return Ok(new { url = resultUrl });
-                }
+                    BlobContainerName = containerName,
+                    BlobName = blobName,
+                    Resource = "b",
+                    StartsOn = startsOn,
+                    ExpiresOn = expiresOn
+                };
+                sasBuilder.SetPermissions(BlobSasPermissions.Read);
+                var sasToken = sasBuilder.ToSasQueryParameters(delegationKey, blobService.AccountName).ToString();
+                var resultUrl = blobClient.Uri + "?" + sasToken;
+                return Ok(new { url = resultUrl });
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to create SAS token for stored logo; returning stored value");
+                return Ok(new { url = emp.LogoUrl });
             }
-
-            // Fallback: return the stored LogoUrl
-            return Ok(new { url = emp.LogoUrl });
         }
 
         // Update general employer fields

@@ -216,9 +216,8 @@ builder.Services.AddCors(options => {
     });
 });
 
-// Blob storage settings: read from ConnectionStrings:BlobConnection or env BLOB_CONNECTION
-// and optional BlobContainer or env BLOB_CONTAINER (defaults to 'logos')
-var blobConnection = configuration.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
+// Blob storage settings: prefer BlobEndpoint + managed identity; fallback to legacy connection string if provided
+var blobEndpoint = configuration["BlobEndpoint"] ?? Environment.GetEnvironmentVariable("BLOB_ENDPOINT");
 var blobContainer = configuration["BlobContainer"] ?? Environment.GetEnvironmentVariable("BLOB_CONTAINER") ?? "qalogos";
 
 // JWT settings - key should come from env var in production

@@ -3,6 +3,7 @@ using Azure.Storage.Sas;
 using Azure.Storage;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc;
+using Azure.Identity;
 
 namespace FutureOfTheJobSearch.Server.Controllers
 {
@@ -19,20 +20,32 @@ namespace FutureOfTheJobSearch.Server.Controllers
             _logger = logger;
         }
 
+        private BlobServiceClient CreateBlobServiceClient()
+        {
+            var endpoint = _config["BlobEndpoint"] ?? Environment.GetEnvironmentVariable("BLOB_ENDPOINT");
+            if (!string.IsNullOrWhiteSpace(endpoint))
+            {
+                return new BlobServiceClient(new Uri(endpoint), new DefaultAzureCredential());
+            }
+
+            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
+            if (!string.IsNullOrWhiteSpace(conn))
+            {
+                return new BlobServiceClient(conn);
+            }
+
+            throw new InvalidOperationException("Blob storage not configured");
+        }
+
         // Mint a fresh read SAS for an existing blob URL. Useful when a previously stored SAS expired.
         // GET api/uploads/sign?url={encodedBlobUrl}&minutes=60
         [HttpGet("sign")]
-        public IActionResult Sign([FromQuery] string url, [FromQuery] int minutes = 60)
+        public async Task<IActionResult> Sign([FromQuery] string url, [FromQuery] int minutes = 60)
         {
             if (string.IsNullOrEmpty(url)) return BadRequest(new { error = "No URL provided" });
-
-            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
-            if (string.IsNullOrEmpty(conn)) return StatusCode(500, new { error = "Blob storage not configured" });
-
             try
             {
                 var uri = new Uri(url);
-                // Strip any existing query (possibly expired SAS)
                 var path = uri.AbsolutePath.TrimStart('/');
                 if (path.Contains('?')) path = path.Split('?')[0];
                 var partsPath = path.Split('/', 2, StringSplitOptions.RemoveEmptyEntries);
@@ -40,67 +53,26 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 var containerName = partsPath[0];
                 var blobName = partsPath[1];
 
-                // Parse account info from connection string
-                string acctName = string.Empty, acctKey = string.Empty, connSas = string.Empty;
-                string blobEndpoint = string.Empty;
-                foreach (var p in conn.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                var blobService = CreateBlobServiceClient();
+                var blobContainerClient = blobService.GetBlobContainerClient(containerName);
+                var blobClient = blobContainerClient.GetBlobClient(blobName);
+
+                var startsOn = DateTimeOffset.UtcNow.AddMinutes(-5);
+                var expiresOn = DateTimeOffset.UtcNow.AddMinutes(Math.Clamp(minutes, 1, 1440));
+
+                var delegationKey = await blobService.GetUserDelegationKeyAsync(startsOn, expiresOn);
+                var sasBuilder = new BlobSasBuilder
                 {
-                    var kv = p.Split('=', 2);
-                    if (kv.Length != 2) continue;
-                    var k = kv[0].Trim();
-                    var v = kv[1].Trim();
-                    if (k.Equals("AccountName", StringComparison.OrdinalIgnoreCase)) acctName = v;
-                    if (k.Equals("AccountKey", StringComparison.OrdinalIgnoreCase)) acctKey = v;
-                    if (k.Equals("SharedAccessSignature", StringComparison.OrdinalIgnoreCase)) connSas = v.TrimStart('?');
-                    if (k.Equals("BlobEndpoint", StringComparison.OrdinalIgnoreCase)) blobEndpoint = v;
-                }
-
-                // If we have an account key, generate a short-lived read SAS
-                if (!string.IsNullOrEmpty(acctName) && !string.IsNullOrEmpty(acctKey))
-                {
-                    var endpoint = new Uri($"https://{acctName}.blob.core.windows.net");
-                    var blobUri = new Uri(endpoint, $"/{containerName}/{blobName}");
-
-                    var credential = new StorageSharedKeyCredential(acctName, acctKey);
-                    var sasBuilder = new BlobSasBuilder
-                    {
-                        BlobContainerName = containerName,
-                        BlobName = blobName,
-                        Resource = "b",
-                        StartsOn = DateTimeOffset.UtcNow.AddMinutes(-5),
-                        ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(Math.Clamp(minutes, 1, 1440))
-                    };
-                    sasBuilder.SetPermissions(BlobSasPermissions.Read);
-                    var sasToken = sasBuilder.ToSasQueryParameters(credential).ToString();
-                    var signed = $"{blobUri}?{sasToken}";
-                    return Ok(new { url = signed });
-                }
-
-                // Otherwise, if the connection string itself has a SAS, append it
-                if (!string.IsNullOrEmpty(connSas))
-                {
-                    // Use the BlobEndpoint from connection string to ensure correct storage account name
-                    Uri baseUri;
-                    if (!string.IsNullOrEmpty(blobEndpoint))
-                    {
-                        baseUri = new Uri(blobEndpoint.TrimEnd('/'));
-                    }
-                    else if (!string.IsNullOrEmpty(acctName))
-                    {
-                        baseUri = new Uri($"https://{acctName}.blob.core.windows.net");
-                    }
-                    else
-                    {
-                        // Fallback to incoming URL host (not ideal, but maintains backward compatibility)
-                        baseUri = new Uri($"{uri.Scheme}://{uri.Host}");
-                    }
-                    
-                    var blobUri = new Uri(baseUri, $"/{containerName}/{blobName}");
-                    var signed = $"{blobUri}?{connSas}";
-                    return Ok(new { url = signed });
-                }
-
-                return StatusCode(500, new { error = "Unable to generate SAS with current configuration" });
+                    BlobContainerName = containerName,
+                    BlobName = blobName,
+                    Resource = "b",
+                    StartsOn = startsOn,
+                    ExpiresOn = expiresOn
+                };
+                sasBuilder.SetPermissions(BlobSasPermissions.Read);
+                var sasToken = sasBuilder.ToSasQueryParameters(delegationKey, blobService.AccountName).ToString();
+                var signed = $"{blobClient.Uri}?{sasToken}";
+                return Ok(new { url = signed });
             }
             catch (Exception ex)
             {
@@ -118,26 +90,10 @@ namespace FutureOfTheJobSearch.Server.Controllers
         public async Task<IActionResult> UploadLogo([FromForm] IFormFile file)
         {
             if (file == null || file.Length == 0) return BadRequest(new { error = "No file provided" });
-
-            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
             var containerName = _config["BlobContainer"] ?? Environment.GetEnvironmentVariable("BLOB_CONTAINER") ?? "qalogos";
-            if (string.IsNullOrEmpty(conn)) return StatusCode(500, new { error = "Blob storage not configured" });
-
             BlobServiceClient blobService;
-            try
-            {
-                blobService = new BlobServiceClient(conn);
-            }
-            catch (FormatException fex)
-            {
-                _logger.LogError(fex, "Invalid blob storage connection string");
-                return StatusCode(500, new { error = "Invalid blob storage connection string", detail = fex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to create BlobServiceClient");
-                return StatusCode(500, new { error = "Failed to initialize blob client", detail = ex.Message });
-            }
+            try { blobService = CreateBlobServiceClient(); }
+            catch (Exception ex) { _logger.LogError(ex, "Failed to initialize blob client"); return StatusCode(500, new { error = "Blob storage not configured", detail = ex.Message }); }
 
             var container = blobService.GetBlobContainerClient(containerName);
             await container.CreateIfNotExistsAsync();
@@ -209,12 +165,8 @@ namespace FutureOfTheJobSearch.Server.Controllers
         private async Task<IActionResult> UploadToContainer(IFormFile file, string containerName)
         {
             if (file == null || file.Length == 0) return BadRequest(new { error = "No file provided" });
-
-            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
-            if (string.IsNullOrEmpty(conn)) return StatusCode(500, new { error = "Blob storage not configured" });
-
             BlobServiceClient blobService;
-            try { blobService = new BlobServiceClient(conn); }
+            try { blobService = CreateBlobServiceClient(); }
             catch (Exception ex) { return StatusCode(500, new { error = "Failed to initialize blob client", detail = ex.Message }); }
 
             var container = blobService.GetBlobContainerClient(containerName);
@@ -260,12 +212,8 @@ namespace FutureOfTheJobSearch.Server.Controllers
         private async Task<IActionResult> DeleteFromBlob(string url, string containerName)
         {
             if (string.IsNullOrEmpty(url)) return BadRequest(new { error = "No URL provided" });
-
-            var conn = _config.GetConnectionString("BlobConnection") ?? Environment.GetEnvironmentVariable("BLOB_CONNECTION");
-            if (string.IsNullOrEmpty(conn)) return StatusCode(500, new { error = "Blob storage not configured" });
-
             BlobServiceClient blobService;
-            try { blobService = new BlobServiceClient(conn); }
+            try { blobService = CreateBlobServiceClient(); }
             catch (Exception ex) { return StatusCode(500, new { error = "Failed to initialize blob client", detail = ex.Message }); }
 
             try
