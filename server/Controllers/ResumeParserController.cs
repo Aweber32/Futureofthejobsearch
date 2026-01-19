@@ -47,7 +47,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
             var payload = new
             {
-                model = "gpt-3.5-turbo-16k",
+                model = "gpt-4o-mini",
                 messages = new object[] {
                     new { role = "system", content = "You are a resume parsing assistant that returns strict JSON only." },
                     new { role = "user", content = userPrompt.ToString() }
@@ -108,7 +108,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
             var payload = new
             {
-                model = "gpt-3.5-turbo-16k",
+                model = "gpt-4o-mini",
                 messages = new object[] {
                     new { role = "system", content = "You are a helpful summarization assistant." },
                     new { role = "user", content = prompt }
@@ -201,7 +201,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
 
             var payload = new
             {
-                model = "gpt-3.5-turbo-16k",
+                model = "gpt-4o-mini",
                 messages = new object[] {
                     new { role = "system", content = "You are a resume parsing assistant that returns strict JSON only." },
                     new { role = "user", content = userPrompt.ToString() }
