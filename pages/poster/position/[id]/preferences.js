@@ -116,7 +116,6 @@ export default function PositionPreferences() {
     educationLevel: [],
     educationLevelPriority: 'None',
     yearsExpMin: '',
-    yearsExpMax: '',
     yearsExpPriority: 'None',
     workSetting: [],
     workSettingPriority: 'None',
@@ -234,52 +233,19 @@ export default function PositionPreferences() {
               setSalaryMax(posSalaryMax ? posSalaryMax.toString() : '');
             }
             
-            // For each field: if priority is "None", use position data with "Flexible" priority
-            const useJobCategory = (data.jobCategoryPriority && data.jobCategoryPriority !== 'None') 
-              ? data.jobCategory 
-              : posCategory;
-            const useJobCategoryPriority = (data.jobCategoryPriority && data.jobCategoryPriority !== 'None')
-              ? data.jobCategoryPriority
-              : (posCategory ? 'Flexible' : 'None');
-            
-            const useEducationLevel = (data.educationLevelPriority && data.educationLevelPriority !== 'None')
-              ? (data.educationLevel ? data.educationLevel.split(',').map(s => s.trim()).filter(Boolean) : [])
-              : posEducationLevels;
-            const useEducationLevelPriority = (data.educationLevelPriority && data.educationLevelPriority !== 'None')
-              ? data.educationLevelPriority
-              : (posEducationLevels.length > 0 ? 'Flexible' : 'None');
-            
-            const useWorkSetting = (data.workSettingPriority && data.workSettingPriority !== 'None')
-              ? data.workSetting
-              : posWorkSetting;
-            const useWorkSettingPriority = (data.workSettingPriority && data.workSettingPriority !== 'None')
-              ? data.workSettingPriority
-              : (posWorkSetting ? 'Flexible' : 'None');
-            
-            const useTravel = (data.travelRequirementsPriority && data.travelRequirementsPriority !== 'None')
-              ? data.travelRequirements
-              : posTravel;
-            const useTravelPriority = (data.travelRequirementsPriority && data.travelRequirementsPriority !== 'None')
-              ? data.travelRequirementsPriority
-              : (posTravel ? 'Flexible' : 'None');
-            
-            const useSalaryPriority = (data.preferredSalaryPriority && data.preferredSalaryPriority !== 'None')
-              ? data.preferredSalaryPriority
-              : ((posSalaryType && posSalaryType !== 'None') ? 'Flexible' : 'None');
-            
+            // Use saved preferences exactly as stored - no fallback to Flexible
             setPreferences({
-              jobCategory: useJobCategory,
-              jobCategoryPriority: useJobCategoryPriority,
-              educationLevel: useEducationLevel,
-              educationLevelPriority: useEducationLevelPriority,
+              jobCategory: data.jobCategory || '',
+              jobCategoryPriority: data.jobCategoryPriority || 'None',
+              educationLevel: data.educationLevel ? data.educationLevel.split(',').map(s => s.trim()).filter(Boolean) : [],
+              educationLevelPriority: data.educationLevelPriority || 'None',
               yearsExpMin: data.yearsExpMin || '',
-              yearsExpMax: data.yearsExpMax || '',
               yearsExpPriority: data.yearsExpPriority || 'None',
-              workSetting: useWorkSetting ? useWorkSetting.split(',').map(s => s.trim()).filter(Boolean) : [],
-              workSettingPriority: useWorkSettingPriority,
-              travelRequirements: useTravel,
-              travelRequirementsPriority: useTravelPriority,
-              preferredSalaryPriority: useSalaryPriority
+              workSetting: data.workSetting ? data.workSetting.split(',').map(s => s.trim()).filter(Boolean) : [],
+              workSettingPriority: data.workSettingPriority || 'None',
+              travelRequirements: data.travelRequirements || '',
+              travelRequirementsPriority: data.travelRequirementsPriority || 'None',
+              preferredSalaryPriority: data.preferredSalaryPriority || 'None'
             });
           }
         } else {
@@ -312,7 +278,6 @@ export default function PositionPreferences() {
             educationLevel: '',
             educationLevelPriority: 'None',
             yearsExpMin: '',
-            yearsExpMax: '',
             yearsExpPriority: 'None',
             workSetting: posWorkSetting ? posWorkSetting.split(',').map(s => s.trim()).filter(Boolean) : [],
             workSettingPriority: posWorkSetting ? 'Flexible' : 'None',
@@ -368,7 +333,6 @@ export default function PositionPreferences() {
           educationLevel: preferences.educationLevel.join(', '),
           educationLevelPriority: preferences.educationLevelPriority,
           yearsExpMin: preferences.yearsExpMin ? parseInt(preferences.yearsExpMin) : null,
-          yearsExpMax: preferences.yearsExpMax ? parseInt(preferences.yearsExpMax) : null,
           yearsExpPriority: preferences.yearsExpPriority,
           workSetting: preferences.workSetting.join(', '),
           workSettingPriority: preferences.workSettingPriority,
@@ -520,30 +484,18 @@ export default function PositionPreferences() {
           {/* Years Experience */}
           <div className="card mb-3" style={{ border: '1px solid #e5e7eb', borderRadius: '12px' }}>
             <div className="card-body">
-              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Years of Experience</h5>
-              <div className="row mb-3">
-                <div className="col-md-6">
-                  <label className="form-label">Minimum Years</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    min="0"
-                    value={preferences.yearsExpMin}
-                    onChange={(e) => setPreferences({ ...preferences, yearsExpMin: e.target.value })}
-                    placeholder="e.g., 3"
-                  />
-                </div>
-                <div className="col-md-6">
-                  <label className="form-label">Maximum Years</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    min="0"
-                    value={preferences.yearsExpMax}
-                    onChange={(e) => setPreferences({ ...preferences, yearsExpMax: e.target.value })}
-                    placeholder="e.g., 10"
-                  />
-                </div>
+              <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Minimum Years of Experience</h5>
+              <div className="mb-3">
+                <label className="form-label">Minimum Years Required</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  min="0"
+                  value={preferences.yearsExpMin}
+                  onChange={(e) => setPreferences({ ...preferences, yearsExpMin: e.target.value })}
+                  placeholder="e.g., 3"
+                />
+                <small className="form-text text-muted">Candidates must have at least this many years of total experience</small>
               </div>
               <PriorityButtons
                 value={preferences.yearsExpPriority}

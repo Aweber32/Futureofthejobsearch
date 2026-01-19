@@ -12,7 +12,6 @@ namespace FutureOfTheJobSearch.Server.Models
         public string? JobCategory { get; set; }
         public string? EducationLevel { get; set; }
         public int? YearsExpMin { get; set; }
-        public int? YearsExpMax { get; set; }
         public string? WorkSetting { get; set; } // Comma-separated: Remote, Hybrid, In-Person
         public string? TravelRequirements { get; set; } // Yes, No, Maybe
         public string? PreferredSalary { get; set; } // Format: "Type: $min - $max" (e.g., "Annual: $80,000 - $120,000")

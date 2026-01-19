@@ -1,5 +1,6 @@
 import Layout from '../../components/Layout';
 import CandidateSwiper from '../../components/CandidateSwiper';
+import AILoadingScreen from '../../components/AILoadingScreen';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { API_CONFIG } from '../../config/api';
@@ -10,15 +11,25 @@ export default function FindCandidates(){
   const [candidates, setCandidates] = useState(null);
 
   useEffect(()=>{
+    // Wait for router to be ready and positionId to be available
+    if (!router.isReady) return;
+    
     let cancelled = false;
     async function load(){
       try{
         const base = API_CONFIG.BASE_URL;
+        const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        
+        // ALWAYS require positionId - if not provided, show empty state
+        if (!positionId) {
+          if (!cancelled) setCandidates([]);
+          return;
+        }
+        
         // fetch seekers - pass positionId for pre-filtering
-        const seekersUrl = positionId 
-          ? `${base}/api/seekers?positionId=${positionId}`
-          : `${base}/api/seekers`;
-        const res = await fetch(seekersUrl);
+        const seekersUrl = `${base}/api/seekers?positionId=${positionId}`;
+        const res = await fetch(seekersUrl, { headers });
         if (!res.ok) throw new Error('no seekers');
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.seekers || data);
@@ -29,7 +40,7 @@ export default function FindCandidates(){
         let merged = Array.isArray(activeSeekers) ? activeSeekers : [];
         if (positionId) {
           try{
-            const r2 = await fetch(`${base}/api/seekerinterests?positionId=${positionId}`);
+            const r2 = await fetch(`${base}/api/seekerinterests?positionId=${positionId}`, { headers });
             if (r2.ok){
               const interests = await r2.json();
               const map = new Map();
@@ -49,14 +60,18 @@ export default function FindCandidates(){
     }
     load();
     return ()=>{ cancelled = true }
-  },[positionId]);
+  },[router.isReady, positionId]);
 
   return (
     <Layout title="Find candidates">
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
           <h2 className="mb-0">Candidate review</h2>
-          <p className="text-muted mb-0">Review profiles in a swipe-style flow and mark interest.</p>
+          <p className="text-muted mb-0">
+            {positionId 
+              ? 'Review profiles in a swipe-style flow and mark interest.' 
+              : 'Select a position from your dashboard to review candidates.'}
+          </p>
         </div>
         <div className="d-flex gap-2">
           {positionId && (
@@ -81,7 +96,15 @@ export default function FindCandidates(){
         </div>
       </div>
 
-      <CandidateSwiper initialCandidates={candidates} />
+      {!positionId && router.isReady ? (
+        <div className="text-center py-5">
+          <p className="text-muted">No position selected. Please navigate from your dashboard.</p>
+        </div>
+      ) : (
+        <div className="mb-3">
+          {candidates === null ? <AILoadingScreen /> : <CandidateSwiper initialCandidates={candidates} />}
+        </div>
+      )}
     </Layout>
   )
 }

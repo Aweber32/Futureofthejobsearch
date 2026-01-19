@@ -128,6 +128,17 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 return NotFound(new { error = "Seeker not found" });
             }
 
+            // Normalize priorities: if value is empty/null, default to "None"; otherwise use the provided priority
+            var normalizedJobCatPri = string.IsNullOrEmpty(request.JobCategory) ? "None" : request.JobCategoryPriority;
+            var normalizedWorkPri = string.IsNullOrEmpty(request.WorkSetting) ? "None" : request.WorkSettingPriority;
+            var normalizedSalaryPri = string.IsNullOrEmpty(request.Salary) ? "None" : request.SalaryPriority;
+            var normalizedTravelPri = string.IsNullOrEmpty(request.TravelRequirements) ? "None" : request.TravelRequirementsPriority;
+            var normalizedCompanyPri = string.IsNullOrEmpty(request.CompanySize) ? "None" : request.CompanySizePriority;
+            var normalizedEmpPri = string.IsNullOrEmpty(request.EmploymentType) ? "None" : request.EmploymentTypePriority;
+
+            _logger.LogInformation("[Normalization] Priorities normalized based on values: JobCat={JobCat}, Work={Work}, Salary={Salary}, Travel={Travel}, Company={Company}, Emp={Emp}",
+                normalizedJobCatPri, normalizedWorkPri, normalizedSalaryPri, normalizedTravelPri, normalizedCompanyPri, normalizedEmpPri);
+
             // Geocode cities if provided
             List<CityCoordinates>? cityCoordinates = null;
             if (request.PreferredCities != null && request.PreferredCities.Any())
@@ -181,9 +192,9 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 {
                     SeekerId = seekerId,
                     JobCategory = request.JobCategory,
-                    JobCategoryPriority = request.JobCategoryPriority,
+                    JobCategoryPriority = normalizedJobCatPri,
                     WorkSetting = request.WorkSetting,
-                    WorkSettingPriority = request.WorkSettingPriority,
+                    WorkSettingPriority = normalizedWorkPri,
                     PreferredCities = request.PreferredCities != null && request.PreferredCities.Any() 
                         ? JsonSerializer.Serialize(request.PreferredCities.Take(3)) 
                         : null,
@@ -191,13 +202,13 @@ namespace FutureOfTheJobSearch.Server.Controllers
                         ? JsonSerializer.Serialize(cityCoordinates) 
                         : null,
                     Salary = request.Salary,
-                    SalaryPriority = request.SalaryPriority,
+                    SalaryPriority = normalizedSalaryPri,
                     TravelRequirements = request.TravelRequirements,
-                    TravelRequirementsPriority = request.TravelRequirementsPriority,
+                    TravelRequirementsPriority = normalizedTravelPri,
                     CompanySize = request.CompanySize,
-                    CompanySizePriority = request.CompanySizePriority,
+                    CompanySizePriority = normalizedCompanyPri,
                     EmploymentType = request.EmploymentType,
-                    EmploymentTypePriority = request.EmploymentTypePriority,
+                    EmploymentTypePriority = normalizedEmpPri,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -207,9 +218,9 @@ namespace FutureOfTheJobSearch.Server.Controllers
             {
                 // Update existing preferences
                 prefs.JobCategory = request.JobCategory;
-                prefs.JobCategoryPriority = request.JobCategoryPriority;
+                prefs.JobCategoryPriority = normalizedJobCatPri;
                 prefs.WorkSetting = request.WorkSetting;
-                prefs.WorkSettingPriority = request.WorkSettingPriority;
+                prefs.WorkSettingPriority = normalizedWorkPri;
                 prefs.PreferredCities = request.PreferredCities != null && request.PreferredCities.Any() 
                     ? JsonSerializer.Serialize(request.PreferredCities.Take(3)) 
                     : null;
@@ -217,13 +228,13 @@ namespace FutureOfTheJobSearch.Server.Controllers
                     ? JsonSerializer.Serialize(cityCoordinates) 
                     : null;
                 prefs.Salary = request.Salary;
-                prefs.SalaryPriority = request.SalaryPriority;
+                prefs.SalaryPriority = normalizedSalaryPri;
                 prefs.TravelRequirements = request.TravelRequirements;
-                prefs.TravelRequirementsPriority = request.TravelRequirementsPriority;
+                prefs.TravelRequirementsPriority = normalizedTravelPri;
                 prefs.CompanySize = request.CompanySize;
-                prefs.CompanySizePriority = request.CompanySizePriority;
+                prefs.CompanySizePriority = normalizedCompanyPri;
                 prefs.EmploymentType = request.EmploymentType;
-                prefs.EmploymentTypePriority = request.EmploymentTypePriority;
+                prefs.EmploymentTypePriority = normalizedEmpPri;
                 prefs.UpdatedAt = DateTime.UtcNow;
             }
 

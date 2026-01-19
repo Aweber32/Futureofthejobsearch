@@ -11,13 +11,21 @@ export default function CandidateSwiper({ initialCandidates }){
   const [toastMsg, setToastMsg] = useState('');
 
   useEffect(()=>{
-    if (initialCandidates && initialCandidates.length>0) return;
+    // If parent provided initialCandidates (even if empty array), use it; don't fetch
+    if (Array.isArray(initialCandidates)) {
+      setStack(initialCandidates);
+      setLoading(false);
+      return;
+    }
     // load real seekers from backend; do NOT use mock data
     let cancelled = false;
     async function load(){
       try{
         const base = API_CONFIG.BASE_URL;
-        const res = await fetch(`${base}/api/seekers`);
+        const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        
+        const res = await fetch(`${base}/api/seekers`, { headers });
         if (!res.ok) {
           setStack([]);
           return;
