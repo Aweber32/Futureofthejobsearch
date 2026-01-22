@@ -28,6 +28,19 @@ namespace FutureOfTheJobSearch.Server.Data
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            // Global query filters to exclude discontinued users from all queries
+            // This filters Seekers/Employers whose associated ApplicationUser.IsDiscontinued = true
+            builder.Entity<Seeker>()
+                .HasQueryFilter(s => !Users.Any(u => u.Id == s.UserId && u.IsDiscontinued));
+
+            builder.Entity<Employer>()
+                .HasQueryFilter(e => !Users.Any(u => u.Id == e.UserId && u.IsDiscontinued));
+
+            // Filter positions from discontinued employers
+            builder.Entity<Position>()
+                .HasQueryFilter(p => !Employers.Any(emp => emp.Id == p.EmployerId && Users.Any(u => u.Id == emp.UserId && u.IsDiscontinued)));
+
             builder.Entity<Employer>()
                 .HasIndex(e => e.UserId)
                 .IsUnique();

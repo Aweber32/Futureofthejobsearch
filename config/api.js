@@ -5,7 +5,7 @@
 // 3. process.env.NEXT_PUBLIC_ENV === 'PROD' ? hardcoded PROD : LOCAL
 
 const PROD_API = 'https://futureofthejobsearch-api-brd3cjc3f2debhek.centralus-01.azurewebsites.net';
-const LOCAL_API = 'http://localhost:5000';
+const LOCAL_API = 'http://localhost:5002';
 
 function getApiBase(){
   try{
