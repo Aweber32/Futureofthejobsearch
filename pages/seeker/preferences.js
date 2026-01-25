@@ -178,21 +178,21 @@ export default function SeekerPreferences() {
 
         setPreferences({
           jobCategory: data.jobCategory || seekerDefaults.defaultJobCategory,
-          jobCategoryPriority: data.jobCategoryPriority || 'None',
+          jobCategoryPriority: data.jobCategoryPriority || 'Flexible',
           workSetting: data.workSetting 
             ? data.workSetting.split(',').map(s => s.trim()).filter(Boolean)
             : seekerDefaults.defaultWorkSetting,
-          workSettingPriority: data.workSettingPriority || 'None',
+          workSettingPriority: data.workSettingPriority || 'Flexible',
           preferredCities: data.preferredCities && data.preferredCities.length > 0 
             ? [...data.preferredCities, '', ''].slice(0, 3)
             : [seekerDefaults.defaultCity, '', ''],
-          salaryPriority: data.salaryPriority || 'None',
+          salaryPriority: data.salaryPriority || 'Flexible',
           travelRequirements: data.travelRequirements || seekerDefaults.defaultTravel,
-          travelRequirementsPriority: data.travelRequirementsPriority || 'None',
+          travelRequirementsPriority: data.travelRequirementsPriority || 'Flexible',
           companySize: data.companySize || '',
-          companySizePriority: data.companySizePriority || 'None',
+          companySizePriority: data.companySizePriority || 'Flexible',
           employmentType: data.employmentType || '',
-          employmentTypePriority: data.employmentTypePriority || 'None'
+          employmentTypePriority: data.employmentTypePriority || 'Flexible'
         });
 
       } catch (err) {
