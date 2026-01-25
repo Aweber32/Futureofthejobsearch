@@ -6,6 +6,7 @@ import Layout from '../../components/Layout';
 import SkillAutocomplete from '../../components/SkillAutocomplete';
 import DegreeAutocomplete from '../../components/DegreeAutocomplete';
 import UniversityAutocomplete from '../../components/UniversityAutocomplete';
+import VideoPlayer from '../../components/VideoPlayer';
 import Select from 'react-select';
 import { State, City } from 'country-state-city';
 import { API_CONFIG } from '../../config/api';
@@ -106,6 +107,7 @@ export default function SeekerSignup(){
   const [showHeadshotModal, setShowHeadshotModal] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [password, setPassword] = useState('');
+  const [confirmEmail, setConfirmEmail] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -155,12 +157,44 @@ export default function SeekerSignup(){
 
   // Navigation
   function next(){ 
-    // validate passwords when moving past step 2
+    // Step 2: All fields required
     if (step === 2){
+      if (!form.firstName || !form.firstName.trim()) { setError('First name is required'); return; }
+      if (!form.lastName || !form.lastName.trim()) { setError('Last name is required'); return; }
+      if (!form.email || !form.email.trim()) { setError('Email is required'); return; }
+      if (!form.email.includes('@')) { setError('Email must contain @'); return; }
+      if (!confirmEmail || !confirmEmail.trim()) { setError('Please confirm your email'); return; }
+      if (form.email.trim() !== confirmEmail.trim()) { setError('Emails do not match'); return; }
+      if (!form.phoneNumber || !form.phoneNumber.trim()) { setError('Phone number is required'); return; }
+      if (!/^\d{10}$/.test(form.phoneNumber.trim())) { setError('Phone must be 10 digits (e.g., 6185548878)'); return; }
       if (!password || password.length < 8) { setError('Password is required and must be at least 8 characters'); return; }
       if (password !== confirmPassword) { setError('Passwords do not match'); return; }
-      // attach password to form so submit will send it
+      if (!form.experience || form.experience.length < 1) { setError('At least one experience entry is required'); return; }
+      if (!skills || skills.length < 1) { setError('At least one skill is required'); return; }
+      if (!form.education || form.education.length < 1) { setError('At least one education entry is required'); return; }
+      if (!form.visaStatus || !form.visaStatus.trim()) { setError('Visa status is required'); return; }
+      if (!form.state || !form.state.trim()) { setError('State is required'); return; }
+      if (!form.city || !form.city.trim()) { setError('City is required'); return; }
+      if (!form.jobCategory || !form.jobCategory.trim()) { setError('Job category is required'); return; }
+      if (!form.professionalSummary || !form.professionalSummary.trim()) { setError('Professional summary is required'); return; }
       setForm(prev=>({...prev, password}));
+    }
+    // Step 3: All fields required
+    if (step === 3) {
+      if (!form.preferredSalary && (!salaryMin || !salaryMax)) { setError('Preferred salary is required'); return; }
+      if (salaryMin && salaryMax) {
+        const minVal = Number(unformatInput(salaryMin));
+        const maxVal = Number(unformatInput(salaryMax));
+        if (!Number.isNaN(minVal) && !Number.isNaN(maxVal) && maxVal <= minVal) {
+          setError('Maximum salary must be greater than minimum');
+          return;
+        }
+      }
+      if (!form.workSetting || form.workSetting.length < 1) { setError('Preferred work setting is required'); return; }
+      if (!form.travel || !form.travel.trim()) { setError('Travel preference is required'); return; }
+      if (!form.relocate || !form.relocate.trim()) { setError('Relocation preference is required'); return; }
+      if (!form.languages || form.languages.length < 1) { setError('At least one language is required'); return; }
+      // certifications and interests now optional
     }
     setError(''); setStep(s => Math.min(4, s+1)); }
   function back(){ setError(''); setStep(s => Math.max(1, s-1)); }
@@ -312,9 +346,36 @@ export default function SeekerSignup(){
   async function submit(e){
     e.preventDefault();
     setError('');
-  // keep client-side minimal validation: require first, last, and email
-  if (!form.firstName || !form.lastName || !form.email) { setError('First name, last name and email required'); setStep(2); return; }
-    if (skills.length < 1) { /* not blocking */ }
+    // All fields required on submit
+    if (!form.firstName || !form.firstName.trim()) { setError('First name is required'); setStep(2); return; }
+    if (!form.lastName || !form.lastName.trim()) { setError('Last name is required'); setStep(2); return; }
+    if (!form.email || !form.email.trim()) { setError('Email is required'); setStep(2); return; }
+    if (!form.email.includes('@')) { setError('Email must contain @'); setStep(2); return; }
+    if (!confirmEmail || !confirmEmail.trim()) { setError('Please confirm your email'); setStep(2); return; }
+    if (form.email.trim() !== confirmEmail.trim()) { setError('Emails do not match'); setStep(2); return; }
+    if (!form.phoneNumber || !form.phoneNumber.trim()) { setError('Phone number is required'); setStep(2); return; }
+    if (!/^\d{10}$/.test(form.phoneNumber.trim())) { setError('Phone must be 10 digits (e.g., 6185548878)'); setStep(2); return; }
+    if (!password || password.length < 8) { setError('Password is required and must be at least 8 characters'); setStep(2); return; }
+    if (password !== confirmPassword) { setError('Passwords do not match'); setStep(2); return; }
+    if (!form.experience || form.experience.length < 1) { setError('At least one experience entry is required'); setStep(2); return; }
+    if (!skills || skills.length < 1) { setError('At least one skill is required'); setStep(2); return; }
+    if (!form.education || form.education.length < 1) { setError('At least one education entry is required'); setStep(2); return; }
+    if (!form.visaStatus || !form.visaStatus.trim()) { setError('Visa status is required'); setStep(2); return; }
+    if (!form.state || !form.state.trim()) { setError('State is required'); setStep(2); return; }
+    if (!form.city || !form.city.trim()) { setError('City is required'); setStep(2); return; }
+    if (!form.jobCategory || !form.jobCategory.trim()) { setError('Job category is required'); setStep(2); return; }
+    if (!form.professionalSummary || !form.professionalSummary.trim()) { setError('Professional summary is required'); setStep(2); return; }
+    if (!form.preferredSalary && (!salaryMin || !salaryMax)) { setError('Preferred salary is required'); setStep(3); return; }
+    if (salaryMin && salaryMax) {
+      const minVal = Number(unformatInput(salaryMin));
+      const maxVal = Number(unformatInput(salaryMax));
+      if (!Number.isNaN(minVal) && !Number.isNaN(maxVal) && maxVal <= minVal) { setError('Maximum salary must be greater than minimum'); setStep(3); return; }
+    }
+    if (!form.workSetting || form.workSetting.length < 1) { setError('Preferred work setting is required'); setStep(3); return; }
+    if (!form.travel || !form.travel.trim()) { setError('Travel preference is required'); setStep(3); return; }
+    if (!form.relocate || !form.relocate.trim()) { setError('Relocation preference is required'); setStep(3); return; }
+    if (!form.languages || form.languages.length < 1) { setError('At least one language is required'); setStep(3); return; }
+    // certifications and interests now optional
     setLoading(true);
     try{
       // perform uploads now (only at final submit) and include returned URLs in registration payload
@@ -517,7 +578,7 @@ export default function SeekerSignup(){
                           setForm(prev=>({...prev, firstName: first, lastName: last}));
                         }
                       }
-                    if (parsed.Email) setForm(prev=>({...prev, email: parsed.Email}));
+                    if (parsed.Email) { setForm(prev=>({...prev, email: parsed.Email})); }
                     if (parsed.PhoneNumber) setForm(prev=>({...prev, phoneNumber: parsed.PhoneNumber}));
                     if (parsed.Experience) {
                       // parsed.Experience may be a string or array. Normalize to structured entries.
@@ -608,16 +669,17 @@ export default function SeekerSignup(){
           <div className="signup-step-pane enter-active">
             <h4>Tell us about you!</h4>
             <div className="row">
-              <div className="col-md-6 mb-3"><label className="form-label">First Name</label><input className="form-control" value={form.firstName} onChange={e=>setForm({...form, firstName: e.target.value})} placeholder="First name" /></div>
-              <div className="col-md-6 mb-3"><label className="form-label">Last Name</label><input className="form-control" value={form.lastName} onChange={e=>setForm({...form, lastName: e.target.value})} placeholder="Last name" /></div>
+              <div className="col-md-6 mb-3"><label className="form-label">First Name <span className="text-danger">*</span></label><input className="form-control" required value={form.firstName} onChange={e=>setForm({...form, firstName: e.target.value})} placeholder="First name" /></div>
+              <div className="col-md-6 mb-3"><label className="form-label">Last Name <span className="text-danger">*</span></label><input className="form-control" required value={form.lastName} onChange={e=>setForm({...form, lastName: e.target.value})} placeholder="Last name" /></div>
             </div>
             <div className="row">
-              <div className="col-md-6 mb-3"><label className="form-label">Email</label><input type="email" className="form-control" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} /></div>
+              <div className="col-md-6 mb-3"><label className="form-label">Email <span className="text-danger">*</span></label><input type="email" className="form-control" required value={form.email} onChange={e=>setForm({...form, email: e.target.value})} /></div>
+              <div className="col-md-6 mb-3"><label className="form-label">Confirm Email <span className="text-danger">*</span></label><input type="email" className="form-control" required value={confirmEmail} onChange={e=>setConfirmEmail(e.target.value)} /></div>
             </div>
-            <div className="mb-3"><label className="form-label">Phone</label><input className="form-control" value={form.phoneNumber} onChange={e=>setForm({...form, phoneNumber: e.target.value})} /></div>
+            <div className="mb-3"><label className="form-label">Phone <span className="text-danger">*</span></label><input className="form-control" required pattern="\d{10}" title="Enter 10 digits, e.g., 6185548878" value={form.phoneNumber} onChange={e=>setForm({...form, phoneNumber: e.target.value})} /></div>
 
             <div className="mb-3">
-              <label className="form-label">Headshot (Optional)</label>
+              <label className="form-label">Headshot (optional)</label>
               <input type="file" className="form-control" accept="image/*" onChange={e=>setHeadshotFile(e.target.files[0])} />
               {headshotFile && (
                 <div className="mt-2">
@@ -630,7 +692,7 @@ export default function SeekerSignup(){
             </div>
 
             <div className="mb-3">
-              <label className="form-label">Experience</label>
+              <label className="form-label">Experience <span className="text-danger">*</span></label>
               <div className="mb-2">
                 <button type="button" className="btn btn-primary" onClick={()=>{ setNewExpTitle(''); setNewExpCompany(''); setNewExpStart(''); setNewExpEnd(''); setNewExpDesc(''); setEditingIndex(null); setShowExpModal(true); }}>Add Experience</button>
               </div>
@@ -702,7 +764,7 @@ export default function SeekerSignup(){
             </div>
 
             <div className="mb-3">
-              <label className="form-label">Skills (min 3, max 8)</label>
+              <label className="form-label">Skills (required)</label>
               <div className="d-flex gap-2 mb-2">
                   <SkillAutocomplete 
                     value={skillInput} 
@@ -718,7 +780,7 @@ export default function SeekerSignup(){
             </div>
 
             <div className="mb-3">
-              <label className="form-label">Education</label>
+              <label className="form-label">Education <span className="text-danger">*</span></label>
                 <div className="mb-2"><button type="button" className="btn btn-primary" onClick={()=>{ setNewEduLevel(EDUCATION_LEVELS[0]); setNewEduDegree(''); setDegreeInput(''); setNewEduSchool(''); setNewEduStart(''); setNewEduEnd(''); setEditingEduIndex(null); setShowEduModal(true); }}>Add Education</button></div>
               <div>
                 {(form.education || []).map((ed, idx)=> (
@@ -796,8 +858,8 @@ export default function SeekerSignup(){
               }
             </div>
             <div className="mb-3">
-              <label className="form-label">Will you require Visa Sponsership</label>
-              <select className="form-select" value={form.visaStatus || ''} onChange={e=>setForm({...form, visaStatus: e.target.value})}>
+              <label className="form-label">Will you require Visa Sponsorship <span className="text-danger">*</span></label>
+              <select className="form-select" required value={form.visaStatus || ''} onChange={e=>setForm({...form, visaStatus: e.target.value})}>
                 <option value="">Select</option>
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
@@ -806,7 +868,7 @@ export default function SeekerSignup(){
 
             <div className="row">
               <div className="col-md-6 mb-3">
-                <label className="form-label">State</label>
+                <label className="form-label">State <span className="text-danger">*</span></label>
                 <Select
                   options={stateOptions}
                   value={stateOptions.find(option => option.value === form.state) || null}
@@ -820,10 +882,11 @@ export default function SeekerSignup(){
                   }}
                   placeholder="Select your state"
                   isClearable
+                  aria-required="true"
                 />
               </div>
               <div className="col-md-6 mb-3">
-                <label className="form-label">City</label>
+                <label className="form-label">City <span className="text-danger">*</span></label>
                 <Select
                   options={cityOptions}
                   value={cityOptions.find(option => option.value === form.city) || null}
@@ -831,14 +894,16 @@ export default function SeekerSignup(){
                   placeholder="Select your city"
                   isClearable
                   isDisabled={!form.state}
+                  aria-required="true"
                 />
               </div>
             </div>
 
             <div className="mb-3">
-              <label className="form-label">Job Category / Function</label>
+              <label className="form-label">Job Category / Function <span className="text-danger">*</span></label>
               <select 
                 className="form-select" 
+                required
                 value={form.jobCategory || ''} 
                 onChange={e => setForm({...form, jobCategory: e.target.value})}
               >
@@ -848,9 +913,10 @@ export default function SeekerSignup(){
             </div>
 
             <div className="mb-3">
-              <label className="form-label">Professional Summary</label>
+              <label className="form-label">Professional Summary <span className="text-danger">*</span></label>
               <textarea
                 className="form-control"
+                required
                 rows={4}
                 value={form.professionalSummary || ''}
                 onChange={e => setForm({...form, professionalSummary: e.target.value})}
@@ -862,12 +928,12 @@ export default function SeekerSignup(){
 
             <div className="row">
               <div className="col-md-6 mb-3">
-                <label className="form-label">Password</label>
-                <input type="password" className="form-control" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Choose a password (min 8 chars)" />
+                <label className="form-label">Password <span className="text-danger">*</span></label>
+                <input type="password" className="form-control" required value={password} onChange={e=>setPassword(e.target.value)} placeholder="Choose a password (min 8 chars)" />
               </div>
               <div className="col-md-6 mb-3">
-                <label className="form-label">Confirm password</label>
-                <input type="password" className="form-control" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Confirm password" />
+                <label className="form-label">Confirm password <span className="text-danger">*</span></label>
+                <input type="password" className="form-control" required value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Confirm password" />
               </div>
             </div>
 
@@ -883,7 +949,7 @@ export default function SeekerSignup(){
             <h4>Tell us a little more about yourself, our AI will use this to provide the best recommendations</h4>
 
             <div className="mb-3">
-              <label className="form-label">Preferred Salary</label>
+              <label className="form-label">Preferred Salary <span className="text-danger">*</span></label>
               <div className="row g-2 align-items-center">
                 <div className="col-md-3">
                   <select className="form-select" value={salaryType} onChange={e=>{ setSalaryType(e.target.value); setSalaryMin(''); setSalaryMax(''); }}>
@@ -905,7 +971,7 @@ export default function SeekerSignup(){
             </div>
 
             <div className="mb-3">
-              <label className="form-label">Preferred Work Setting</label>
+              <label className="form-label">Preferred Work Setting <span className="text-danger">*</span></label>
               <div className="d-flex flex-wrap gap-2">
                 {workOptions.map(o=>{
                   const active = (form.workSetting || []).includes(o);
@@ -915,16 +981,16 @@ export default function SeekerSignup(){
             </div>
 
             <div className="row">
-              <div className="col-md-6 mb-3"><label className="form-label">Travel</label>
+              <div className="col-md-6 mb-3"><label className="form-label">Travel <span className="text-danger">*</span></label>
                 <select className="form-select" value={form.travel} onChange={e=>setForm({...form, travel: e.target.value})}><option value="">Select</option><option>Yes</option><option>No</option><option>Maybe</option></select>
               </div>
-              <div className="col-md-6 mb-3"><label className="form-label">Relocate</label>
+              <div className="col-md-6 mb-3"><label className="form-label">Relocate <span className="text-danger">*</span></label>
                 <select className="form-select" value={form.relocate} onChange={e=>setForm({...form, relocate: e.target.value})}><option value="">Select</option><option>Yes</option><option>No</option><option>Maybe</option></select>
               </div>
             </div>
 
             <div className="mb-3">
-              <label className="form-label">Languages</label>
+              <label className="form-label">Languages <span className="text-danger">*</span></label>
               <div className="d-flex gap-2 flex-wrap mb-2">
                 {languageOptions.map(l=>{
                   const active = (form.languages || []).includes(l);
@@ -939,7 +1005,7 @@ export default function SeekerSignup(){
             </div>
 
             <div className="mb-3">
-              <label className="form-label">Certifications</label>
+              <label className="form-label">Certifications (optional)</label>
               <div className="d-flex gap-2 mb-2">
                 <input className="form-control" value={certInput} onChange={e=>setCertInput(e.target.value)} placeholder="Add certification and press Add" />
                 <button type="button" className="btn btn-outline-secondary" onClick={addCert}>Add</button>
@@ -950,7 +1016,7 @@ export default function SeekerSignup(){
             </div>
 
             <div className="mb-3">
-              <label className="form-label">Interests / Hobbies</label>
+              <label className="form-label">Interests / Hobbies (optional)</label>
               <div className="d-flex gap-2 mb-2">
                 <input className="form-control" value={interestInput} onChange={e=>setInterestInput(e.target.value)} placeholder="Add interest and press Add" />
                 <button type="button" className="btn btn-outline-secondary" onClick={addInterest}>Add</button>
@@ -1086,11 +1152,9 @@ export default function SeekerSignup(){
                   <h5 className="modal-title">Preview Intro Video</h5>
                   <button type="button" className="btn-close" aria-label="Close" onClick={()=>setShowVideoModal(false)}></button>
                 </div>
-                <div className="modal-body p-0 d-flex justify-content-center align-items-center" style={{minHeight:'300px'}}>
+                <div className="modal-body p-4">
                   {videoFile ? (
-                    <video controls style={{width:'100%', maxHeight:'70vh', objectFit:'contain'}} src={URL.createObjectURL(videoFile)} onLoadedMetadata={(e)=>{ /* no-op */ }}>
-                      Your browser does not support the video tag.
-                    </video>
+                    <VideoPlayer videoUrl={URL.createObjectURL(videoFile)} title="Preview Intro Video" />
                   ) : (
                     <div className="text-center text-muted">No video selected</div>
                   )}

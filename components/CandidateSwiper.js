@@ -234,7 +234,18 @@ export default function CandidateSwiper({ initialCandidates }){
   }
 
   if (loading) return <div className="text-center">Loading candidates…</div>
-  if (!top) return <div className="alert alert-secondary">No more candidates</div>
+  if (!top) return (
+    <div className="text-center py-5">
+      <div style={{ fontSize: '48px', color: '#dee2e6', marginBottom: '16px' }}>
+        <i className="fas fa-users"></i>
+      </div>
+      <h4 className="text-muted mb-2">You’ve reviewed all candidates</h4>
+      <p className="text-muted mb-4">Ready to find more talent?</p>
+      <button type="button" className="btn btn-primary" onClick={() => window.location.href = `/poster/position/${top?.id || ''}/preferences`}>
+        <i className="fas fa-sliders-h me-2"></i>Adjust Position Preferences
+      </button>
+    </div>
+  )
 
   // Parse JSON data (same as PreviewProfile) with better error handling
   let experience = [];

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSignedBlobUrl } from '../utils/blobHelpers';
 import { sanitizeDescription } from '../utils/sanitize';
+import VideoPlayer from './VideoPlayer';
 
 const JobPostCard = ({ position, show, onHide }) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -308,16 +309,7 @@ const JobPostCard = ({ position, show, onHide }) => {
                       <i className="fas fa-video me-2 text-danger"></i>
                       Company Video
                     </h5>
-                    <div className="ratio ratio-16x9 bg-light rounded-3 overflow-hidden shadow-sm">
-                      <video
-                        controls
-                        className="w-100 h-100"
-                        style={{ objectFit: 'contain' }}
-                      >
-                        <source src={posterVideo} type="video/mp4" />
-                        Your browser does not support the video tag.
-                      </video>
-                    </div>
+                    <VideoPlayer videoUrl={posterVideo} title="Company Video" />
                   </div>
                 )}
 

@@ -7,6 +7,7 @@ import SkillAutocomplete from '../../components/SkillAutocomplete';
 import DegreeAutocomplete from '../../components/DegreeAutocomplete';
 import UniversityAutocomplete from '../../components/UniversityAutocomplete';
 import PreviewProfile from '../../components/PreviewProfile';
+import VideoPlayer from '../../components/VideoPlayer';
 import Select from 'react-select';
 import { State, City } from 'country-state-city';
 import { API_CONFIG } from '../../config/api';
@@ -805,8 +806,8 @@ export default function EditProfile(){
     <Layout title="Edit profile">
       {/* Fixed Quick Actions: Preview & Share */}
       <div 
-        className="position-fixed d-flex gap-2"
-        style={{ bottom: '20px', right: '20px', zIndex: 1050 }}
+        className="position-fixed d-flex flex-row flex-nowrap align-items-center gap-2"
+        style={{ bottom: '20px', left: '20px', zIndex: 1050 }}
       >
         <button 
           className="btn btn-primary"
@@ -1259,36 +1260,9 @@ export default function EditProfile(){
                   <h5 className="modal-title">Video - {currentVideoName}</h5>
                   <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowVideoModal(false)}></button>
                 </div>
-                <div className="modal-body p-0 d-flex justify-content-center align-items-center" style={{minHeight: '400px'}}>
+                <div className="modal-body p-4">
                   {signedCurrentVideoUrl ? (
-                    <video
-                      controls
-                      style={{width: '100%', maxHeight: '500px', objectFit: 'contain'}}
-                      src={signedCurrentVideoUrl}
-                      title="Video Preview"
-                      preload="metadata"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        const container = e.target.parentElement;
-                        container.innerHTML = '';
-                        const div = document.createElement('div');
-                        div.className = 'text-center';
-                        div.innerHTML = '<i class="fas fa-video fa-3x text-muted mb-3"></i>';
-                        const p = document.createElement('p');
-                        p.className = 'text-muted';
-                        p.textContent = 'Unable to load video. ';
-                        const a = document.createElement('a');
-                        a.href = sanitizeUrl(signedCurrentVideoUrl);
-                        a.target = '_blank';
-                        a.rel = 'noopener noreferrer';
-                        a.textContent = 'Click here to open';
-                        p.appendChild(a);
-                        div.appendChild(p);
-                        container.appendChild(div);
-                      }}
-                    >
-                      Your browser does not support the video tag.
-                    </video>
+                    <VideoPlayer videoUrl={signedCurrentVideoUrl} title={currentVideoName} />
                   ) : (
                     <div className="text-center">
                       <i className="fas fa-video fa-3x text-muted mb-3"></i>

@@ -64,6 +64,10 @@ export default function FindCandidates(){
 
   return (
     <Layout title="Find candidates">
+      <div className="alert alert-info mb-3" role="alert">
+        <i className="fas fa-info-circle me-2"></i>
+        <strong>Beta:</strong> Will show already reviewed profiles for testing purposes
+      </div>
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
           <h2 className="mb-0">Candidate review</h2>

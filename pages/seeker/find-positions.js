@@ -47,6 +47,10 @@ export default function FindPositions(){
 
   return (
     <Layout title="Find Positions">
+      <div className="alert alert-info mb-3" role="alert">
+        <i className="fas fa-info-circle me-2"></i>
+        <strong>Beta:</strong> Will show already reviewed profiles for testing purposes
+      </div>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="mb-0">Find Positions</h2>
         <div>

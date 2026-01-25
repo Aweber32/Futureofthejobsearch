@@ -20,7 +20,7 @@ export async function signBlobUrl(pathOrUrl, token, minutes = 60) {
   // Otherwise, sign the path-only reference
   try {
     // Always use the full API URL from config (frontend and backend are separate App Services)
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
     
     // Construct a full blob URL from the path-only reference (using correct storage account name)
     const fullBlobUrl = `https://qafutureofthejobsearch.blob.core.windows.net/${pathOrUrl}`;

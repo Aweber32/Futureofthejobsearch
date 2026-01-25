@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { API_CONFIG } from '../config/api'
 import { useSignedBlobUrl } from '../utils/blobHelpers'
 import { sanitizeDescription } from '../utils/sanitize'
+import VideoPlayer from './VideoPlayer'
 
 export default function PositionSwiper({ initialPositions, onInterested, onNotInterested }){
   const [stack, setStack] = useState(initialPositions || []);
@@ -177,7 +178,18 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
   }
 
   if (loading) return <div className="text-center">Loading positions…</div>
-  if (!top) return <div className="alert alert-secondary">No more positions</div>
+  if (!top) return (
+    <div className="text-center py-5">
+      <div style={{ fontSize: '48px', color: '#dee2e6', marginBottom: '16px' }}>
+        <i className="fas fa-briefcase"></i>
+      </div>
+      <h4 className="text-muted mb-2">You’ve reviewed all positions</h4>
+      <p className="text-muted mb-4">Ready to explore more opportunities?</p>
+      <a href="/seeker/preferences" className="btn btn-primary">
+        <i className="fas fa-sliders-h me-2"></i>Adjust Your Preferences
+      </a>
+    </div>
+  )
 
   // Extract position data with correct API structure
   const title = top.title ?? top.Title ?? top.jobTitle ?? 'Position';
@@ -501,37 +513,7 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
                 <i className="fas fa-video me-2 text-danger"></i>
                 Company Video
               </h5>
-              {/* Responsive video container: portrait gets a centered narrower box; landscape fills width with preserved ratio. */}
-              {(() => {
-                const isPortrait = videoWH ? (videoWH.h > videoWH.w) : false;
-                const aspect = videoWH ? `${videoWH.w} / ${videoWH.h}` : '16 / 9';
-                // Slightly reduce overall footprint: shorter maxHeight and narrower portrait width
-                const containerStyle = isPortrait
-                  ? { width: '100%', maxWidth: '420px', maxHeight: '55vh' }
-                  : { width: '100%', aspectRatio: aspect, maxHeight: '55vh', maxWidth: '960px' };
-                const videoStyle = isPortrait
-                  ? { width: '100%', height: 'auto', objectFit: 'contain' }
-                  : { width: '100%', height: '100%', objectFit: 'contain' };
-                return (
-                  <div
-                    className="bg-light rounded-3 overflow-hidden shadow-sm mx-auto"
-                    style={containerStyle}
-                  >
-                    <video
-                      controls
-                      playsInline
-                      className="d-block"
-                      style={videoStyle}
-                      onLoadedMetadata={e => {
-                        try { setVideoWH({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight }); } catch {}
-                      }}
-                    >
-                      <source src={posterVideo} type="video/mp4" />
-                      Your browser does not support the video tag.
-                    </video>
-                  </div>
-                );
-              })()}
+              <VideoPlayer videoUrl={posterVideo} title="Company Video" />
             </div>
           )}
 
