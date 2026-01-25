@@ -463,6 +463,14 @@ namespace FutureOfTheJobSearch.Server.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllSeekers([FromQuery] int? positionId, [FromQuery] int? limit)
         {
+            // Get employerId from claims for authorization
+            var employerClaim = User.Claims.FirstOrDefault(c => c.Type == "employerId");
+            int? employerId = null;
+            if (employerClaim != null && int.TryParse(employerClaim.Value, out var eid))
+            {
+                employerId = eid;
+            }
+
             var seekersQuery = _db.Seekers.Where(s => s.IsProfileActive == true); // Only active profiles
             PositionPreferences? prefs = null;
             Position? position = null;
@@ -470,11 +478,24 @@ namespace FutureOfTheJobSearch.Server.Controllers
             // If positionId is provided, apply SQL-level pre-filtering based on position preferences
             if (positionId.HasValue)
             {
-                prefs = await _db.PositionPreferences.FirstOrDefaultAsync(pp => pp.PositionId == positionId.Value);
                 position = await _db.Positions.FirstOrDefaultAsync(p => p.Id == positionId.Value);
-                if (prefs != null && position != null)
+                
+                // Security check: Verify the employer owns this position
+                if (position != null && employerId.HasValue && position.EmployerId != employerId.Value)
                 {
-                    seekersQuery = ApplySqlFilters(seekersQuery, prefs, position);
+                    _logger.LogWarning("[GetAllSeekers] Employer {EmployerId} attempted to access position {PositionId} owned by {OwnerId}", 
+                        employerId, positionId, position.EmployerId);
+                    return Forbid("You do not have permission to view candidates for this position");
+                }
+
+                if (position != null)
+                {
+                    prefs = await _db.PositionPreferences.FirstOrDefaultAsync(pp => pp.PositionId == positionId.Value);
+                    if (prefs != null)
+                    {
+                        _logger.LogInformation("[GetAllSeekers] Applying preferences for position {PositionId}", positionId);
+                        seekersQuery = ApplySqlFilters(seekersQuery, prefs, position);
+                    }
                 }
             }
 

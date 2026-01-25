@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { API_CONFIG } from '../config/api'
 import { useSignedBlobUrl } from '../utils/blobHelpers'
+import VideoPlayer from './VideoPlayer'
 
 export default function CandidateSwiper({ initialCandidates }){
   const [stack, setStack] = useState(initialCandidates || []);
@@ -535,29 +536,7 @@ export default function CandidateSwiper({ initialCandidates }){
               <h4 style={{ color: '#333', marginBottom: '16px', borderBottom: '2px solid #667eea', paddingBottom: '8px' }}>
                 Video Introduction
               </h4>
-              <div style={{
-                position: 'relative',
-                paddingBottom: '56.25%',
-                height: 0,
-                overflow: 'hidden',
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-              }}>
-                <video
-                  controls
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '8px'
-                  }}
-                >
-                  <source src={signedVideo} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-              </div>
+              <VideoPlayer videoUrl={signedVideo} title="Video Introduction" />
             </div>
           )}
 

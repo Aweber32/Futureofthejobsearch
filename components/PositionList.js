@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Edit2, Users, Search, Calendar, Share2 } from 'lucide-react';
+import { Edit2, Users, Search, Calendar, Share2, Sliders } from 'lucide-react';
 import { API_CONFIG } from '../config/api';
 
 export default function PositionList({ positions = [] }){
@@ -224,6 +224,24 @@ export default function PositionList({ positions = [] }){
                         Edit
                       </Link>
                       
+                      <Link 
+                        href={`/poster/position/${p.id}/preferences`}
+                        className="btn btn-sm d-flex align-items-center justify-content-center gap-2 flex-fill"
+                        style={{
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          padding: '0.625rem 1rem',
+                          background: 'white',
+                          color: '#374151',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <Sliders size={16} />
+                        Preferences
+                      </Link>
+                      
                       {isOpen ? (
                         <Link 
                           href={`/poster/find-candidates?positionId=${p.id}`}
@@ -349,6 +367,32 @@ export default function PositionList({ positions = [] }){
                   >
                     <Edit2 size={14} />
                     Edit
+                  </Link>
+                  
+                  <Link 
+                    href={`/poster/position/${p.id}/preferences`}
+                    className="btn btn-sm d-flex align-items-center gap-1"
+                    style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      padding: '0.5rem 0.875rem',
+                      background: 'white',
+                      color: '#374151',
+                      fontSize: '0.875rem',
+                      fontWeight: '500',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f9fafb';
+                      e.currentTarget.style.borderColor = '#6E56CF';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                    }}
+                  >
+                    <Sliders size={14} />
+                    Preferences
                   </Link>
                   
                   {isOpen ? (
