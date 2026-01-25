@@ -174,9 +174,66 @@ export default function CreatePosition(){
 
   async function submit(e){
     e.preventDefault(); setError('');
-  if (!title) { setError('Job title is required'); return; }
-  if (!description) { setError('Job description is required'); return; }
-  if (education.length === 0) { setError('Select at least one education level'); return; }
+    if (!title?.trim()) { setError('Job title is required'); return; }
+    if (!category?.trim()) { setError('Job category is required'); return; }
+    if (!description?.trim()) { setError('Job description is required'); return; }
+    if (!employmentType?.trim()) { setError('Employment type is required'); return; }
+    if (!workSetting?.trim()) { setError('Work setting is required'); return; }
+    if (!travel?.trim()) { setError('Travel requirements is required'); return; }
+    if (education.length === 0) { setError('Select at least one education level'); return; }
+    if (experiences.length === 0 && !experienceInput?.trim()) { setError('Add at least one experience requirement'); return; }
+    if (skills.length === 0 && !skillInput?.trim()) { setError('Add at least one skill'); return; }
+    if (salaryType === 'None') { setError('Salary type is required'); return; }
+    if (salaryType !== 'None' && !salaryMin) { setError('Minimum salary is required'); return; }
+    if (salaryType !== 'None' && !salaryMax) { setError('Maximum salary is required'); return; }
+    
+    // Validate realistic salary values
+    if (salaryType !== 'None') {
+      const minVal = parseFloat(salaryMin);
+      const maxVal = parseFloat(salaryMax);
+      
+      if (isNaN(minVal) || isNaN(maxVal)) {
+        setError('Salary values must be valid numbers');
+        return;
+      }
+      
+      // Hourly rate validation ($7.25 federal minimum)
+      if (salaryType === 'Hourly') {
+        if (minVal < 7.25) {
+          setError('Minimum hourly rate must be at least $7.25 (federal minimum wage)');
+          return;
+        }
+      }
+      
+      // Monthly salary validation ($1,200 minimum)
+      if (salaryType === 'Monthly') {
+        if (minVal < 1200) {
+          setError('Minimum monthly salary must be at least $1,200');
+          return;
+        }
+      }
+      
+      // Annual salary validation ($15,000 minimum)
+      if (salaryType === 'Annual') {
+        if (minVal < 15000) {
+          setError('Minimum annual salary must be at least $15,000');
+          return;
+        }
+      }
+      
+      // Min must be less than max
+      if (minVal >= maxVal) {
+        setError('Minimum salary must be less than maximum salary');
+        return;
+      }
+      
+      // Range shouldn't be too small (at least 10% difference)
+      if ((maxVal - minVal) / minVal < 0.1) {
+        setError('Salary range is too narrow (minimum 10% difference recommended)');
+        return;
+      }
+    }
+    
     setLoading(true);
     try{
       const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
@@ -233,20 +290,20 @@ export default function CreatePosition(){
       <h2>Create position</h2>
       <form className="mt-3" onSubmit={submit}>
         <div className="mb-3">
-          <label className="form-label">Job Title</label>
-          <input className="form-control" value={title} onChange={e=>setTitle(e.target.value)} />
+          <label className="form-label">Job Title <span className="text-danger">*</span></label>
+          <input className="form-control" value={title} onChange={e=>setTitle(e.target.value)} required />
         </div>
 
         <div className="row">
           <div className="col-md-6 mb-3">
-            <label className="form-label">Job Category / Function</label>
-            <select className="form-select" value={category} onChange={e=>setCategory(e.target.value)}>
+            <label className="form-label">Job Category / Function <span className="text-danger">*</span></label>
+            <select className="form-select" value={category} onChange={e=>setCategory(e.target.value)} required>
               {JOB_CATEGORIES.map(c=> <option key={c[0]} value={c[0]}>{c[0]}</option>)}
             </select>
           </div>
           <div className="col-md-6 mb-3">
-            <label className="form-label">Employment Type</label>
-            <select className="form-select" value={employmentType} onChange={e=>setEmploymentType(e.target.value)}>
+            <label className="form-label">Employment Type <span className="text-danger">*</span></label>
+            <select className="form-select" value={employmentType} onChange={e=>setEmploymentType(e.target.value)} required>
               {EMPLOYMENT_TYPES.map(t=> <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
@@ -265,20 +322,20 @@ export default function CreatePosition(){
         </div>
 
         <div className="mb-3">
-          <label className="form-label">Job Summary / Description</label>
-          <textarea className="form-control" rows={6} value={description} onChange={e=>setDescription(e.target.value)} />
+          <label className="form-label">Job Summary / Description <span className="text-danger">*</span></label>
+          <textarea className="form-control" rows={6} value={description} onChange={e=>setDescription(e.target.value)} required />
         </div>
 
         <div className="row">
           <div className="col-md-6 mb-3">
-            <label className="form-label">Work Setting</label>
-            <select className="form-select" value={workSetting} onChange={e=>setWorkSetting(e.target.value)}>
+            <label className="form-label">Work Setting <span className="text-danger">*</span></label>
+            <select className="form-select" value={workSetting} onChange={e=>setWorkSetting(e.target.value)} required>
               {WORK_SETTINGS.map(w=> <option key={w} value={w}>{w}</option>)}
             </select>
           </div>
           <div className="col-md-6 mb-3">
-            <label className="form-label">Travel Requirements</label>
-            <select className="form-select" value={travel} onChange={e=>setTravel(e.target.value)}>
+            <label className="form-label">Travel Requirements <span className="text-danger">*</span></label>
+            <select className="form-select" value={travel} onChange={e=>setTravel(e.target.value)} required>
               <option value="">Select</option>
               <option value="No">No travel required</option>
               <option value="Maybe">Occasional travel</option>
@@ -288,7 +345,7 @@ export default function CreatePosition(){
         </div>
 
         <div className="mb-3">
-          <label className="form-label">Education level (select one or more)</label>
+          <label className="form-label">Education level (select one or more) <span className="text-danger">*</span></label>
           <div>
             {EDUCATION_LEVELS.map(l=> (
               <div className="form-check form-check-inline" key={l}>
@@ -300,7 +357,7 @@ export default function CreatePosition(){
         </div>
 
         <div className="mb-3">
-          <label className="form-label">Experience (add one or more)</label>
+          <label className="form-label">Experience (add one or more) <span className="text-danger">*</span></label>
           <div className="d-flex gap-2 mb-2">
             <input className="form-control" value={experienceInput} onChange={e=>setExperienceInput(e.target.value)} placeholder="e.g., 3+ years in software development" />
             <button type="button" className="btn btn-outline-secondary" onClick={addExperience}>Add</button>
@@ -311,7 +368,7 @@ export default function CreatePosition(){
         </div>
 
         <div className="mb-3">
-          <label className="form-label">Skills</label>
+          <label className="form-label">Skills <span className="text-danger">*</span></label>
           <div className="d-flex gap-2 mb-2">
             <input className="form-control" value={skillInput} onChange={e=>setSkillInput(e.target.value)} placeholder="Add skill and press Add" />
             <button type="button" className="btn btn-outline-secondary" onClick={addSkill}>Add</button>
@@ -322,7 +379,7 @@ export default function CreatePosition(){
         </div>
 
         <div className="mb-3">
-          <label className="form-label">Salary (optional)</label>
+          <label className="form-label">Salary <span className="text-danger">*</span></label>
           <div className="row g-2 align-items-center">
             <div className="col-md-3">
               <select className="form-select" value={salaryType} onChange={e=>{ setSalaryType(e.target.value); setSalaryMin(''); setSalaryMax(''); }}>

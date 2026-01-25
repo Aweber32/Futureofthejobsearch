@@ -21,6 +21,7 @@ export default function Signup(){
     city: '',
     state: '',
     email: 'hello@acme.test',
+    confirmEmail: '',
     password: '',
     confirmPassword: ''
   });
@@ -33,8 +34,53 @@ export default function Signup(){
   async function submit(e){
     e.preventDefault();
     setError('');
-    if (!form.companyName || !form.email || !form.password) {
-      setError('Company name, login email and password are required');
+    // Validate all required fields
+    if (!form.companyName?.trim()) {
+      setError('Company name is required');
+      return;
+    }
+    if (!form.address?.trim()) {
+      setError('Address is required');
+      return;
+    }
+    if (!form.state) {
+      setError('State is required');
+      return;
+    }
+    if (!form.city) {
+      setError('City is required');
+      return;
+    }
+    if (!form.contactName?.trim()) {
+      setError('Contact name is required');
+      return;
+    }
+    if (!form.contactEmail?.trim()) {
+      setError('Contact email is required');
+      return;
+    }
+    if (!form.email?.trim()) {
+      setError('Login email is required');
+      return;
+    }
+    if (!form.confirmEmail?.trim()) {
+      setError('Confirm login email is required');
+      return;
+    }
+    if (form.email !== form.confirmEmail) {
+      setError('Login emails do not match');
+      return;
+    }
+    if (!form.password) {
+      setError('Password is required');
+      return;
+    }
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    if (!form.confirmPassword) {
+      setError('Confirm password is required');
       return;
     }
     if (form.password !== form.confirmPassword) {
@@ -143,8 +189,8 @@ export default function Signup(){
               <form className="mt-3" onSubmit={submit}>
                 <div className="row">
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">Company name</label>
-                    <input className="form-control" value={form.companyName} onChange={e=>setForm({...form, companyName: e.target.value})} />
+                    <label className="form-label">Company name <span className="text-danger">*</span></label>
+                    <input className="form-control" value={form.companyName} onChange={e=>setForm({...form, companyName: e.target.value})} required />
                   </div>
                   <div className="col-md-6 mb-3">
                     <label className="form-label">Website</label>
@@ -169,23 +215,24 @@ export default function Signup(){
                     </select>
                   </div>
                   <div className="col-md-5 mb-3">
-                    <label className="form-label">Address</label>
-                    <input className="form-control" value={form.address || ''} onChange={e=>setForm({...form, address: e.target.value})} />
+                    <label className="form-label">Address <span className="text-danger">*</span></label>
+                    <input className="form-control" value={form.address || ''} onChange={e=>setForm({...form, address: e.target.value})} required />
                   </div>
                   <div className="col-md-3 mb-3">
-                    <label className="form-label">State</label>
+                    <label className="form-label">State <span className="text-danger">*</span></label>
                     <Select
                       options={stateOptions}
                       onChange={opt=>setForm({...form, state: opt?.value || ''})}
                       value={stateOptions.find(s=>s.value===form.state) || null}
                       isClearable
+                      required
                     />
                   </div>
                 </div>
 
                 <div className="row">
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">City</label>
+                    <label className="form-label">City <span className="text-danger">*</span></label>
                     <Select
                       options={cityOptions}
                       onChange={opt=>setForm({...form, city: opt?.value || ''})}
@@ -193,6 +240,7 @@ export default function Signup(){
                       isClearable
                       isDisabled={!form.state}
                       onFocus={() => { if (!form.state) { setError('Please choose state first'); setTimeout(()=>setError(''),3000); } }}
+                      required
                     />
                   </div>
                   <div className="col-md-6 mb-3">
@@ -205,30 +253,34 @@ export default function Signup(){
 
                 <div className="row">
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">Contact name</label>
-                    <input className="form-control" value={form.contactName} onChange={e=>setForm({...form, contactName: e.target.value})} />
+                    <label className="form-label">Contact name <span className="text-danger">*</span></label>
+                    <input className="form-control" value={form.contactName} onChange={e=>setForm({...form, contactName: e.target.value})} required />
                   </div>
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">Contact email</label>
-                    <input type="email" className="form-control" value={form.contactEmail} onChange={e=>setForm({...form, contactEmail: e.target.value})} />
-                  </div>
-                </div>
-
-                <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">Login email</label>
-                    <input type="email" className="form-control" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} />
-                  </div>
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">Password</label>
-                    <input type="password" className="form-control" value={form.password} onChange={e=>setForm({...form, password: e.target.value})} />
+                    <label className="form-label">Contact email <span className="text-danger">*</span></label>
+                    <input type="email" className="form-control" value={form.contactEmail} onChange={e=>setForm({...form, contactEmail: e.target.value})} required />
                   </div>
                 </div>
 
                 <div className="row">
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">Confirm password</label>
-                    <input type="password" className="form-control" value={form.confirmPassword} onChange={e=>setForm({...form, confirmPassword: e.target.value})} />
+                    <label className="form-label">Login email <span className="text-danger">*</span></label>
+                    <input type="email" className="form-control" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} required />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Confirm login email <span className="text-danger">*</span></label>
+                    <input type="email" className="form-control" value={form.confirmEmail || ''} onChange={e=>setForm({...form, confirmEmail: e.target.value})} required />
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Password <span className="text-danger">*</span></label>
+                    <input type="password" className="form-control" value={form.password} onChange={e=>setForm({...form, password: e.target.value})} required />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Confirm password <span className="text-danger">*</span></label>
+                    <input type="password" className="form-control" value={form.confirmPassword} onChange={e=>setForm({...form, confirmPassword: e.target.value})} required />
                   </div>
                 </div>
 
