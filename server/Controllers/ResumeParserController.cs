@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Net.Http.Headers;
 
 namespace FutureOfTheJobSearch.Server.Controllers
@@ -21,6 +22,12 @@ namespace FutureOfTheJobSearch.Server.Controllers
     [ApiController]
     public class ResumeParserController : ControllerBase
     {
+        private static string? NormalizePhoneDigits(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return input;
+            var digits = System.Text.RegularExpressions.Regex.Replace(input, "[^0-9]", "");
+            return string.IsNullOrEmpty(digits) ? null : digits;
+        }
         [HttpPost]
         [Route("/api/parse-resume")]
         public async Task<IActionResult> ParseResume([FromBody] ResumeParseRequest req)
@@ -42,8 +49,8 @@ namespace FutureOfTheJobSearch.Server.Controllers
             userPrompt.AppendLine($"Filename: {req.Filename}");
             userPrompt.AppendLine("\nResume content:\n");
             userPrompt.AppendLine(req.Content);
-            userPrompt.AppendLine("\n\nInstruction: Extract the following fields from the resume when present and return ONLY valid JSON with these keys: FirstName, LastName, Email, PhoneNumber, Experience (array), Education (array), VisaStatus, Skills (array), Certifications (array), Interests (array), Languages (array), PreferredSalary. For Experience, return an array of objects with keys: Title (string), StartDate (yyyy-mm-dd if possible or human-readable), EndDate (yyyy-mm-dd or human-readable), Description (string). For Education, return an array of objects with keys: Level (string, one of: High School, Associate's, Bachelor's, Master's, Doctorate, None if present), School (string), StartDate (yyyy-mm or yyyy-mm-dd if available), EndDate (yyyy-mm or yyyy-mm-dd if available). Return the full Description text for each position (do not truncate or summarize). If a Title is not explicitly present, synthesize a concise Title from the position text (e.g. 'Software Engineer', 'Product Manager'). Use null for missing scalar fields and empty arrays for lists. Return strict JSON only and do not include any commentary or explanation.");
-            userPrompt.AppendLine("\nExample output JSON:\n{\n  \"FirstName\": \"John\",\n  \"LastName\": \"Doe\",\n  \"Email\": \"john@example.com\",\n  \"PhoneNumber\": \"(555) 555-5555\",\n  \"Experience\": [\n    { \"Title\": \"Software Engineer\", \"StartDate\": \"2019-01-01\", \"EndDate\": \"2021-06-30\", \"Description\": \"Worked on X and Y...\" }\n  ],\n  \"Education\": [\n    { \"Level\": \"Bachelor's\", \"School\": \"State University\", \"StartDate\": \"2015-09\", \"EndDate\": \"2019-06\" }\n  ],\n  \"VisaStatus\": null,\n  \"Skills\": [\"C#\",\"JavaScript\"],\n  \"Certifications\": [],\n  \"Interests\": [],\n  \"Languages\": [\"English\"]\n}\n\nReturn only JSON. Do not include any surrounding text or commentary.");
+            userPrompt.AppendLine("\n\nInstruction: Extract the following fields from the resume when present and return ONLY valid JSON with these keys: FirstName, LastName, Email, PhoneNumber, JobDescription, Experience (array), Education (array), VisaStatus, Skills (array), Certifications (array), Interests (array), Languages (array), PreferredSalary. For PhoneNumber, return digits-only in US format (e.g., 1234567891) with no spaces or punctuation, or null if not found. For JobDescription, create a professional 300-word maximum summary of what the candidate does based on their experience - write it as if they're describing themselves to a potential employer (e.g., 'I am a software engineer with 5+ years of experience...'). For Experience, return an array of objects with keys: Title (string), StartDate (yyyy-mm-dd if possible or human-readable), EndDate (yyyy-mm-dd or human-readable), Description (string). For Education, return an array of objects with keys: Level (string, one of: High School, Associate's, Bachelor's, Master's, Doctorate, None if present), School (string), StartDate (yyyy-mm or yyyy-mm-dd if available), EndDate (yyyy-mm or yyyy-mm-dd if available). Return the full Description text for each position (do not truncate or summarize). If a Title is not explicitly present, synthesize a concise Title from the position text (e.g. 'Software Engineer', 'Product Manager'). Use null for missing scalar fields and empty arrays for lists. Return strict JSON only and do not include any commentary or explanation.");
+            userPrompt.AppendLine("\nExample output JSON:\n{\n  \"FirstName\": \"John\",\n  \"LastName\": \"Doe\",\n  \"Email\": \"john@example.com\",\n  \"PhoneNumber\": \"5555555555\",\n  \"JobDescription\": \"I am a software engineer with 5+ years of experience developing web applications using C# and JavaScript. I specialize in full-stack development and have led teams of 3-5 engineers. My key achievements include...\",\n  \"Experience\": [\n    { \"Title\": \"Software Engineer\", \"StartDate\": \"2019-01-01\", \"EndDate\": \"2021-06-30\", \"Description\": \"Worked on X and Y...\" }\n  ],\n  \"Education\": [\n    { \"Level\": \"Bachelor's\", \"School\": \"State University\", \"StartDate\": \"2015-09\", \"EndDate\": \"2019-06\" }\n  ],\n  \"VisaStatus\": null,\n  \"Skills\": [\"C#\",\"JavaScript\"],\n  \"Certifications\": [],\n  \"Interests\": [],\n  \"Languages\": [\"English\"]\n}\n\nReturn only JSON. Do not include any surrounding text or commentary.");
 
             var payload = new
             {
@@ -75,9 +82,18 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 if (start >= 0 && end > start)
                 {
                     var jsonPart = content.Substring(start, end - start + 1);
-                    // Parse and return as JSON element
-                    var parsed = JsonSerializer.Deserialize<JsonElement>(jsonPart);
-                    return Ok(parsed);
+                    // Parse to mutable node, normalize phone, and return
+                    var node = JsonNode.Parse(jsonPart);
+                    if (node != null)
+                    {
+                        var phoneNode = node["PhoneNumber"];
+                        if (phoneNode != null)
+                        {
+                            var phone = phoneNode.GetValue<string?>();
+                            node["PhoneNumber"] = NormalizePhoneDigits(phone);
+                        }
+                    }
+                    return Ok(node);
                 }
 
                 // If parsing failed, return raw text for debugging
@@ -104,7 +120,10 @@ namespace FutureOfTheJobSearch.Server.Controllers
             var client = new HttpClient();
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
 
-            var prompt = $"Summarize the following text into a concise description of no more than {req.MaxLength} characters, preserving meaning and readability. Return only the summary text.\n\nText:\n{req.Text}";
+            var prompt = "Create a professional, employer-ready profile summary (first person, confident and clear) based on the resume content below."
+                + " The summary should be no more than 300 words, highlight roles, years of experience, core skills, industries, key achievements/impact, and tools/technologies."
+                + " Avoid fluff, avoid personal contact details, and do not include salary expectations. Write as if the candidate is describing themselves to a potential employer."
+                + " Return only the summary text.\n\nText:\n" + req.Text;
 
             var payload = new
             {
@@ -197,7 +216,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
             userPrompt.AppendLine($"Filename: {file.FileName}");
             userPrompt.AppendLine("\nResume content:\n");
             userPrompt.AppendLine(content);
-            userPrompt.AppendLine("\n\nInstruction: Extract the following fields from the resume when present and return ONLY valid JSON with these keys: FirstName, LastName, Email, PhoneNumber, Experience (array), Education (array), VisaStatus, Skills (array), Certifications (array), Interests (array), Languages (array), PreferredSalary. For Experience, return an array of objects with keys: Title (string), StartDate (yyyy-mm-dd if possible or human-readable), EndDate (yyyy-mm-dd or human-readable), Description (string). For Education, return an array of objects with keys: Level (string, one of: High School, Associate's, Bachelor's, Master's, Doctorate, None if present), School (string), StartDate (yyyy-mm or yyyy-mm-dd if available), EndDate (yyyy-mm or yyyy-mm-dd if available). Return the full Description text for each position (do not truncate or summarize). Use null for missing scalar fields and empty arrays for lists. Return strict JSON only and do not include any commentary or explanation.");
+            userPrompt.AppendLine("\n\nInstruction: Extract the following fields from the resume when present and return ONLY valid JSON with these keys: FirstName, LastName, Email, PhoneNumber, JobDescription, Experience (array), Education (array), VisaStatus, Skills (array), Certifications (array), Interests (array), Languages (array), PreferredSalary. For PhoneNumber, return digits-only in US format (e.g., 1234567891) with no spaces or punctuation, or null if not found. For JobDescription, create a professional 300-word maximum summary of what the candidate does based on their experience - write it as if they're describing themselves to a potential employer (e.g., 'I am a software engineer with 5+ years of experience...'). For Experience, return an array of objects with keys: Title (string), StartDate (yyyy-mm-dd if possible or human-readable), EndDate (yyyy-mm-dd or human-readable), Description (string). For Education, return an array of objects with keys: Level (string, one of: High School, Associate's, Bachelor's, Master's, Doctorate, None if present), School (string), StartDate (yyyy-mm or yyyy-mm-dd if available), EndDate (yyyy-mm or yyyy-mm-dd if available). Return the full Description text for each position (do not truncate or summarize). Use null for missing scalar fields and empty arrays for lists. Return strict JSON only and do not include any commentary or explanation.");
 
             var payload = new
             {
@@ -227,8 +246,17 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 if (start >= 0 && end > start)
                 {
                     var jsonPart = contentResp.Substring(start, end - start + 1);
-                    var parsed = JsonSerializer.Deserialize<JsonElement>(jsonPart);
-                    return Ok(parsed);
+                    var node = JsonNode.Parse(jsonPart);
+                    if (node != null)
+                    {
+                        var phoneNode = node["PhoneNumber"];
+                        if (phoneNode != null)
+                        {
+                            var phone = phoneNode.GetValue<string?>();
+                            node["PhoneNumber"] = NormalizePhoneDigits(phone);
+                        }
+                    }
+                    return Ok(node);
                 }
                 return Ok(new { raw = contentResp });
             }
