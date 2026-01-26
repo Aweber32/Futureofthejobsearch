@@ -79,6 +79,14 @@ $sp | ConvertTo-Json -Compress
 - Container for file uploads (resumes, logos, videos)
 - Connection string configured in app settings
 
+### Azure Storage Queue
+- Queue name: `embedding-requests`
+- Used for asynchronous embedding generation
+- **Managed Identity Setup Required**:
+  1. Enable System-Assigned Managed Identity on Backend App Service
+  2. Grant the Managed Identity the `Storage Queue Data Contributor` role on the storage account
+  3. Queue authentication uses `DefaultAzureCredential` (no connection string needed in production)
+
 ## Deployment Process
 
 ### Automatic Deployment

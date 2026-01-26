@@ -19,10 +19,21 @@ namespace FutureOfTheJobSearch.Server.Services
             _logger = logger;
             var queueName = configuration["EmbeddingQueueName"] ?? "embedding-requests";
             
-            // Use Azure Identity (DefaultAzureCredential) instead of connection string
-            // This works with Azure CLI locally and Managed Identity in Azure
-            var queueUri = new Uri($"https://futureofthejobsearcb26e.queue.core.windows.net/{queueName}");
-            _queueClient = new QueueClient(queueUri, new DefaultAzureCredential());
+            // Try connection string first for local dev, fall back to managed identity for Azure
+            var connectionString = configuration["AzureWebJobsStorage"] ?? configuration["StorageConnectionString"];
+            
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                _logger.LogInformation("Using connection string for queue: {QueueName}", queueName);
+                _queueClient = new QueueClient(connectionString, queueName);
+            }
+            else
+            {
+                _logger.LogInformation("Using DefaultAzureCredential for queue: {QueueName}", queueName);
+                // Use Azure Identity (DefaultAzureCredential) for Azure deployment
+                var queueUri = new Uri($"https://futureofthejobsearcb26e.queue.core.windows.net/{queueName}");
+                _queueClient = new QueueClient(queueUri, new DefaultAzureCredential());
+            }
             
             _logger.LogInformation("EmbeddingQueueService initialized for queue: {QueueName}", queueName);
         }
