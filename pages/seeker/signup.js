@@ -10,6 +10,7 @@ import VideoPlayer from '../../components/VideoPlayer';
 import Select from 'react-select';
 import { State, City } from 'country-state-city';
 import { API_CONFIG } from '../../config/api';
+import { JOB_CATEGORIES, EDUCATION_LEVELS } from '../../utils/constants';
 
 export default function SeekerSignup(){
   const router = useRouter();
@@ -29,69 +30,6 @@ export default function SeekerSignup(){
   const [newExpDesc, setNewExpDesc] = useState('');
   const [editingIndex, setEditingIndex] = useState(null);
   // Education entry helpers
-  const EDUCATION_LEVELS = ["High School","Associate's","Bachelor's","Master's","Doctorate","None"];
-  
-  // Job categories grouped by related fields
-  const JOB_CATEGORIES = [
-    // Technology & Data (Group 1)
-    ['Software Engineering', 1],
-    ['Data Engineering', 1],
-    ['Data Science & Machine Learning', 1],
-    ['Analytics & Business Intelligence', 1],
-    ['Cloud & DevOps', 1],
-    ['Cybersecurity', 1],
-    ['IT Infrastructure & Networking', 1],
-    ['QA & Test Engineering', 1],
-    ['Mobile Development', 1],
-    ['Game Development', 1],
-    // Product, Design & Project (Group 2)
-    ['Product Management', 2],
-    ['Program & Project Management', 2],
-    ['UX / UI Design', 2],
-    ['User Research', 2],
-    ['Technical Product Management', 2],
-    // Business, Finance & Operations (Group 3)
-    ['Business Operations', 3],
-    ['Strategy & Management Consulting', 3],
-    ['Finance & Accounting', 3],
-    ['Risk, Compliance & Audit', 3],
-    ['Supply Chain & Logistics', 3],
-    ['Procurement & Vendor Management', 3],
-    // Sales, Marketing & Revenue (Group 4)
-    ['Sales (B2B / Enterprise)', 4],
-    ['Sales (SMB / Mid-Market)', 4],
-    ['Sales Operations & Enablement', 4],
-    ['Marketing (Brand & Content)', 4],
-    ['Marketing (Performance & Growth)', 4],
-    ['Product Marketing', 4],
-    ['Customer Success', 4],
-    ['Account Management', 4],
-    ['Revenue Operations', 4],
-    // People, Legal & Admin (Group 5)
-    ['Human Resources & People Operations', 5],
-    ['Talent Acquisition & Recruiting', 5],
-    ['Learning & Development', 5],
-    ['Legal & Contracts', 5],
-    ['Office Administration', 5],
-    // Healthcare & Life Sciences (Group 6)
-    ['Clinical Healthcare', 6],
-    ['Healthcare Administration', 6],
-    ['Health Informatics & Analytics', 6],
-    ['Biomedical Engineering', 6],
-    ['Pharmaceuticals & Research', 6],
-    // Creative, Media & Communications (Group 7)
-    ['Creative & Visual Design', 7],
-    ['Content Writing & Editing', 7],
-    ['Media Production (Video / Audio)', 7],
-    ['Public Relations & Communications', 7],
-    // Industry-Specific & Field Roles (Group 8)
-    ['Manufacturing & Industrial Engineering', 8],
-    ['Construction & Facilities Management', 8],
-    ['Energy & Utilities', 8],
-    ['Environmental & Sustainability', 8],
-    ['Government & Public Sector', 8],
-    ['Education & Training', 8]
-  ];
   const [newEduLevel, setNewEduLevel] = useState(EDUCATION_LEVELS[0]);
     const [newEduDegree, setNewEduDegree] = useState('');
     const [degreeInput, setDegreeInput] = useState('');

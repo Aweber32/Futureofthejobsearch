@@ -5,6 +5,7 @@ import Layout from '../../components/Layout';
 import Select from 'react-select';
 import { State, City } from 'country-state-city';
 import { API_CONFIG } from '../../config/api';
+import { JOB_CATEGORIES } from '../../utils/constants';
 
 const API = API_CONFIG.BASE_URL;
 
@@ -13,27 +14,6 @@ export default function SeekerPreferences() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  // Job categories grouped by related fields
-  const JOB_CATEGORIES = [
-    ['Software Engineering', 1], ['Data Engineering', 1], ['Data Science & Machine Learning', 1],
-    ['Analytics & Business Intelligence', 1], ['Cloud & DevOps', 1], ['Cybersecurity', 1],
-    ['IT Infrastructure & Networking', 1], ['QA & Test Engineering', 1], ['Mobile Development', 1],
-    ['Game Development', 1], ['Product Management', 2], ['Program & Project Management', 2],
-    ['UX / UI Design', 2], ['User Research', 2], ['Technical Product Management', 2],
-    ['Business Operations', 3], ['Strategy & Management Consulting', 3], ['Finance & Accounting', 3],
-    ['Risk, Compliance & Audit', 3], ['Supply Chain & Logistics', 3], ['Procurement & Vendor Management', 3],
-    ['Sales & Business Development', 4], ['Account Management & Customer Success', 4],
-    ['Marketing & Growth', 4], ['Digital Marketing & SEO', 4], ['Content Marketing & Brand', 4],
-    ['Human Resources & Recruiting', 5], ['People Operations & Culture', 5], ['Legal & Corporate Affairs', 5],
-    ['Clinical & Patient Care', 6], ['Healthcare Administration', 6], ['Medical Research & Biotech', 6],
-    ['Pharmaceutical & Life Sciences', 6], ['Creative Direction & Brand Design', 7],
-    ['Content Creation & Copywriting', 7], ['Media Production & Editing', 7],
-    ['Entertainment & Gaming', 7], ['Manufacturing & Engineering', 8], ['Construction & Real Estate', 8],
-    ['Energy & Utilities', 8], ['Transportation & Logistics', 8], ['Agriculture & Food Services', 8],
-    ['Retail & E-commerce', 8], ['Hospitality & Tourism', 8], ['Education & Training', 8],
-    ['Nonprofit & Social Services', 8], ['Government & Public Sector', 8]
-  ];
 
   // Form state
   const [preferences, setPreferences] = useState({
