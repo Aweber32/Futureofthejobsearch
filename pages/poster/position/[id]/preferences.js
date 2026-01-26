@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import Layout from '../../../../components/Layout';
 import { API_CONFIG } from '../../../../config/api';
 import { JOB_CATEGORIES, EDUCATION_LEVELS } from '../../../../utils/constants';
-import { JOB_CATEGORIES, EDUCATION_LEVELS } from '../../../../utils/constants';
 
 const API = API_CONFIG.BASE_URL;
 
