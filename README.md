@@ -1,6 +1,6 @@
-# ELEV8R - Next-Generation Job Marketplace
+# Proslipsi - Next-Generation Job Marketplace
 
-ELEV8R is a modern dual-stack job marketplace application that connects employers with qualified candidates through intelligent matching and streamlined workflows.
+Proslipsi is a modern dual-stack job marketplace application that connects employers with qualified candidates through intelligent matching and streamlined workflows.
 
 ## 🚀 Live Application
 

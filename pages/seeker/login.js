@@ -26,7 +26,9 @@ export default function SeekerLogin(){
       try{ data = txt ? JSON.parse(txt) : {}; } catch { data = { message: txt }; }
       if (!res.ok) throw new Error(data.error || data.message || txt || 'Login failed');
       const token = data.token;
-      if (token && typeof window !== 'undefined') localStorage.setItem('fjs_token', token);
+      if (token && typeof window !== 'undefined') {
+        localStorage.setItem('fjs_token', token);
+      }
       router.push('/seeker/dashboard');
     }catch(err){ setError(err?.message || 'Login failed'); }
     finally{ setLoading(false); }

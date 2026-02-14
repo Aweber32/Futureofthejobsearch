@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --elev8r-primary: #6366f1;
-  --elev8r-primary-dark: #4f46e5;
-  --elev8r-secondary: #10b981;
-  --elev8r-accent: #f59e0b;
-  --elev8r-neutral-900: #111827;
-  --elev8r-neutral-600: #4b5563;
-  --elev8r-neutral-100: #f3f4f6;
+  --proslipsi-primary: #6366f1;
+  --proslipsi-primary-dark: #4f46e5;
+  --proslipsi-secondary: #10b981;
+  --proslipsi-accent: #f59e0b;
+  --proslipsi-neutral-900: #111827;
+  --proslipsi-neutral-600: #4b5563;
+  --proslipsi-neutral-100: #f3f4f6;
 }
 
 body {
@@ -20,37 +20,37 @@ body {
 
 a { text-decoration: none; }
 
-/* ELEV8R Brand Styles */
+/* Proslipsi Brand Styles */
 .btn-primary {
-  background-color: var(--elev8r-primary);
-  border-color: var(--elev8r-primary);
+  background-color: var(--proslipsi-primary);
+  border-color: var(--proslipsi-primary);
 }
 
 .btn-primary:hover {
-  background-color: var(--elev8r-primary-dark);
-  border-color: var(--elev8r-primary-dark);
+  background-color: var(--proslipsi-primary-dark);
+  border-color: var(--proslipsi-primary-dark);
 }
 
 .btn-outline-primary {
-  color: var(--elev8r-primary);
-  border-color: var(--elev8r-primary);
+  color: var(--proslipsi-primary);
+  border-color: var(--proslipsi-primary);
 }
 
 .btn-outline-primary:hover {
-  background-color: var(--elev8r-primary);
-  border-color: var(--elev8r-primary);
+  background-color: var(--proslipsi-primary);
+  border-color: var(--proslipsi-primary);
 }
 
 .text-primary {
-  color: var(--elev8r-primary) !important;
+  color: var(--proslipsi-primary) !important;
 }
 
 .bg-primary {
-  background-color: var(--elev8r-primary) !important;
+  background-color: var(--proslipsi-primary) !important;
 }
 
 .border-primary {
-  border-color: var(--elev8r-primary) !important;
+  border-color: var(--proslipsi-primary) !important;
 }
 
 .cursor-pointer {
@@ -206,7 +206,7 @@ a { text-decoration: none; }
   bottom: 18px;
   right: 18px;
   z-index: 1050;
-  background: var(--elev8r-primary);
+  background: var(--proslipsi-primary);
   color: #fff;
   border: none;
   border-radius: 999px;
@@ -216,7 +216,7 @@ a { text-decoration: none; }
 }
 
 .feedback-fab:hover {
-  background: var(--elev8r-primary-dark);
+  background: var(--proslipsi-primary-dark);
 }
 
 .feedback-panel {
@@ -255,7 +255,7 @@ a { text-decoration: none; }
 }
 
 .star-btn:focus {
-  outline: 2px solid var(--elev8r-primary);
+  outline: 2px solid var(--proslipsi-primary);
   outline-offset: 2px;
 }
 
@@ -311,7 +311,7 @@ a { text-decoration: none; }
 
 /* Video emphasis styles for Seeker Signup Step 4 */
 .video-emphasis {
-  background: var(--elev8r-neutral-100);
+  background: var(--proslipsi-neutral-100);
   border: 2px solid rgba(99,102,241,0.2);
   border-radius: 16px;
 }
@@ -325,13 +325,13 @@ a { text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--elev8r-neutral-600);
+  color: var(--proslipsi-neutral-600);
   font-size: 56px;
 }
 
 .btn-accent {
-  background-color: var(--elev8r-accent);
-  border-color: var(--elev8r-accent);
+  background-color: var(--proslipsi-accent);
+  border-color: var(--proslipsi-accent);
   color: #111827;
   font-weight: 700;
 }

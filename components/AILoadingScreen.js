@@ -32,8 +32,11 @@ const keyframeStyles = `
   }
 `
 
-export default function AILoadingScreen() {
+export default function AILoadingScreen({ aiName = 'AI Assistant', type = 'positions' }) {
   const [dotCount, setDotCount] = useState(0)
+  
+  const isCandidates = type === 'candidates';
+  const itemLabel = isCandidates ? 'Candidates' : 'Positions';
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -109,42 +112,25 @@ export default function AILoadingScreen() {
             position: 'relative',
           }}
         >
-          {/* AI Icon / Brain Animation */}
+          {/* AI Logo */}
           <div
             style={{
               marginBottom: '40px',
               animation: 'pulse 2s ease-in-out infinite',
             }}
           >
-            <svg
-              width="80"
-              height="80"
-              viewBox="0 0 80 80"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              style={{ margin: '0 auto', display: 'block' }}
-            >
-              {/* Brain-like shape */}
-              <circle cx="40" cy="35" r="25" fill="none" stroke="white" strokeWidth="2" />
-              <path
-                d="M 25 35 Q 20 25 20 15 M 55 35 Q 60 25 60 15"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <circle cx="30" cy="20" r="3" fill="white" />
-              <circle cx="50" cy="20" r="3" fill="white" />
-              {/* Nodes */}
-              <circle cx="25" cy="40" r="2" fill="white" />
-              <circle cx="55" cy="40" r="2" fill="white" />
-              <circle cx="40" cy="55" r="2" fill="white" />
-              {/* Connecting lines */}
-              <line x1="30" y1="20" x2="25" y2="40" stroke="white" strokeWidth="1" opacity="0.6" />
-              <line x1="50" y1="20" x2="55" y2="40" stroke="white" strokeWidth="1" opacity="0.6" />
-              <line x1="25" y1="40" x2="40" y2="55" stroke="white" strokeWidth="1" opacity="0.6" />
-              <line x1="55" y1="40" x2="40" y2="55" stroke="white" strokeWidth="1" opacity="0.6" />
-            </svg>
+            <img
+              src="/futureofthejobsearchAI_logo.png"
+              alt="AI Assistant"
+              style={{
+                width: '120px',
+                height: '120px',
+                objectFit: 'contain',
+                margin: '0 auto',
+                display: 'block',
+                filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.5))'
+              }}
+            />
           </div>
 
           {/* Main text */}
@@ -156,7 +142,7 @@ export default function AILoadingScreen() {
               letterSpacing: '0.5px',
             }}
           >
-            Finding Your Perfect Match
+            Here are {aiName}'s Curated {itemLabel}
           </h1>
 
           {/* Subtitle with animated dots */}
@@ -171,7 +157,7 @@ export default function AILoadingScreen() {
               justifyContent: 'center',
             }}
           >
-            Using AI to personalize your job search{dots}
+            Loading your personalized matches{dots}
           </p>
 
           {/* Loading bar */}
@@ -205,7 +191,7 @@ export default function AILoadingScreen() {
               lineHeight: '1.5',
             }}
           >
-            We're analyzing your profile, preferences, and skills to find the positions that match your unique strengths.
+            {aiName} has analyzed your {isCandidates ? 'position requirements' : 'profile and preferences'} to curate these {isCandidates ? 'candidates' : 'opportunities'} just for you. Review each {isCandidates ? 'candidate' : 'position'} and let us know what interests you.
           </p>
         </div>
       </div>

@@ -14,6 +14,7 @@ export default function SeekerPreferences() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [aiName, setAiName] = useState('AI Assistant');
 
   // Form state
   const [preferences, setPreferences] = useState({
@@ -78,6 +79,15 @@ export default function SeekerPreferences() {
 
     (async () => {
       try {
+        // Fetch AI assistant name
+        const aiResponse = await fetch(`${API}/api/AIAssistant`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          setAiName(aiData.name || 'AI Assistant');
+        }
+
         const res = await fetch(`${API}/api/SeekerPreferences`, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -354,11 +364,34 @@ export default function SeekerPreferences() {
       <div className="container mt-4">
         <div className="row justify-content-center">
           <div className="col-lg-10">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h2>Set Your Job Preferences</h2>
-              <Link href="/seeker/find-positions" className="btn btn-outline-secondary">
-                Back to Find Positions
-              </Link>
+            {/* Header Section with AI Logo */}
+            <div className="card mb-4 border-0 shadow-sm">
+              <div className="card-body p-4">
+                <div className="d-flex align-items-center mb-3">
+                  <img 
+                    src="/futureofthejobsearchAI_logo.png" 
+                    alt="AI Assistant" 
+                    style={{ 
+                      width: '80px', 
+                      height: '80px', 
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 0 15px rgba(99, 102, 241, 0.4))',
+                      marginRight: '20px'
+                    }}
+                  />
+                  <div className="flex-grow-1">
+                    <h2 className="mb-2">Teach {aiName} Your Preferences</h2>
+                    <p className="text-muted mb-0">
+                      Help {aiName} understand what you're looking for. Be specific about what matters most, 
+                      but avoid being too restrictive — this allows {aiName} to discover great opportunities 
+                      you might not have considered.
+                    </p>
+                  </div>
+                  <Link href="/seeker/find-positions" className="btn btn-outline-secondary ms-3">
+                    Back to Dashboard
+                  </Link>
+                </div>
+              </div>
             </div>
 
             <div className="alert alert-info">

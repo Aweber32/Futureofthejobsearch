@@ -226,7 +226,7 @@ namespace FutureOfTheJobSearch.Server.Controllers
                 minutes = cfgMins;
             }
 
-            var subject = "Reset your ELEV8R password";
+            var subject = "Reset your Proslipsi password";
             var body = $@"<p>We received a request to reset your password.</p>
                           <p><a href='{resetUrl}'>Click here to reset your password</a>. This link will expire in {minutes} minutes.</p>
                           <p>If you did not request this, you can safely ignore this email.</p>";

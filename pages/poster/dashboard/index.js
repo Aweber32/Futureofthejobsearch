@@ -5,6 +5,7 @@ import { Plus, Briefcase, Users, Clock, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Layout from '../../../components/Layout';
 import PositionList from '../../../components/PositionList';
+import AINameModal from '../../../components/AINameModal';
 import { API_CONFIG } from '../../../config/api';
 import { signBlobUrl } from '../../../utils/blobHelpers';
 
@@ -16,10 +17,31 @@ export default function Dashboard(){
   const [positions, setPositions] = useState([]);
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiName, setAiName] = useState('AI Assistant');
 
   useEffect(()=>{
     const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
     if (!token) { router.push('/poster/login'); return; }
+
+    // Check if AI assistant exists
+    (async ()=>{
+      try{
+        const aiResponse = await fetch(`${API}/api/AIAssistant`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (aiResponse.status === 404) {
+          // AI doesn't exist, show modal after a short delay
+          setTimeout(() => setShowAIModal(true), 500);
+        } else if (aiResponse.ok) {
+          // AI exists, fetch and store the name
+          const aiData = await aiResponse.json();
+          setAiName(aiData.name || 'AI Assistant');
+        }
+      } catch (err) {
+        console.error('Error checking AI assistant:', err);
+      }
+    })();
 
     fetch(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r=>r.ok? r.json() : Promise.reject('Unauthorized'))
@@ -62,6 +84,12 @@ export default function Dashboard(){
       .catch(()=>router.push('/poster/login'));
   },[]);
 
+  function handleAICreated(aiData) {
+    console.log('AI Assistant created:', aiData);
+    setAiName(aiData.name || 'AI Assistant');
+    setShowAIModal(false);
+  }
+
   async function logout(){
     const token = localStorage.getItem('fjs_token');
     try{
@@ -86,6 +114,7 @@ export default function Dashboard(){
 
   return (
     <Layout title="Dashboard">
+      <AINameModal show={showAIModal} onAICreated={handleAICreated} />
       <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem 1rem' }}>
         
         {/* Header Section */}
@@ -206,6 +235,8 @@ export default function Dashboard(){
                   whiteSpace: 'nowrap' 
                 }}>{userEmail}</span></li>
                 <li><hr className="dropdown-divider" /></li>
+                <li><Link href="/poster/edit-ai" className="dropdown-item">Edit {aiName} (AI Assistant)</Link></li>
+                <li><hr className="dropdown-divider" /></li>
                 <li><Link href="/poster/dashboard/analytics" className="dropdown-item">Analytics</Link></li>
                 <li><Link href="/poster/dashboard/edit-company" className="dropdown-item">Edit Company</Link></li>
                 <li><Link href="/poster/dashboard/settings" className="dropdown-item">Settings</Link></li>
@@ -233,7 +264,7 @@ export default function Dashboard(){
               }}>
                 Posted Positions
               </h2>
-              <PositionList positions={positions} />
+              <PositionList positions={positions} aiName={aiName} />
             </motion.div>
           </div>
 

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../../../components/Layout';
 import InterestedPositionsList from '../../../components/InterestedPositionsList';
 import ChatButton from '../../../components/ChatButton';
+import AINameModal from '../../../components/AINameModal';
 import { API_CONFIG } from '../../../config/api';
 import PositionReviewModal from '../../../components/PositionReviewModal';
 
@@ -22,6 +23,8 @@ export default function SeekerDashboard(){
   const [allInterests, setAllInterests] = useState([]); // all position interests for seeker
   const [loadingInterests, setLoadingInterests] = useState(true);
   const [interestVersion, setInterestVersion] = useState(0); // bump to signal refresh to children
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiName, setAiName] = useState('AI Assistant');
 
   useEffect(()=>{
     // compute a friendly greeting based on local time
@@ -33,6 +36,26 @@ export default function SeekerDashboard(){
     }catch{}
     const token = typeof window !== 'undefined' ? localStorage.getItem('fjs_token') : null;
     if (!token) { router.push('/seeker/login'); return; }
+    
+    // Check if AI assistant exists
+    (async ()=>{
+      try{
+        const aiResponse = await fetch(`${API}/api/AIAssistant`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (aiResponse.status === 404) {
+          // AI doesn't exist, show modal after a short delay
+          setTimeout(() => setShowAIModal(true), 500);
+        } else if (aiResponse.ok) {
+          // AI exists, fetch and store the name
+          const aiData = await aiResponse.json();
+          setAiName(aiData.name || 'AI Assistant');
+        }
+      } catch (err) {
+        console.error('Error checking AI assistant:', err);
+      }
+    })();
+    
     (async ()=>{
       try{
         const res = await fetch(`${API}/api/seekers/me`, { headers: { Authorization: `Bearer ${token}` } });
@@ -46,6 +69,12 @@ export default function SeekerDashboard(){
       finally{ setLoading(false); }
     })();
   },[]);
+
+  function handleAICreated(aiData) {
+    console.log('AI Assistant created:', aiData);
+    setAiName(aiData.name || 'AI Assistant');
+    setShowAIModal(false);
+  }
 
   // Fetch seeker position interests (both interested & not interested)
   useEffect(() => {
@@ -148,6 +177,7 @@ export default function SeekerDashboard(){
 
   return (
     <Layout title="Seeker Dashboard">
+      <AINameModal show={showAIModal} onAICreated={handleAICreated} />
       <style jsx>{`
         .toggle-pill {
           position: relative;
@@ -271,6 +301,8 @@ export default function SeekerDashboard(){
               <ul className="dropdown-menu shadow-sm" aria-labelledby="accountDropdown" style={{borderRadius: '8px'}}>
                 <li><span className="dropdown-item-text text-muted small">{email}</span></li>
                 <li><hr className="dropdown-divider" /></li>
+                <li><Link href="/seeker/edit-ai" className="dropdown-item">Edit {aiName} (AI Assistant)</Link></li>
+                <li><hr className="dropdown-divider" /></li>
                 <li><Link href="/seeker/analytics" className="dropdown-item">My Analytics</Link></li>
                 <li><Link href="/seeker/edit-profile" className="dropdown-item">Edit Profile</Link></li>
                 <li><Link href="/seeker/settings" className="dropdown-item">Settings</Link></li>
@@ -296,11 +328,21 @@ export default function SeekerDashboard(){
               </p>
             </div>
             <div className="d-flex gap-2">
-              <Link href="/seeker/preferences" className="btn btn-outline-primary" style={{borderRadius: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: '500'}}>
-                Set Preferences
+              <Link href="/seeker/preferences" className="btn btn-outline-primary d-flex align-items-center" style={{borderRadius: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: '500'}}>
+                <img 
+                  src="/futureofthejobsearchAI_logo.png" 
+                  alt="AI" 
+                  style={{ 
+                    width: '20px', 
+                    height: '20px', 
+                    objectFit: 'contain',
+                    marginRight: '8px'
+                  }}
+                />
+                Teach {aiName}
               </Link>
               <Link href="/seeker/find-positions" className="btn btn-primary gradient-btn text-white border-0" style={{borderRadius: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: '500'}}>
-                Find Positions
+                Review Positions
               </Link>
             </div>
           </div>

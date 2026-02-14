@@ -24,6 +24,7 @@ namespace FutureOfTheJobSearch.Server.Data
         public DbSet<SeekerPreferences> SeekerPreferences { get; set; }
         public DbSet<PositionPreferences> PositionPreferences { get; set; }
         public DbSet<Feedback> Feedback { get; set; }
+        public DbSet<AIAssistant> AIAssistants { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -168,6 +169,17 @@ namespace FutureOfTheJobSearch.Server.Data
 
             builder.Entity<PositionPreferences>()
                 .HasIndex(pp => pp.PositionId)
+                .IsUnique();
+
+            // AIAssistant configuration
+            builder.Entity<AIAssistant>()
+                .HasOne(ai => ai.User)
+                .WithMany()
+                .HasForeignKey(ai => ai.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<AIAssistant>()
+                .HasIndex(ai => ai.UserId)
                 .IsUnique();
         }
     }

@@ -4,7 +4,7 @@ export default function Footer(){
       <div className="container">
         <div className="row">
           <div className="col-md-6 mb-3 mb-md-0">
-            <h5 className="fw-bold text-primary">ELEV8R</h5>
+            <h5 className="fw-bold text-primary">Proslipsi</h5>
             <p className="text-muted small mb-0">Elevating into the right hire</p>
           </div>
           <div className="col-md-6">
@@ -28,7 +28,7 @@ export default function Footer(){
         </div>
         <hr className="my-4" />
         <div className="text-center text-muted small">
-          © {new Date().getFullYear()} ELEV8R. All rights reserved.
+          © {new Date().getFullYear()} Proslipsi. All rights reserved.
         </div>
       </div>
     </footer>

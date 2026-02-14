@@ -5,7 +5,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-console.log('🚀 Starting ELEV8R Frontend...');
+console.log('🚀 Starting Proslipsi Frontend...');
 console.log('Environment: ', process.env.NODE_ENV || 'development');
 console.log('Port: ', process.env.PORT || 3000);
 console.log('📁 Current working directory:', process.cwd());

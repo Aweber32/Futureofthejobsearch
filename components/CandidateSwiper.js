@@ -4,12 +4,19 @@ import { API_CONFIG } from '../config/api'
 import { useSignedBlobUrl } from '../utils/blobHelpers'
 import VideoPlayer from './VideoPlayer'
 
-export default function CandidateSwiper({ initialCandidates }){
+export default function CandidateSwiper({ initialCandidates, onAllReviewed }){
   const [stack, setStack] = useState(initialCandidates || []);
   const [loading, setLoading] = useState(!initialCandidates);
   const [exitDirection, setExitDirection] = useState(null); // 'left' | 'right' | null
   const [shareBusy, setShareBusy] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+
+  // Notify parent when all candidates are reviewed
+  useEffect(() => {
+    if (!loading && stack.length === 0 && onAllReviewed) {
+      onAllReviewed();
+    }
+  }, [stack.length, loading, onAllReviewed]);
 
   useEffect(()=>{
     // If parent provided initialCandidates (even if empty array), use it; don't fetch
@@ -235,18 +242,7 @@ export default function CandidateSwiper({ initialCandidates }){
   }
 
   if (loading) return <div className="text-center">Loading candidates…</div>
-  if (!top) return (
-    <div className="text-center py-5">
-      <div style={{ fontSize: '48px', color: '#dee2e6', marginBottom: '16px' }}>
-        <i className="fas fa-users"></i>
-      </div>
-      <h4 className="text-muted mb-2">You’ve reviewed all candidates</h4>
-      <p className="text-muted mb-4">Ready to find more talent?</p>
-      <button type="button" className="btn btn-primary" onClick={() => window.location.href = `/poster/position/${top?.id || ''}/preferences`}>
-        <i className="fas fa-sliders-h me-2"></i>Adjust Position Preferences
-      </button>
-    </div>
-  )
+  if (!top) return null; // Return null instead of showing the empty state - parent will handle it
 
   // Parse JSON data (same as PreviewProfile) with better error handling
   let experience = [];

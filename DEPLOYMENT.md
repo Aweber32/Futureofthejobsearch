@@ -1,6 +1,6 @@
-# ELEV8R Azure Deployment Guide
+# Proslipsi Azure Deployment Guide
 
-This guide provides step-by-step instructions for deploying the ELEV8R application to Azure.
+This guide provides step-by-step instructions for deploying the Proslipsi application to Azure.
 
 ## Architecture Overview
 
@@ -47,7 +47,7 @@ Create a Service Principal with Contributor access to your resource group:
 
 ```powershell
 # Create service principal
-$sp = az ad sp create-for-rbac --name "ELEV8R-Deploy" --role contributor --scopes "/subscriptions/YOUR_SUBSCRIPTION_ID/resourceGroups/YOUR_RESOURCE_GROUP" --sdk-auth | ConvertFrom-Json
+$sp = az ad sp create-for-rbac --name "Proslipsi-Deploy" --role contributor --scopes "/subscriptions/YOUR_SUBSCRIPTION_ID/resourceGroups/YOUR_RESOURCE_GROUP" --sdk-auth | ConvertFrom-Json
 
 # Output the JSON for GitHub Secrets
 $sp | ConvertTo-Json -Compress

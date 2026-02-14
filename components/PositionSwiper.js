@@ -5,13 +5,20 @@ import { useSignedBlobUrl } from '../utils/blobHelpers'
 import { sanitizeDescription } from '../utils/sanitize'
 import VideoPlayer from './VideoPlayer'
 
-export default function PositionSwiper({ initialPositions, onInterested, onNotInterested }){
+export default function PositionSwiper({ initialPositions, onInterested, onNotInterested, onAllReviewed }){
   const [stack, setStack] = useState(initialPositions || []);
   const [loading, setLoading] = useState(!initialPositions);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [exitDirection, setExitDirection] = useState(null); // 'left' | 'right' | null
   const [shareBusy, setShareBusy] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+
+  // Notify parent when all positions are reviewed
+  useEffect(() => {
+    if (!loading && stack.length === 0 && onAllReviewed) {
+      onAllReviewed();
+    }
+  }, [stack.length, loading, onAllReviewed]);
 
   const top = stack && stack.length ? stack[0] : null;
   
@@ -178,18 +185,7 @@ export default function PositionSwiper({ initialPositions, onInterested, onNotIn
   }
 
   if (loading) return <div className="text-center">Loading positions…</div>
-  if (!top) return (
-    <div className="text-center py-5">
-      <div style={{ fontSize: '48px', color: '#dee2e6', marginBottom: '16px' }}>
-        <i className="fas fa-briefcase"></i>
-      </div>
-      <h4 className="text-muted mb-2">You’ve reviewed all positions</h4>
-      <p className="text-muted mb-4">Ready to explore more opportunities?</p>
-      <a href="/seeker/preferences" className="btn btn-primary">
-        <i className="fas fa-sliders-h me-2"></i>Adjust Your Preferences
-      </a>
-    </div>
-  )
+  if (!top) return null; // Return null instead of showing the empty state - parent will handle it
 
   // Extract position data with correct API structure
   const title = top.title ?? top.Title ?? top.jobTitle ?? 'Position';

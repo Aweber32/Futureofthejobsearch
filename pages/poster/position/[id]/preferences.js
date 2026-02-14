@@ -13,6 +13,7 @@ export default function PositionPreferences() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [position, setPosition] = useState(null);
+  const [aiName, setAiName] = useState('AI Assistant');
 
   // Salary state variables (matching seeker preferences format)
   const [salaryType, setSalaryType] = useState('None');
@@ -68,6 +69,15 @@ export default function PositionPreferences() {
 
     (async () => {
       try {
+        // Fetch AI assistant name
+        const aiResponse = await fetch(`${API}/api/AIAssistant`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          setAiName(aiData.name || 'AI Assistant');
+        }
+
         // Load position details
         const posRes = await fetch(`${API}/api/positions/${positionId}`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -331,15 +341,39 @@ export default function PositionPreferences() {
   return (
     <Layout title="Set Candidate Preferences">
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem 1rem' }}>
+        {/* Header Section with AI Logo */}
+        <div className="card mb-4 border-0 shadow-sm">
+          <div className="card-body p-4">
+            <div className="d-flex align-items-center mb-3">
+              <img 
+                src="/futureofthejobsearchAI_logo.png" 
+                alt="AI Assistant" 
+                style={{ 
+                  width: '80px', 
+                  height: '80px', 
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 0 15px rgba(99, 102, 241, 0.4))',
+                  marginRight: '20px'
+                }}
+              />
+              <div className="flex-grow-1">
+                <h2 className="mb-2">Teach {aiName} Your Preferences</h2>
+                {position && (
+                  <p className="text-muted mb-2">
+                    For position: <strong>{position.title}</strong>
+                  </p>
+                )}
+                <p className="text-muted mb-0">
+                  Help {aiName} understand what you're looking for. Be specific about what matters most, 
+                  but avoid being too restrictive — this allows {aiName} to discover great candidates 
+                  you might not have considered.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="mb-4">
-          <h2 style={{ fontSize: '1.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>
-            Candidate Preferences
-          </h2>
-          {position && (
-            <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
-              Set your preferences for <strong>{position.title}</strong> to pre-filter candidates
-            </p>
-          )}
           <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
             <strong>Priority Levels:</strong> <em>None</em> (no filtering), <em>Flexible</em> (stored for future ranking), <em>Deal Breaker</em> (hard filter applied)
           </p>

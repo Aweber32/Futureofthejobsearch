@@ -36,7 +36,9 @@ export default function Login(){
       }
       // success - store token if provided
       if (data?.token) {
-        try { localStorage.setItem('fjs_token', data.token); } catch {}
+        try { 
+          localStorage.setItem('fjs_token', data.token);
+        } catch {}
       }
       router.push('/poster/dashboard');
     }catch(err){

@@ -46,7 +46,7 @@ const JobCarousel = () => {
     {
       id: 2,
       type: 'job',
-      headline: 'Find Jobs based on your experience',
+      headline: 'Jobs based on your experience',
       title: 'Product Manager',
       company: 'Innovatech Labs',
       location: 'Louisville, KY',
@@ -365,11 +365,11 @@ export default function Home(){
       >
         <motion.div variants={fadeInUp}>
           <h1 className="display-4 fw-bold mb-3" style={{color: '#6366f1'}}>
-            ELEV8R
+            Proslipsi
           </h1>
-          <h2 className="display-6 mb-4">Elevating into the right hire</h2>
-          <p className="lead text-muted mb-5 mx-auto" style={{maxWidth: '600px'}}>
-            Revolutionary hiring platform that connects top talent with great companies through intuitive filter-style matching.
+          <h2 className="display-6 mb-4">A More Casual Job Search</h2>
+          <p className="text-muted mb-5 mx-auto" style={{maxWidth: '600px'}}>
+            Your personal AI scans our job bazaar and delivers the right opportunities — so you focus on decisions, not job boards.
           </p>
         </motion.div>
 
@@ -420,8 +420,8 @@ export default function Home(){
         variants={staggerContainer}
       >
         <motion.div className="text-center mb-5" variants={fadeInUp}>
-          <h2 className="display-6 mb-3">How ELEV8R Works</h2>
-          <p className="text-muted">ELEV8R is designed to solve today's hiring challenges</p>
+          <h2 className="display-6 mb-3">How Proslipsi Works</h2>
+          <p className="text-muted">It starts with our 3 core tenants</p>
         </motion.div>
 
         <div className="row">
@@ -464,6 +464,66 @@ export default function Home(){
             </motion.div>
           </div>
         </div>
+
+        {/* How It Works Steps */}
+        <motion.div className="mt-5 pt-5 bg-light rounded-4 p-5" variants={fadeInUp}>
+          <h3 className="text-center h3 mb-5">Stop applying. Start reviewing.</h3>
+          <div className="position-relative">
+            {/* Connecting Line - hidden on mobile */}
+            <div className="d-none d-lg-block position-absolute top-50 start-0 w-100" style={{height: '2px', background: 'linear-gradient(to right, #6366f1, #8b5cf6, #d946ef, #06b6d4)', zIndex: 0, transform: 'translateY(-50%)'}}>
+            </div>
+            
+            <div className="row g-4 position-relative" style={{zIndex: 1}}>
+              {/* Step 1 */}
+              <div className="col-lg-3 col-md-6">
+                <div className="d-flex flex-column align-items-center">
+                  <div className="bg-white border border-2 border-primary rounded-4 p-4 mb-3 shadow-sm" style={{width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                    <UserPlus className="text-primary" size={48} />
+                  </div>
+                  <div className="bg-primary text-white rounded-circle mb-3" style={{width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>1</div>
+                  <h4 className="h5 mb-2 text-center">Sign Up & Name Your AI</h4>
+                  <p className="text-muted small text-center">Create your profile and give your personal AI assistant a name</p>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="col-lg-3 col-md-6">
+                <div className="d-flex flex-column align-items-center">
+                  <div className="bg-white border border-2 border-primary rounded-4 p-4 mb-3 shadow-sm" style={{width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                    <Target className="text-primary" size={48} />
+                  </div>
+                  <div className="bg-primary text-white rounded-circle mb-3" style={{width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>2</div>
+                  <h4 className="h5 mb-2 text-center">Set Your Preferences</h4>
+                  <p className="text-muted small text-center">Tell us what you're looking for — role, salary, location, and more</p>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="col-lg-3 col-md-6">
+                <div className="d-flex flex-column align-items-center">
+                  <div className="bg-white border border-2 border-primary rounded-4 p-4 mb-3 shadow-sm" style={{width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                    <Activity className="text-primary" size={48} />
+                  </div>
+                  <div className="bg-primary text-white rounded-circle mb-3" style={{width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>3</div>
+                  <h4 className="h5 mb-2 text-center">Let Your AI Do the Work</h4>
+                  <p className="text-muted small text-center">Your AI scans the job bazaar to find perfect matches</p>
+                </div>
+              </div>
+
+              {/* Step 4 */}
+              <div className="col-lg-3 col-md-6">
+                <div className="d-flex flex-column align-items-center">
+                  <div className="bg-white border border-2 border-primary rounded-4 p-4 mb-3 shadow-sm" style={{width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                    <MousePointerClick className="text-primary" size={48} />
+                  </div>
+                  <div className="bg-primary text-white rounded-circle mb-3" style={{width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>4</div>
+                  <h4 className="h5 mb-2 text-center">You Review</h4>
+                  <p className="text-muted small text-center">Focus on decisions, not job boards — review curated opportunities</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </motion.section>
 
       {/* Analytics Dashboard Preview */}
@@ -694,7 +754,7 @@ export default function Home(){
                 answer: "Our AI algorithm analyzes your profile, skills, and preferences to show you the most relevant opportunities. Filter through to show interest in the best matches."
               },
               {
-                question: "Is ELEV8R free for job seekers?",
+                question: "Is Proslipsi free for job seekers?",
                 answer: "Yes! Job seekers can create profiles, browse jobs, and apply for positions completely free. We only charge employers for posting jobs and accessing premium features."
               },
               {
@@ -702,7 +762,7 @@ export default function Home(){
                 answer: "You can post your first job and start receiving matches within minutes of signing up. Our streamlined process gets you connected with candidates fast."
               },
               {
-                question: "What makes ELEV8R different from other job boards?",
+                question: "What makes Proslipsi different from other job boards?",
                 answer: "We focus on quality matches over quantity. Our filter-based interface eliminates irrelevant applications and connects you with genuinely interested candidates."
               }
             ].map((faq, i) => (
@@ -745,7 +805,7 @@ export default function Home(){
         variants={fadeInUp}
       >
         <h2 className="display-6 mb-3">Ready to revolutionize your hiring?</h2>
-        <p className="lead mb-4">Join thousands of companies and candidates already using ELEV8R</p>
+        <p className="lead mb-4">Join thousands of companies and candidates already using Proslipsi</p>
         <div className="d-flex gap-3 justify-content-center flex-wrap">
           <Link href="/seeker/signup">
             <motion.button
